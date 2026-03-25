@@ -2,7 +2,8 @@
   "mcpServers": {
     "kit-agents": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/kit-server.js"]
+      "args": ["dist/kit-server.js"],
+      "cwd": "${CLAUDE_PLUGIN_ROOT}"
     }
   }
 }

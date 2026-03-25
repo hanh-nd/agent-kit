@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "claude-kit",
-      "source": ".",
+      "source": "./",
       "description": "Super Engineer — brainstorm, plan, code, and review with a team of specialized AI agents.",
       "version": "1.0.0",
       "keywords": ["engineering", "agents", "brainstorm", "planning", "code-review", "workflow"]
