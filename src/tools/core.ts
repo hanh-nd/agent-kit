@@ -1,6 +1,5 @@
 /**
- * Core Tools - Project context, handoff, and artifact management
- * Extracted from kit-server.ts for better modularity
+ * Core Tools - Extension info and handoff persistence
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -8,7 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { z } from 'zod';
 
-import { getExtensionRoot } from '../utils.js';
+import { getExtensionRoot, getWorkspaceRoot } from '../utils.js';
 import { DEFAULT_EXTENSIONS } from './config.js';
 
 /**
@@ -17,10 +16,12 @@ import { DEFAULT_EXTENSIONS } from './config.js';
 export function registerCoreTools(server: McpServer): void {
   // ═══════════════════════════════════════════════════════════════
   // TOOL: GET EXTENSION INFO
+  // Returns absolute paths so agents can use native Read tool
+  // for loading agent personas and skill files
   // ═══════════════════════════════════════════════════════════════
   server.tool(
     'kit_get_extension_info',
-    'Get information about the claude-kit extension, including absolute paths to agents, skills, commands, and scripts',
+    'Get absolute paths to the claude-kit extension directories (agents, skills, commands, scripts). Use the returned paths with the native Read tool to load agent personas and skill modules.',
     {},
     async () => {
       try {
@@ -52,142 +53,39 @@ export function registerCoreTools(server: McpServer): void {
   );
 
   // ═══════════════════════════════════════════════════════════════
-  // TOOL: GET COMMAND PROMPT
-  // Returns the prompt content from a command .toml file
-  // Used by /do to delegate to the correct command workflow
+  // TOOL: SAVE HANDOFF
+  // Writes brainstorm/plan/ticket artifacts to the workspace
+  // Returns the saved file path for use in next-step instructions
   // ═══════════════════════════════════════════════════════════════
   server.tool(
-    'kit_get_command_prompt',
-    "Get the prompt/workflow of a claude-kit command by name. Use this to understand and follow a command's workflow.",
+    'kit_save_handoff',
+    'Save a brainstorm, plan, or ticket handoff artifact to .claude-kit/handoffs/. Returns the saved file path to use in next-step instructions.',
     {
-      command: z.string().describe('Command name without slash, e.g. "review-pr", "plan", "code"'),
+      type: z.enum(['brainstorm', 'plan', 'ticket']).describe('Handoff type'),
+      content: z.string().describe('Full markdown content to save'),
+      slug: z.string().describe('Short identifier for the filename, e.g. "user-auth" or "PROJ-123"'),
     },
-    async ({ command }) => {
+    async ({ type, content, slug }) => {
       try {
-        const extensionRoot = getExtensionRoot();
-        const commandsDir = path.join(extensionRoot, 'commands');
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const safeSlug = slug.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+        const filename = `${type}-${timestamp}-${safeSlug}.md`;
+        const handoffDir = path.join(getWorkspaceRoot(), '.claude-kit', 'handoffs', `${type}s`);
 
-        // Sanitize command name
-        const safeName = command.replace(/[^a-zA-Z0-9-_]/g, '');
-        const filePath = path.join(commandsDir, `${safeName}.md`);
-
-        if (!fs.existsSync(filePath)) {
-          // List available commands
-          const available = fs
-            .readdirSync(commandsDir)
-            .filter((f) => f.endsWith('.md'))
-            .map((f) => f.replace('.md', ''))
-            .sort();
-
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `❌ Command "${command}" not found.\n\nAvailable commands:\n${available.map((c) => `  /${c}`).join('\n')}`,
-              },
-            ],
-          };
+        if (!fs.existsSync(handoffDir)) {
+          fs.mkdirSync(handoffDir, { recursive: true });
         }
 
-        let content = fs.readFileSync(filePath, 'utf8');
-
-        // Rewrite relative paths to absolute paths for agents, skills, and scripts
-        // Matches: agents/*.md, skills/*/SKILL.md, scripts/*.js
-        const agentsPath = path.join(extensionRoot, 'agents');
-        const skillsPath = path.join(extensionRoot, 'skills');
-        const scriptsPath = path.join(extensionRoot, 'scripts');
-
-        // Replace `agents/`, `skills/`, and `scripts/` when they appear as start of path in prompt
-        content = content.replace(/(`?)agents\//g, `$1${agentsPath}${path.sep}`);
-        content = content.replace(/(`?)skills\//g, `$1${skillsPath}${path.sep}`);
-        content = content.replace(/(`?)scripts\//g, `$1${scriptsPath}${path.sep}`);
+        const filePath = path.join(handoffDir, filename);
+        fs.writeFileSync(filePath, content, 'utf8');
 
         return {
-          content: [
-            {
-              type: 'text' as const,
-              text: content,
-            },
-          ],
+          content: [{ type: 'text' as const, text: `✅ Saved to: ${filePath}` }],
         };
       } catch (error) {
-        return { content: [{ type: 'text' as const, text: `Error reading command: ${error}` }] };
-      }
-    }
-  );
-
-  // ═══════════════════════════════════════════════════════════════
-  // TOOL: LOAD SKILL
-  // Replaces Gemini CLI's built-in activate_skill for Claude Code
-  // ═══════════════════════════════════════════════════════════════
-  server.tool(
-    'kit_load_skill',
-    'Load a skill module to activate specialized instructions. Returns the full SKILL.md content. Use instead of activate_skill.',
-    {
-      skillName: z
-        .string()
-        .describe('Skill name, e.g. "coding-common", "unit-testing", "code-review", "security", "debug"'),
-    },
-    async ({ skillName }) => {
-      try {
-        const extensionRoot = getExtensionRoot();
-        const safeName = skillName.replace(/[^a-zA-Z0-9-_]/g, '');
-        const skillPath = path.join(extensionRoot, 'skills', safeName, 'SKILL.md');
-
-        if (!fs.existsSync(skillPath)) {
-          const available = fs
-            .readdirSync(path.join(extensionRoot, 'skills'))
-            .filter((f) => fs.statSync(path.join(extensionRoot, 'skills', f)).isDirectory())
-            .sort();
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `❌ Skill "${skillName}" not found.\n\nAvailable skills:\n${available.map((s) => `  ${s}`).join('\n')}`,
-              },
-            ],
-          };
-        }
-
-        const content = fs.readFileSync(skillPath, 'utf8');
-        return { content: [{ type: 'text' as const, text: content }] };
-      } catch (error) {
-        return { content: [{ type: 'text' as const, text: `Error loading skill: ${error}` }] };
-      }
-    }
-  );
-
-  // ═══════════════════════════════════════════════════════════════
-  // TOOL: LOAD AGENT
-  // Replaces read_file("agents/X.md") calls in commands
-  // ═══════════════════════════════════════════════════════════════
-  server.tool(
-    'kit_load_agent',
-    'Load an agent persona or workflow pipeline markdown file. Use "coder", "planner", "brainstormer", "code-reviewer", or "workflows/code-execution" etc.',
-    {
-      name: z
-        .string()
-        .describe(
-          'Agent name (e.g. "coder", "planner") or workflow path (e.g. "workflows/code-execution", "workflows/planning-pipeline")'
-        ),
-    },
-    async ({ name }) => {
-      try {
-        const extensionRoot = getExtensionRoot();
-        // Sanitize: allow letters, numbers, hyphens, underscores, and forward slash for workflow paths
-        const safeName = name.replace(/[^a-zA-Z0-9-_/]/g, '');
-        const agentPath = path.join(extensionRoot, 'agents', `${safeName}.md`);
-
-        if (!fs.existsSync(agentPath)) {
-          return {
-            content: [{ type: 'text' as const, text: `❌ Agent/workflow file not found: agents/${safeName}.md` }],
-          };
-        }
-
-        const content = fs.readFileSync(agentPath, 'utf8');
-        return { content: [{ type: 'text' as const, text: content }] };
-      } catch (error) {
-        return { content: [{ type: 'text' as const, text: `Error loading agent: ${error}` }] };
+        return {
+          content: [{ type: 'text' as const, text: `Error saving handoff: ${error}` }],
+        };
       }
     }
   );

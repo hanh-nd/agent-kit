@@ -12,7 +12,6 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 // Import modular tool registrations
 import { registerCoreTools } from './tools/core.js';
 import { registerIntegrationTools } from './tools/integration.js';
-import { registrerOrchestrationTools } from './tools/orchestration.js';
 
 const server = new McpServer({
   name: 'claude-kit-agents',
@@ -24,8 +23,7 @@ const server = new McpServer({
 // ═══════════════════════════════════════════════════════════════
 
 registerIntegrationTools(server); // GitHub, Jira tools
-registerCoreTools(server);         // Extension info, skills, agent loader
-registrerOrchestrationTools(server); // Workflow state machine
+registerCoreTools(server);         // Extension info, handoff persistence
 
 // ═══════════════════════════════════════════════════════════════
 // START SERVER
