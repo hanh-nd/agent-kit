@@ -68,10 +68,8 @@ Read the full Implementation Plan from `$ARGUMENTS`. If it is a file path (e.g. 
 
 ### Phase 3: Skill Loading
 
-1. Call `kit_get_extension_info()` to get `skillsDir`.
-2. `Read <skillsDir>/coding-common/SKILL.md` — always load clean code standards.
-3. If Phase 1 determined testing is required: `Read <skillsDir>/unit-testing/SKILL.md`.
-4. Load any additional skills identified as needed by the plan.
+1. Load the `coding-common` skill.
+2. Load any additional skills identified as needed by the plan.
 
 ### Phase 4: Targeted Context Ingestion
 

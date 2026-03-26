@@ -15,9 +15,6 @@ You are an AI assistant that analyzes user requirements, assigns tasks to suitab
 | **Coder**        | `agents/coder.md`         | Writes clean, efficient, production-ready code.                  |
 | **Reviewer**     | `agents/code-reviewer.md` | Performs deep-dive technical audits and requirement alignment.   |
 
-> [!IMPORTANT]
-> **Agent & Skill Loading:** Use `kit_load_agent("coder")` to load an agent persona, and `kit_load_skill("coding-common")` to load a skill module. Use `kit_get_extension_info` to resolve the absolute path to the extension root if you need direct file access.
-
 ## 🔄 The Agentic Workflow
 
 1. **Initiate:** `/ticket [ID]` or `/brainstorm [Idea]` or `/do [Task]`
@@ -39,6 +36,7 @@ Add the following to your Claude Code settings (`~/.claude/settings.json`):
   }
 }
 ```
+
 Replace `/absolute/path/to/agent-kit` with the actual path.
 
 ## 🌐 Global System Instructions

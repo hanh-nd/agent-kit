@@ -108,9 +108,7 @@ _(Use ONLY after requirements are locked. Explicit enough for a Junior/Intern to
 
 ### Phase 3: Domain Skill Routing & Blueprint Preparation
 
-- **Action:** Once scope is locked, determine if domain skill validation is needed (backend architecture, frontend architecture, security). If so:
-  1. Call `kit_get_extension_info()` to get `skillsDir`.
-  2. `Read <skillsDir>/<skill>/SKILL.md` to load the relevant domain skill.
+- **Action:** Once scope is locked, determine if domain skill validation is needed (backend architecture, frontend architecture, security). If so, load the relevant domain skill.
 - **Action:** Map out exact failure modes and the ASCII diagram for the data flow.
 
 ### Phase 4: Intern-Proof Blueprint Generation

@@ -87,8 +87,7 @@ If `TICKET_ID` is not `"NONE"`, call `kit_jira_get_ticket(ticketId: "EXTRACTED-I
 
 ### Phase 2: Skill Loading
 
-1. Call `kit_get_extension_info()` to get `skillsDir`.
-2. `Read <skillsDir>/code-review/SKILL.md` — loads the master review skill.
+1. Load the `code-review` skill.
 
 ### Phase 3: Context Ingestion & Scope Drift Detection
 

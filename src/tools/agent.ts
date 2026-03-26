@@ -127,8 +127,15 @@ export function registerAgentTools(server: McpServer): void {
         }
 
         // Execute the agent CLI with the prompt
+        // Gemini: -y (--yolo) for auto-accept, -p for headless prompt
+        // Claude: --dangerously-skip-permissions for auto-accept, -p/--print for headless
+        const agentArgs =
+          usedAgent === 'gemini'
+            ? ['-y', '-p', prompt]
+            : ['--dangerously-skip-permissions', '-p', prompt];
+
         const jobId = randomUUID();
-        const child = spawn(usedAgent, ['--y', '-p', prompt], {
+        const child = spawn(usedAgent, agentArgs, {
           cwd: workspaceRoot,
           env: { ...process.env, GEMINI_WORKSPACE: workspaceRoot },
         });

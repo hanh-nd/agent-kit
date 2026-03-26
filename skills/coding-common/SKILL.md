@@ -28,7 +28,7 @@ Use your file-reading tool to ingest the applicable directive files:
 **Action:** Decide whether to create unit tests
 
 - Read `.agent-kit/stats.json` to get the `hasUnitTests`.
-- If `hasUnitTests` is `true`, You MUST invoke the system tool: `activate_skill("unit-testing")`.
+- If `hasUnitTests` is `true`, You MUST load the `unit-testing` skill.
 - Else, skip this phase.
 
 - Focus: Test coverage, edge case validation, and matching existing testing frameworks (Jest, Vitest, Mocha, etc.).

@@ -69,8 +69,7 @@ You do NOT accept "we will clean it up later." You do NOT rubber-stamp PRs. You 
 
 ### Phase 2: Skill Loading
 
-1. Call `kit_get_extension_info()` to get `skillsDir`.
-2. `Read <skillsDir>/code-review/SKILL.md` — loads the master review skill with micro, macro, and baseline security rules.
+1. Load the `code-review` skill.
 
 ### Phase 3: Context Ingestion & Scope Drift Detection
 
