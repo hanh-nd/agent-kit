@@ -22,7 +22,7 @@ agent-kit gives Claude Code a team of four specialized agents:
 | `/ak:code [file or task]`     | Implement from a plan                   |
 | `/ak:review-pr [PR URL]`      | Review a pull request                   |
 | `/ak:review-changes`          | Review uncommitted local changes        |
-| `/ak:ticket [ID]`             | Work from a Jira/GitHub ticket          |
+| `/ak:ticket [ID]`             | Fetch a Jira ticket and plan from it    |
 | `/ak:do [task]`               | Route a task through the full pipeline  |
 | `/ak:git`                     | Git commit, branch, and PR workflow     |
 | `/ak:workflow`                | Resume or check workflow state          |
@@ -35,32 +35,34 @@ agent-kit gives Claude Code a team of four specialized agents:
 
 ### Option 1: Install via GitHub (Recommended)
 
-> Requires Claude Code with plugin support.
-
 ```bash
-claude plugin install hanh-nd/agent-kit
+claude plugin marketplace add https://github.com/hanh-nd/agent-kit
+claude plugin install agent-kit
 ```
 
-This fetches the plugin from GitHub, installs it to Claude Code's plugin cache, and registers the MCP server automatically using `${CLAUDE_PLUGIN_ROOT}` — no manual path configuration needed.
+The plugin fetches from GitHub, registers the MCP server automatically, and makes all commands available immediately.
 
-After installation, the commands are available immediately in any Claude Code session:
+**Add credentials** to `~/.claude/settings.json`:
 
+```json
+{
+  "mcpServers": {
+    "kit-agents": {
+      "env": {
+        "ATLASSIAN_SITE_NAME": "yourcompany.atlassian.net",
+        "ATLASSIAN_USER_EMAIL": "you@yourcompany.com",
+        "ATLASSIAN_API_TOKEN": "your-atlassian-api-token",
+        "BITBUCKET_USER_EMAIL": "you@yourcompany.com",
+        "BITBUCKET_API_TOKEN": "your-atlassian-api-token",
+        "BITBUCKET_DEFAULT_WORKSPACE": "your-default-workspace-slug"
+      }
+    }
+  }
+}
 ```
-/ak:brainstorm redesign the auth system
-/ak:plan implement user notifications
-```
 
-To update to the latest version:
-
-```bash
-claude plugin update agent-kit
-```
-
-To uninstall:
-
-```bash
-claude plugin uninstall agent-kit
-```
+To update: `claude plugin update agent-kit`
+To uninstall: `claude plugin uninstall agent-kit`
 
 ---
 
@@ -68,57 +70,48 @@ claude plugin uninstall agent-kit
 
 Use this if you want to modify the plugin or develop against it.
 
-**1. Clone the repository**
+**1. Clone and build**
 
 ```bash
 git clone https://github.com/hanh-nd/agent-kit.git
 cd agent-kit
-```
-
-**2. Install dependencies and build**
-
-```bash
 npm install
 npm run build
 ```
 
-This compiles the TypeScript MCP server into a self-contained bundle at `dist/kit-server.js`.
-
-**3. Register the MCP server with Claude Code**
-
-Add the following to your Claude Code user settings (`~/.claude/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "kit-agents": {
-      "command": "node",
-      "args": ["/absolute/path/to/agent-kit/dist/kit-server.js"]
-    }
-  }
-}
-```
-
-Replace `/absolute/path/to/agent-kit` with the actual path where you cloned the repo.
-
-**4. Load the plugin commands**
-
-Add the plugin directory to Claude Code so it picks up the `commands/` and `CLAUDE.md`:
+**2. Register the plugin**
 
 ```bash
 claude plugin marketplace add /absolute/path/to/agent-kit
 claude plugin install agent-kit
 ```
 
-**5. Verify installation**
+This registers the MCP server automatically (pointing to your local build). Do **not** manually add a `kit-agents` entry to `settings.json` — the plugin handles that.
 
-Start a Claude Code session and run:
+**3. Add credentials** to `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "kit-agents": {
+      "env": {
+        "ATLASSIAN_SITE_NAME": "yourcompany.atlassian.net",
+        "ATLASSIAN_USER_EMAIL": "you@yourcompany.com",
+        "ATLASSIAN_API_TOKEN": "your-atlassian-api-token",
+        "BITBUCKET_USER_EMAIL": "you@yourcompany.com",
+        "BITBUCKET_API_TOKEN": "your-atlassian-api-token",
+        "BITBUCKET_DEFAULT_WORKSPACE": "your-default-workspace-slug"
+      }
+    }
+  }
+}
+```
+
+**4. Verify**
 
 ```
 /ak:brainstorm test idea
 ```
-
-You should see the Brainstormer agent activate and begin the interactive session.
 
 ---
 
@@ -140,3 +133,27 @@ The MCP server source is in `src/`. Agent personas are in `agents/`. Skill modul
 
 - Node.js 18+
 - Claude Code (latest)
+
+---
+
+## Integrations
+
+### Jira (via Atlassian REST API)
+
+Used by `/ak:ticket` and `/ak:review-pr`.
+
+| Variable               | Description                                                                                                                              |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `ATLASSIAN_SITE_NAME`  | Your Atlassian domain, e.g. `yourcompany.atlassian.net`                                                                                  |
+| `ATLASSIAN_USER_EMAIL` | Your Atlassian account email                                                                                                             |
+| `ATLASSIAN_API_TOKEN`  | API token — create at [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
+
+### Bitbucket Cloud (via Bitbucket REST API)
+
+Used by `/ak:review-pr`.
+
+| Variable                      | Description                                                                                                                              |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `BITBUCKET_USER_EMAIL`        | Your Atlassian account email (same as Jira)                                                                                              |
+| `BITBUCKET_API_TOKEN`         | API token — create at [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
+| `BITBUCKET_DEFAULT_WORKSPACE` | Default workspace slug — used when passing a numeric PR ID without a `workspace` param                                                   |

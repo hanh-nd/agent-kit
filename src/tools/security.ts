@@ -55,7 +55,6 @@ function extractStderr(error: unknown): string {
 
 // Configurable timeouts via environment variables
 const GIT_TIMEOUT = parseInt(process.env.GEMINI_KIT_GIT_TIMEOUT || '30000', 10);
-const GH_TIMEOUT = parseInt(process.env.GEMINI_KIT_GH_TIMEOUT || '60000', 10);
 
 /**
  * Safe git command execution using execFileSync
@@ -75,27 +74,6 @@ export function safeGit(args: string[], options?: { timeout?: number; cwd?: stri
     const stderr = extractStderr(error);
     const baseMsg = error instanceof Error ? error.message : String(error);
     throw new Error(`Git command failed: ${baseMsg}${stderr ? `\nDetails: ${stderr}` : ''}`);
-  }
-}
-
-/**
- * Safe gh (GitHub CLI) command execution
- * Includes stderr in error message for better debugging
- *
- * @param timeout Default from GEMINI_KIT_GH_TIMEOUT env var or 60s
- */
-export function safeGh(args: string[], options?: { timeout?: number; cwd?: string }): string {
-  try {
-    return execFileSync('gh', args, {
-      encoding: 'utf8',
-      timeout: options?.timeout || GH_TIMEOUT,
-      cwd: options?.cwd || getWorkspaceRoot(),
-      maxBuffer: 10 * 1024 * 1024,
-    });
-  } catch (error) {
-    const stderr = extractStderr(error);
-    const baseMsg = error instanceof Error ? error.message : String(error);
-    throw new Error(`GitHub CLI failed: ${baseMsg}${stderr ? `\nDetails: ${stderr}` : ''}`);
   }
 }
 
@@ -167,57 +145,3 @@ export async function findFilesAsync(
   return results;
 }
 
-// Configurable timeout for Bitbucket CLI (bkt)
-
-const BKT_TIMEOUT = parseInt(process.env.GEMINI_KIT_BKT_TIMEOUT || '60000', 10);
-
-/**
- * Safe bkt (Bitbucket CLI) command execution
- * Includes stderr in error message for better debugging
- *
- * Requires bkt CLI: brew install avivsinai/tap/bitbucket-cli
- * Auth via: bkt auth login https://bitbucket.org --kind cloud --web
- * See: https://github.com/avivsinai/bitbucket-cli
- *
- * @param timeout Default from GEMINI_KIT_BKT_TIMEOUT env var or 60s
- */
-export function safeBkt(args: string[], options?: { timeout?: number; cwd?: string }): string {
-  try {
-    return execFileSync('bkt', args, {
-      encoding: 'utf8',
-      timeout: options?.timeout || BKT_TIMEOUT,
-      maxBuffer: 10 * 1024 * 1024,
-      cwd: options?.cwd || getWorkspaceRoot(),
-    });
-  } catch (error) {
-    const stderr = extractStderr(error);
-    const baseMsg = error instanceof Error ? error.message : String(error);
-    throw new Error(`Bitbucket CLI failed: ${baseMsg}${stderr ? `\nDetails: ${stderr}` : ''}`);
-  }
-}
-
-// Configurable timeout for Atlassian CLI (acli)
-const ACLI_TIMEOUT = parseInt(process.env.GEMINI_KIT_ACLI_TIMEOUT || '60000', 10);
-
-/**
- * Safe acli (Atlassian CLI) command execution
- * Includes stderr in error message for better debugging
- *
- * Requires acli: https://developer.atlassian.com/cloud/acli/guides/how-to-get-started/
- *
- * @param timeout Default from GEMINI_KIT_ACLI_TIMEOUT env var or 60s
- */
-export function safeAcli(args: string[], options?: { timeout?: number; cwd?: string }): string {
-  try {
-    return execFileSync('acli', args, {
-      encoding: 'utf8',
-      timeout: options?.timeout || ACLI_TIMEOUT,
-      maxBuffer: 10 * 1024 * 1024,
-      cwd: options?.cwd || getWorkspaceRoot(),
-    });
-  } catch (error) {
-    const stderr = extractStderr(error);
-    const baseMsg = error instanceof Error ? error.message : String(error);
-    throw new Error(`Atlassian CLI failed: ${baseMsg}${stderr ? `\nDetails: ${stderr}` : ''}`);
-  }
-}

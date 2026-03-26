@@ -1,5 +1,5 @@
 ---
-description: 'Deep PR review for GitHub or Bitbucket with Jira alignment and 2-pass analysis'
+description: 'Deep Bitbucket PR review with Jira alignment and 2-pass analysis'
 ---
 
 # 🔍 Review PR
@@ -62,11 +62,9 @@ You do NOT accept "we will clean it up later." You do NOT rubber-stamp PRs. You 
 
 ### Phase 1: Context Acquisition (MANDATORY — do this before looking at any code)
 
-1. **Detect Provider:** Call `kit_get_provider(input: "$ARGUMENTS")` → returns `provider`, `prId`, and repo metadata.
-2. **Fetch PR Details:** Call `kit_get_pr` using the values from step 1.
-3. **Fetch PR Diff:** Call `kit_get_pr_diff` using the values from step 1. If any tool returns an error, STOP and report.
-4. **Fetch Business Requirements:** If a Jira/Ticket ID (e.g. `PROJ-123`) is found in the PR title, body, or branch name, call `kit_jira_get_ticket(ticketId: "EXTRACTED-ID")`.
-5. **Fallback:** If no PR description, commit intent, or Jira ticket is found, append to final output:
+1. **Fetch PR Details + Diff:** Call `kit_get_bitbucket_pr(input: "$ARGUMENTS", includeDiff: true)` → returns PR metadata and unified diff in one response. If the tool returns an error, STOP and report.
+2. **Fetch Business Requirements:** If a Jira/Ticket ID (e.g. `PROJ-123`) is found in the PR title, description, or branch name, call `kit_jira_get_ticket(ticketId: "EXTRACTED-ID")`.
+3. **Fallback:** If no PR description, commit intent, or Jira ticket is found, append to final output:
    > ⚠️ **Warning:** Missing business context (No PR description or Ticket). Reviewing based on technical semantics only.
 
 ### Phase 2: Skill Loading

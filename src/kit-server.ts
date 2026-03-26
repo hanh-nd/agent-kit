@@ -23,7 +23,7 @@ const server = new McpServer({
 // REGISTER MODULAR TOOLS
 // ═══════════════════════════════════════════════════════════════
 
-registerIntegrationTools(server); // GitHub, Jira tools
+registerIntegrationTools(server); // Bitbucket, Jira tools (REST API)
 registerCoreTools(server); // Extension info, handoff persistence
 registerAgentTools(server); // Gemini/Claude CLI delegation
 

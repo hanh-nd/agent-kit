@@ -1,23 +1,22 @@
 /**
- * Integration Tools - GitHub, Bitbucket, Jira
- * Tools 14, 15, 16, 17, 18, 19
+ * Integration Tools - Bitbucket, Jira
+ * Tools: kit_get_bitbucket_pr, kit_jira_get_ticket
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
-import { commandExists, safeAcli, safeBkt, safeGh, sanitize } from './security.js';
+import { sanitize } from './security.js';
 
-// Zod schemas for GitHub CLI responses (MEDIUM 3: Validate JSON)
-const PrDetailSchema = z.object({
+// Zod schema for Bitbucket PR REST API response
+const BitbucketPrSchema = z.object({
+  id: z.number(),
   title: z.string(),
-  body: z.string().nullable(),
-  state: z.string(),
-  author: z.object({ login: z.string() }),
-  labels: z.array(z.object({ name: z.string() })),
-  changedFiles: z.number(),
-  additions: z.number(),
-  deletions: z.number(),
+  description: z.string().nullable().optional(),
+  state: z.enum(['OPEN', 'MERGED', 'DECLINED', 'SUPERSEDED']),
+  author: z.object({ display_name: z.string(), nickname: z.string() }),
+  source: z.object({ branch: z.object({ name: z.string() }) }),
+  destination: z.object({ branch: z.object({ name: z.string() }) }),
 });
 
 // MEDIUM 2: Jira ticket schema for runtime validation
@@ -87,236 +86,204 @@ function extractAdfText(adf: Record<string, unknown> | null | undefined): string
   return textParts.join(' ') || 'No description';
 }
 
-// Note: IssueDetailSchema reserved for future kit_github_get_issue tool
-
-/**
- * Helper: Get GitHub PR data
- */
-async function getGitHubPr(prNumber: number, action: 'view' | 'diff' = 'view', repo?: string) {
-  if (!commandExists('gh')) {
-    throw new Error('❌ GitHub CLI (gh) not installed. Install with: brew install gh');
+function buildJiraBasicAuth(): string {
+  const email = process.env.ATLASSIAN_USER_EMAIL;
+  const token = process.env.ATLASSIAN_API_TOKEN;
+  if (!email || !token) {
+    throw new Error('Missing ATLASSIAN_USER_EMAIL or ATLASSIAN_API_TOKEN');
   }
-
-  if (action === 'diff') {
-    const diffArgs = ['pr', 'diff', String(prNumber)];
-    if (repo) diffArgs.push('--repo', sanitize(repo));
-    const diff = safeGh(diffArgs);
-    return `### Diff\n\`\`\`diff\n${diff.slice(0, 5000)}${diff.length > 5000 ? '\n... (truncated)' : ''}\n\`\`\``;
-  }
-
-  const prArgs = [
-    'pr',
-    'view',
-    String(prNumber),
-    '--json',
-    'title,body,state,author,labels,changedFiles,additions,deletions',
-  ];
-
-  if (repo) prArgs.push('--repo', sanitize(repo));
-  const prInfo = safeGh(prArgs);
-
-  const parseResult = PrDetailSchema.safeParse(JSON.parse(prInfo));
-  if (!parseResult.success) {
-    throw new Error(`❌ Failed to parse PR data: ${parseResult.error.message}`);
-  }
-  const pr = parseResult.data;
-  const output = `## PR #${prNumber}: ${pr.title}
-
-**State:** ${pr.state}
-**Author:** ${pr.author.login}
-**Labels:** ${pr.labels.map((l) => l.name).join(', ') || 'none'}
-**Changes:** +${pr.additions} / -${pr.deletions} (${pr.changedFiles} files)
-
-### Description
-${pr.body || 'No description'}`;
-
-  return output;
+  return 'Basic ' + Buffer.from(`${email}:${token}`).toString('base64');
 }
 
-/**
- * Helper: Get Bitbucket PR data
- */
-async function getBitbucketPr(
-  prId: number,
-  action: 'view' | 'diff' = 'view',
-  workspace?: string,
-  repoSlug?: string,
-  context?: string
-) {
-  if (!commandExists('bkt')) {
-    throw new Error('❌ Bitbucket CLI (bkt) not installed.');
+function buildBitbucketBasicAuth(): string {
+  const email = process.env.BITBUCKET_USER_EMAIL;
+  const token = process.env.BITBUCKET_API_TOKEN;
+  if (!email || !token) {
+    throw new Error('Missing BITBUCKET_USER_EMAIL or BITBUCKET_API_TOKEN');
   }
+  return 'Basic ' + Buffer.from(`${email}:${token}`).toString('base64');
+}
 
-  if (action === 'diff') {
-    const diffArgs = ['pr', 'diff', String(prId)];
-    if (workspace) diffArgs.push('--workspace', sanitize(workspace));
-    if (repoSlug) diffArgs.push('--repo', sanitize(repoSlug));
-    if (context) diffArgs.push('--context', sanitize(context));
-
-    const diff = safeBkt(diffArgs);
-    return `### Diff\n\`\`\`diff\n${diff.slice(0, 5000)}${diff.length > 5000 ? '\n... (truncated)' : ''}\n\`\`\``;
+async function callAtlassianRestApi(url: string): Promise<unknown> {
+  const auth = buildJiraBasicAuth();
+  const resp = await fetch(url, { headers: { Authorization: auth, Accept: 'application/json' } });
+  if (resp.status === 401) {
+    throw new Error('❌ Auth failed: check ATLASSIAN_USER_EMAIL and ATLASSIAN_API_TOKEN');
   }
+  if (resp.status === 404) {
+    throw new Error(`❌ Not found: ${url}`);
+  }
+  if (!resp.ok) {
+    throw new Error(`❌ API error ${resp.status}: ${await resp.text()}`);
+  }
+  return await resp.json();
+}
 
-  const viewArgs = ['pr', 'view', String(prId), '--json'];
-  if (workspace) viewArgs.push('--workspace', sanitize(workspace));
-  if (repoSlug) viewArgs.push('--repo', sanitize(repoSlug));
-  if (context) viewArgs.push('--context', sanitize(context));
+async function callBitbucketRestApi(url: string): Promise<unknown> {
+  const auth = buildBitbucketBasicAuth();
+  const resp = await fetch(url, { headers: { Authorization: auth, Accept: 'application/json' } });
+  if (resp.status === 401) {
+    throw new Error('❌ Auth failed: check BITBUCKET_USER_EMAIL and BITBUCKET_API_TOKEN');
+  }
+  if (resp.status === 404) {
+    throw new Error(`❌ Not found: ${url}`);
+  }
+  if (!resp.ok) {
+    throw new Error(`❌ API error ${resp.status}: ${await resp.text()}`);
+  }
+  return await resp.json();
+}
 
-  const prInfo = safeBkt(viewArgs);
-  const pr = JSON.parse(prInfo);
-
-  const output = `## PR #${prId} Details\n\n\`\`\`json\n${JSON.stringify(pr, null, 2)}\n\`\`\``;
-
-  return output;
+async function callBitbucketDiffApi(url: string): Promise<string> {
+  const auth = buildBitbucketBasicAuth();
+  const resp = await fetch(url, { headers: { Authorization: auth, Accept: 'text/plain' } });
+  if (resp.status === 401) {
+    throw new Error('❌ Auth failed: check BITBUCKET_USER_EMAIL and BITBUCKET_API_TOKEN');
+  }
+  if (resp.status === 404) {
+    throw new Error(`❌ Not found: ${url}`);
+  }
+  if (!resp.ok) {
+    throw new Error(`❌ API error ${resp.status}: ${await resp.text()}`);
+  }
+  return await resp.text();
 }
 
 export function registerIntegrationTools(server: McpServer): void {
-  // TOOL: DETECT PR PROVIDER
+  // TOOL: GET BITBUCKET PR
   server.tool(
-    'kit_get_provider',
-    'Detect git provider and PR metadata from URL or numeric ID',
+    'kit_get_bitbucket_pr',
+    'Get Bitbucket PR details and optionally the diff. Accepts a full PR URL or a numeric PR ID with workspace + repoSlug.',
     {
-      input: z.string().describe('PR URL or Numeric ID'),
+      input: z.string().describe('Bitbucket PR URL or numeric PR ID'),
+      workspace: z
+        .string()
+        .optional()
+        .describe(
+          'Bitbucket workspace slug (required for numeric ID if BITBUCKET_DEFAULT_WORKSPACE not set)'
+        ),
+      repoSlug: z.string().optional().describe('Bitbucket repo slug (required for numeric ID)'),
+      includeDiff: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe('Include unified diff in response'),
     },
-    async ({ input }) => {
+    async ({ input, workspace, repoSlug, includeDiff }) => {
       try {
-        let prId: number | undefined;
-        let provider: 'github' | 'bitbucket' | undefined;
+        const bbEmail = process.env.BITBUCKET_USER_EMAIL;
+        const bbToken = process.env.BITBUCKET_API_TOKEN;
+        if (!bbEmail || !bbToken) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `❌ Missing BITBUCKET_USER_EMAIL or BITBUCKET_API_TOKEN. Create an API token at id.atlassian.com/manage-profile/security/api-tokens.`,
+              },
+            ],
+          };
+        }
+
+        let ws: string | undefined;
         let repo: string | undefined;
-        let workspace: string | undefined;
-        let repoSlug: string | undefined;
+        let prId: number | undefined;
 
-        // 1. Detect input type
-        const githubMatch = input.match(/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/);
-        const bitbucketMatch = input.match(
-          /bitbucket\.org\/([^/]+)\/([^/]+)\/pull-requests\/(\d+)/
-        );
-        const numericMatch = input.match(/^\d+$/);
-
-        if (githubMatch) {
-          provider = 'github';
-          repo = githubMatch[1];
-          prId = parseInt(githubMatch[2], 10);
-        } else if (bitbucketMatch) {
-          provider = 'bitbucket';
-          workspace = bitbucketMatch[1];
-          repoSlug = bitbucketMatch[2];
-          prId = parseInt(bitbucketMatch[3], 10);
-        } else if (numericMatch) {
+        // Try URL parse
+        const urlMatch = input.match(/bitbucket\.org\/([^/]+)\/([^/]+)\/pull-requests\/(\d+)/);
+        if (urlMatch) {
+          ws = urlMatch[1];
+          repo = urlMatch[2];
+          prId = parseInt(urlMatch[3], 10);
+        } else if (input.match(/^\d+$/)) {
           prId = parseInt(input, 10);
-          // Detect provider from git remote
-          const { safeGit } = await import('./security.js');
-          let remoteUrl: string;
-          try {
-            remoteUrl = safeGit(['remote', 'get-url', 'origin']).trim();
-          } catch (error) {
-            throw new Error(
-              `❌ Failed to identify git provider from local repository: ${error instanceof Error ? error.message : String(error)}`
-            );
-          }
-
-          if (remoteUrl.includes('github.com')) {
-            provider = 'github';
-            const m = remoteUrl.match(/github\.com[:/]([^/]+\/[^/.]+)(\.git)?$/);
-            if (m) repo = m[1];
-          } else if (remoteUrl.includes('bitbucket.org')) {
-            provider = 'bitbucket';
-            const m = remoteUrl.match(/bitbucket\.org[:/]([^/]+)\/([^/.]+)(\.git)?$/);
-            if (m) {
-              workspace = m[1];
-              repoSlug = m[2];
-            }
-          }
+          ws = workspace || process.env.BITBUCKET_DEFAULT_WORKSPACE;
+          repo = repoSlug;
         }
 
-        if (!provider || !prId) {
-          throw new Error(`❌ Could not detect provider or PR ID from input: ${input}`);
+        if (!ws) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `❌ workspace is required. Pass it as a parameter or set BITBUCKET_DEFAULT_WORKSPACE in your MCP env config.`,
+              },
+            ],
+          };
         }
 
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: JSON.stringify({ provider, prId, repo, workspace, repoSlug }, null, 2),
-            },
-          ],
-        };
+        if (!repo || !prId) {
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: `❌ Could not parse PR URL. Expected: bitbucket.org/{ws}/{repo}/pull-requests/{id}`,
+              },
+            ],
+          };
+        }
+
+        const safeWs = sanitize(ws);
+        const safeRepo = sanitize(repo);
+
+        const prUrl = `https://api.bitbucket.org/2.0/repositories/${safeWs}/${safeRepo}/pullrequests/${prId}`;
+        const jsonData = await callBitbucketRestApi(prUrl);
+
+        const parseResult = BitbucketPrSchema.safeParse(jsonData);
+        if (!parseResult.success) {
+          throw new Error(`Failed to parse PR response: ${parseResult.error.message}`);
+        }
+        const pr = parseResult.data;
+
+        let output = `## PR #${pr.id}: ${pr.title}
+**State:** ${pr.state}  **Author:** ${pr.author.display_name}
+**Branch:** ${pr.source.branch.name} → ${pr.destination.branch.name}
+
+### Description
+${pr.description || 'No description'}`;
+
+        if (includeDiff) {
+          const diffUrl = `https://api.bitbucket.org/2.0/repositories/${safeWs}/${safeRepo}/pullrequests/${prId}/diff`;
+          const diff = await callBitbucketDiffApi(diffUrl);
+          const truncated =
+            diff.slice(0, 8000) +
+            (diff.length > 8000 ? `\n... (truncated — ${diff.length - 8000} chars omitted)` : '');
+          output += `\n\n### Diff\n\`\`\`diff\n${truncated}\n\`\`\``;
+        }
+
+        return { content: [{ type: 'text' as const, text: output }] };
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: 'text' as const, text: `❌ Error: ${errorMsg}` }] };
+        return { content: [{ type: 'text' as const, text: errorMsg }] };
       }
     }
   );
 
-  // TOOL: GET PR DETAILS
-  server.tool(
-    'kit_get_pr',
-    'Get PR details by provider and PR ID',
-    {
-      provider: z.enum(['github', 'bitbucket']),
-      prId: z.number().int().positive().describe('PR ID or number'),
-      repo: z.string().optional().describe('GitHub repo (owner/repo)'),
-      workspace: z.string().optional().describe('Bitbucket workspace'),
-      repoSlug: z.string().optional().describe('Bitbucket repo slug'),
-    },
-    async ({ provider, prId, repo, workspace, repoSlug }) => {
-      try {
-        let result: string;
-        if (provider === 'github') {
-          result = await getGitHubPr(prId, 'view', repo);
-        } else {
-          result = await getBitbucketPr(prId, 'view', workspace, repoSlug);
-        }
-        return { content: [{ type: 'text' as const, text: result }] };
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: 'text' as const, text: `❌ Error: ${errorMsg}` }] };
-      }
-    }
-  );
-
-  // TOOL: GET PR DIFF
-  server.tool(
-    'kit_get_pr_diff',
-    'Get Pull Request diff by provider and PR ID',
-    {
-      provider: z.enum(['github', 'bitbucket']),
-      prId: z.number().int().positive().describe('PR ID or number'),
-      repo: z.string().optional().describe('GitHub repo (owner/repo)'),
-      workspace: z.string().optional().describe('Bitbucket workspace'),
-      repoSlug: z.string().optional().describe('Bitbucket repo slug'),
-    },
-    async ({ provider, prId, repo, workspace, repoSlug }) => {
-      try {
-        let result: string;
-        if (provider === 'github') {
-          result = await getGitHubPr(prId, 'diff', repo);
-        } else {
-          result = await getBitbucketPr(prId, 'diff', workspace, repoSlug);
-        }
-        return { content: [{ type: 'text' as const, text: result }] };
-      } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        return { content: [{ type: 'text' as const, text: `❌ Error: ${errorMsg}` }] };
-      }
-    }
-  );
-
-  // TOOL 16: JIRA GET TICKET
+  // TOOL: JIRA GET TICKET
   server.tool(
     'kit_jira_get_ticket',
-    'Get ticket details from Jira using Atlassian CLI (acli)',
+    'Get ticket details from Jira using the Atlassian REST API',
     {
       ticketId: z.string().describe('Jira ticket ID (e.g., PROJ-123)'),
     },
     async ({ ticketId }) => {
       try {
-        if (!commandExists('acli')) {
+        const siteName = process.env.ATLASSIAN_SITE_NAME;
+        const userEmail = process.env.ATLASSIAN_USER_EMAIL;
+        const apiToken = process.env.ATLASSIAN_API_TOKEN;
+
+        if (!siteName || !userEmail || !apiToken) {
+          const missing = [
+            !siteName && 'ATLASSIAN_SITE_NAME',
+            !userEmail && 'ATLASSIAN_USER_EMAIL',
+            !apiToken && 'ATLASSIAN_API_TOKEN',
+          ]
+            .filter(Boolean)
+            .join(', ');
           return {
             content: [
               {
                 type: 'text' as const,
-                text: `❌ Atlassian CLI (acli) not installed.\n\nInstall it from:\nhttps://developer.atlassian.com/cloud/acli/guides/how-to-get-started/\n\nThen authenticate:\nacli jira auth login --web`,
+                text: `❌ Missing ${missing}. Create an API Token at id.atlassian.com/manage-profile/security/api-tokens.`,
               },
             ],
           };
@@ -334,15 +301,16 @@ export function registerIntegrationTools(server: McpServer): void {
           };
         }
 
-        const ticketInfo = safeAcli(['jira', 'workitem', 'view', safeTicketId, '--json']);
-        const jsonData = JSON.parse(ticketInfo);
+        const url = `https://${siteName}/rest/api/3/issue/${safeTicketId}`;
+        const jsonData = await callAtlassianRestApi(url);
+
         const parseResult = JiraTicketSchema.safeParse(jsonData);
         if (!parseResult.success) {
           return {
             content: [
               {
                 type: 'text' as const,
-                text: `❌ Invalid Jira response format from acli: ${parseResult.error.message}`,
+                text: `❌ Invalid Jira response format: ${parseResult.error.message}`,
               },
             ],
           };
