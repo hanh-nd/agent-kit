@@ -5,8 +5,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { countTests } from '../scripts/count-tests.js';
 
-const projectDir = process.env.GEMINI_PROJECT_DIR || process.cwd();
-const kitDir = path.join(projectDir, '.agent-kit');
+const projectDir = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const kitDir = '.agent-kit';
+const kitPath = path.join(projectDir, kitDir);
 
 /**
  * SessionStart Hook
@@ -15,9 +16,9 @@ const kitDir = path.join(projectDir, '.agent-kit');
 async function main(input) {
   try {
     input = JSON.parse(input);
-  } catch {
+  } catch (error) {
     // If parse fails, return success (fail-open)
-    console.log(JSON.stringify({}));
+    console.error('❌ Agent-Kit failed to initialize', error.message);
     process.exit(0);
   }
 
@@ -57,7 +58,7 @@ main(input).catch((error) => {
 function ensureDirectories() {
   const dirs = ['handoffs', 'memory', 'logs'];
   for (const dir of dirs) {
-    const dirPath = path.join(kitDir, dir);
+    const dirPath = path.join(kitPath, dir);
     if (!fs.existsSync(dirPath)) {
       try {
         fs.mkdirSync(dirPath, { recursive: true });
@@ -88,10 +89,9 @@ function ensureGitExclusion() {
       content = fs.readFileSync(gitExcludePath, 'utf8');
     }
 
-    const ignoreLine = '.agent-kit';
-    if (!content.includes(ignoreLine)) {
+    if (!content.includes(kitDir)) {
       const separator = content.length > 0 && !content.endsWith('\n') ? '\n' : '';
-      fs.appendFileSync(gitExcludePath, `${separator}${ignoreLine}\n`);
+      fs.appendFileSync(gitExcludePath, `${separator}${kitDir}\n`);
     }
   } catch {
     // Silently fail to not block the server startup
@@ -99,7 +99,7 @@ function ensureGitExclusion() {
 }
 
 async function updateProjectStats() {
-  const statsPath = path.join(kitDir, 'stats.json');
+  const statsPath = path.join(kitPath, 'stats.json');
   if (!fs.existsSync(statsPath)) {
     fs.writeFileSync(statsPath, JSON.stringify({ sessions: 0, hasUnitTests: false }));
   }
