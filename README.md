@@ -42,23 +42,15 @@ claude plugin install agent-kit
 
 The plugin fetches from GitHub, registers the MCP server automatically, and makes all commands available immediately.
 
-**Add credentials** to `~/.claude/settings.json`:
+**Add credentials** to your shell profile (`~/.zshrc` or `~/.bashrc`):
 
-```json
-{
-  "mcpServers": {
-    "kit-agents": {
-      "env": {
-        "ATLASSIAN_SITE_NAME": "yourcompany.atlassian.net",
-        "ATLASSIAN_USER_EMAIL": "you@yourcompany.com",
-        "ATLASSIAN_API_TOKEN": "your-atlassian-api-token",
-        "BITBUCKET_USER_EMAIL": "you@yourcompany.com",
-        "BITBUCKET_API_TOKEN": "your-atlassian-api-token",
-        "BITBUCKET_DEFAULT_WORKSPACE": "your-default-workspace-slug"
-      }
-    }
-  }
-}
+```bash
+export ATLASSIAN_SITE_NAME="yourcompany.atlassian.net"
+export ATLASSIAN_USER_EMAIL="you@yourcompany.com"
+export ATLASSIAN_API_TOKEN="your-atlassian-api-token"
+export BITBUCKET_USER_EMAIL="you@yourcompany.com"
+export BITBUCKET_API_TOKEN="your-atlassian-api-token"
+export BITBUCKET_DEFAULT_WORKSPACE="your-default-workspace-slug"
 ```
 
 To update: `claude plugin update agent-kit`
@@ -88,23 +80,15 @@ claude plugin install agent-kit
 
 This registers the MCP server automatically (pointing to your local build). Do **not** manually add a `kit-agents` entry to `settings.json` — the plugin handles that.
 
-**3. Add credentials** to `~/.claude/settings.json`:
+**3. Add credentials** to your shell profile (`~/.zshrc` or `~/.bashrc`):
 
-```json
-{
-  "mcpServers": {
-    "kit-agents": {
-      "env": {
-        "ATLASSIAN_SITE_NAME": "yourcompany.atlassian.net",
-        "ATLASSIAN_USER_EMAIL": "you@yourcompany.com",
-        "ATLASSIAN_API_TOKEN": "your-atlassian-api-token",
-        "BITBUCKET_USER_EMAIL": "you@yourcompany.com",
-        "BITBUCKET_API_TOKEN": "your-atlassian-api-token",
-        "BITBUCKET_DEFAULT_WORKSPACE": "your-default-workspace-slug"
-      }
-    }
-  }
-}
+```bash
+export ATLASSIAN_SITE_NAME="yourcompany.atlassian.net"
+export ATLASSIAN_USER_EMAIL="you@yourcompany.com"
+export ATLASSIAN_API_TOKEN="your-atlassian-api-token"
+export BITBUCKET_USER_EMAIL="you@yourcompany.com"
+export BITBUCKET_API_TOKEN="your-atlassian-api-token"
+export BITBUCKET_DEFAULT_WORKSPACE="your-default-workspace-slug"
 ```
 
 **4. Verify**
