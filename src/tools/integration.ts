@@ -267,13 +267,13 @@ ${pr.description || 'No description'}`;
     },
     async ({ ticketId }) => {
       try {
-        const siteName = process.env.ATLASSIAN_SITE_NAME;
+        const cloudId = process.env.ATLASSIAN_CLOUD_ID;
         const userEmail = process.env.ATLASSIAN_USER_EMAIL;
         const apiToken = process.env.ATLASSIAN_API_TOKEN;
 
-        if (!siteName || !userEmail || !apiToken) {
+        if (!cloudId || !userEmail || !apiToken) {
           const missing = [
-            !siteName && 'ATLASSIAN_SITE_NAME',
+            !cloudId && 'ATLASSIAN_CLOUD_ID',
             !userEmail && 'ATLASSIAN_USER_EMAIL',
             !apiToken && 'ATLASSIAN_API_TOKEN',
           ]
@@ -301,7 +301,7 @@ ${pr.description || 'No description'}`;
           };
         }
 
-        const url = `https://${siteName}/rest/api/3/issue/${safeTicketId}`;
+        const url = `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${safeTicketId}`;
         const jsonData = await callAtlassianRestApi(url);
 
         const parseResult = JiraTicketSchema.safeParse(jsonData);

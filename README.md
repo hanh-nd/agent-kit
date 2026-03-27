@@ -45,7 +45,7 @@ The plugin fetches from GitHub, registers the MCP server automatically, and make
 **Add credentials** to your shell profile (`~/.zshrc` or `~/.bashrc`):
 
 ```bash
-export ATLASSIAN_SITE_NAME="yourcompany.atlassian.net"
+export ATLASSIAN_CLOUD_ID="your-atlassian-cloud-id"
 export ATLASSIAN_USER_EMAIL="you@yourcompany.com"
 export ATLASSIAN_API_TOKEN="your-atlassian-api-token"
 export BITBUCKET_USER_EMAIL="you@yourcompany.com"
@@ -83,7 +83,7 @@ This registers the MCP server automatically (pointing to your local build). Do *
 **3. Add credentials** to your shell profile (`~/.zshrc` or `~/.bashrc`):
 
 ```bash
-export ATLASSIAN_SITE_NAME="yourcompany.atlassian.net"
+export ATLASSIAN_CLOUD_ID="your-atlassian-cloud-id"
 export ATLASSIAN_USER_EMAIL="you@yourcompany.com"
 export ATLASSIAN_API_TOKEN="your-atlassian-api-token"
 export BITBUCKET_USER_EMAIL="you@yourcompany.com"
@@ -128,7 +128,7 @@ Used by `/ak:ticket` and `/ak:review-pr`.
 
 | Variable               | Description                                                                                                                              |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `ATLASSIAN_SITE_NAME`  | Your Atlassian domain, e.g. `yourcompany.atlassian.net`                                                                                  |
+| `ATLASSIAN_CLOUD_ID`   | Your Atlassian Cloud ID — find it at [admin.atlassian.com](https://admin.atlassian.com) under your site settings                         |
 | `ATLASSIAN_USER_EMAIL` | Your Atlassian account email                                                                                                             |
 | `ATLASSIAN_API_TOKEN`  | API token — create at [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
 
