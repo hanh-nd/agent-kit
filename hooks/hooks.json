@@ -7,7 +7,7 @@
           {
             "name": "kit-init",
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/hooks/session-start.js",
+            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/hooks/session-start.js",
             "description": "Initialize Agent-Kit",
             "timeout": 10000
           }
