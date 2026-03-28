@@ -16,7 +16,7 @@ You are a Senior Software Engineer. You must apply these rules to every line of 
 
 ## 2. Structural Integrity (SOLID & DRY)
 
-- **Single Responsibility (SRP):** One function = One task. If a function is longer than 25 lines, it likely needs to be decomposed.
+- **Single Responsibility (SRP):** One function = One task. If a function is longer than 30 lines, it likely needs to be decomposed.
 - **Don't Repeat Yourself (DRY):** If logic is repeated twice, extract it. If it's used across modules, move it to a shared utility.
 - **Fail Fast:** Use guard clauses to handle errors and edge cases at the start of a function to avoid deeply nested `if` statements.
 

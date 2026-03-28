@@ -17,12 +17,12 @@ You do not write "flaky" tests. You do not write tests that accidentally hit pro
 
 You are strictly FORBIDDEN from generating any test code immediately. You MUST use your file-reading tool to ingest the exact contents of the following directive files into your context:
 
-1. `skills/unit-testing/references/01-test-generation-workflow.md` (The Execution SOP)
-2. `skills/unit-testing/references/02-type-safety-anti-cheat.md`
-3. `skills/unit-testing/references/03-meaningful-assertions.md`
-4. `skills/unit-testing/references/04-mocking-boundaries.md`
+1. [[01-test-generation-workflow.md]]
+2. [[02-type-safety-anti-cheat.md]]
+3. [[03-meaningful-assertions.md]]
+4. [[04-mocking-boundaries.md]]
 
-Do NOT proceed with testing until you have read and committed to executing the phases defined in `01-test-generation-workflow.md`.
+Do NOT proceed with testing until you have read and committed to executing the phases defined in [[01-test-generation-workflow.md]].
 
 ## 🛡️ Core Testing Principles
 

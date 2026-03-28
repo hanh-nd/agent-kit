@@ -13,13 +13,13 @@ When your pipeline invokes this skill to review code, you are granted the knowle
 
 When reviewing the provided code/diff, you must apply the principles found in your reference files:
 
-1. **Apply the Standard of Review:** Read `./references/01-standard-of-review.md`. Ensure the codebase health is improving. Look for over-engineering and deferred cleanups.
-2. **Execute Pass 1 (Critical):** Read `./references/02-critical-checklist.md`. Scan the context strictly for:
+1. **Apply the Standard of Review:** Read [[01-standard-of-review.md]]. Ensure the codebase health is improving. Look for over-engineering and deferred cleanups.
+2. **Execute Pass 1 (Critical):** Read [[02-critical-checklist.md]]. Scan the context strictly for:
    - SQL & Data Safety issues.
    - Race Conditions & Concurrency flaws.
    - LLM Output Trust Boundary violations.
    - Enum & Value Completeness (Use your `read_file` and `grep_search` tools to check files outside the diff if you suspect an enum is unhandled elsewhere).
-3. **Execute Pass 2 (Informational):** Read `./references/03-informational-checklist.md`. Scan the context for:
+3. **Execute Pass 2 (Informational):** Read [[03-informational-checklist.md]]. Scan the context for:
    - Conditional Side Effects.
    - Magic Numbers & String Coupling.
    - Dead Code.

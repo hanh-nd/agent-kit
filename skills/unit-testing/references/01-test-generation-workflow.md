@@ -47,4 +47,3 @@ Generate the test code strictly following the **Arrange-Act-Assert (AAA)** patte
 
 1. Review the generated code against the style extracted in Phase 1. Does it look like it was written by the same developer?
 2. Verify branch coverage: Did you test the `if`, `else`, and `catch` blocks?
-3. Structure the final output exactly as demanded by the `agents/tester.md` Output Format rules.

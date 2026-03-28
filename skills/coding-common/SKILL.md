@@ -17,8 +17,8 @@ Use your file-reading tool to ingest the applicable directive files:
 
 **Always Read:**
 
-- `skills/coding-common/references/01-clean-code-standard.md`
-- `skills/coding-common/references/02-refactoring-standard.md`
+- [[01-clean-code-standard.md]]
+- [[02-refactoring-standard.md]]
 
 - Focus: Naming conventions, architectural patterns (SOLID/DRY), and local style mirroring.
 - Action: You are required to refactor any existing "bad code" encountered in the files you are modifying.
