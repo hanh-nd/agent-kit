@@ -1,33 +1,23 @@
-# agent-kit
+# Agent-Kit
 
 **Super Engineer** — a team of specialized AI agents for software development. Brainstorm ideas, plan implementations, write code, and review PRs using a structured multi-agent workflow powered by Claude Code.
 
 ## What It Does
 
-agent-kit gives Claude Code a team of four specialized agents:
-
-| Agent            | Role                                             |
-| ---------------- | ------------------------------------------------ |
-| **Brainstormer** | Trade-off analysis, system design, YAGNI defense |
-| **Planner**      | Detailed, actionable implementation blueprints   |
-| **Coder**        | Clean, production-ready code                     |
-| **Reviewer**     | Deep technical audits and requirement alignment  |
-
 ### Commands
 
-| Command                       | Description                             |
-| ----------------------------- | --------------------------------------- |
-| `/ak:brainstorm [idea]`       | Strategic architectural analysis        |
-| `/ak:plan [file or idea]`     | Create an implementation blueprint      |
-| `/ak:code [file or task]`     | Implement from a plan                   |
-| `/ak:review-pr [PR URL]`      | Review a pull request                   |
-| `/ak:review-changes`          | Review uncommitted local changes        |
-| `/ak:ticket [ID]`             | Fetch a Jira ticket and plan from it    |
-| `/ak:do [task]`               | Route a task through the full pipeline  |
-| `/ak:git`                     | Git commit, branch, and PR workflow     |
-| `/ak:workflow`                | Resume or check workflow state          |
-| `/ak:kit-setup`               | Configure integrations (GitHub, Jira)   |
-| `/ak:delegate <agent> <task>` | Delegate a task to Gemini or Claude CLI |
+| Command                          | Description                                                        |
+| -------------------------------- | ------------------------------------------------------------------ |
+| `/ak:brainstorm [idea]`          | Strategic architectural analysis                                   |
+| `/ak:plan [file or idea]`        | Create an implementation blueprint                                 |
+| `/ak:code [file or task]`        | Implement from a plan                                              |
+| `/ak:review-pr [PR URL]`         | Review a pull request                                              |
+| `/ak:review-changes`             | Review uncommitted local changes                                   |
+| `/ak:ticket [ID]`                | Fetch a Jira ticket and plan from it                               |
+| `/ak:git`                        | Git commit, branch, and PR workflow                                |
+| `/ak:init`                       | Create the project overview file                                   |
+| `/ak:orchestrate [file or idea]` | Orchestrate agents to solve problems span across multiple projects |
+| `/ak:delegate <agent> <task>`    | Delegate a task to Gemini or Claude CLI                            |
 
 ---
 
