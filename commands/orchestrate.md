@@ -182,7 +182,7 @@ Instructions:
 2. Extract 3–6 domain keywords from the task brief that are relevant to this
    service's role. Use domain nouns (e.g., "booking", "channel", "webhook",
    "reservation"), not generic verbs like "update" or "create".
-3. Use Grep to search for these keywords across the codebase at [service-root].
+3. Search for these keywords across the codebase at [service-root].
    Focus on: route/controller files, service/use-case files, schema/model files,
    and config/event files.
 4. For each matching file, Read the relevant sections (not the entire file).
@@ -477,7 +477,7 @@ recommendation — the user decides.
 - **Pass full context to subagents.** Subagents have no shared memory with the
   orchestrator. Every piece of information they need — ticket brief, service path,
   architecture contracts — must be in their prompt.
-- **Discovery is targeted, not exhaustive.** Grep for domain keywords, read
+- **Discovery is targeted, not exhaustive.** Search for domain keywords, read
   matching files. Do not scan entire codebases.
 - **Conflicts are surfaced, not hidden.** If two services have overlapping
   concerns, the user must resolve it before implementation briefs are written.

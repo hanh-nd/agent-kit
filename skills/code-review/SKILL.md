@@ -18,7 +18,7 @@ When reviewing the provided code/diff, you must apply the principles found in yo
    - SQL & Data Safety issues.
    - Race Conditions & Concurrency flaws.
    - LLM Output Trust Boundary violations.
-   - Enum & Value Completeness (Use your `read_file` and `grep_search` tools to check files outside the diff if you suspect an enum is unhandled elsewhere).
+   - Enum & Value Completeness (Check files outside the diff if you suspect an enum is unhandled elsewhere).
 3. **Execute Pass 2 (Informational):** Read [[03-informational-checklist.md]]. Scan the context for:
    - Conditional Side Effects.
    - Magic Numbers & String Coupling.
@@ -27,5 +27,5 @@ When reviewing the provided code/diff, you must apply the principles found in yo
 
 ## Tool Usage
 
-- Use `read_file` and `grep_search` to verify claims. If you think "this pattern is unsafe," verify it by reading the surrounding file before flagging it.
+- If you think "this pattern is unsafe," verify it by reading the surrounding file before flagging it.
 - Never assume a test exists; verify it.

@@ -147,12 +147,13 @@ Determine input type — this decides which phases to run:
 1. **Input Analysis.** Read `$ARGUMENTS`, any attached Design Brief, schemas, or
    ticket content. If a Design Brief exists, it is the source of truth for problem
    statement, scope, and chosen approach.
-2. **Codebase Exploration.** Use `Read`, `Glob`, `Grep` to map:
-   - Only files directly touched by or adjacent to the feature. Do NOT survey the full architecture.
-     If the architectural context was already provided in this conversation, use it - dont re-scan.
+2. **Codebase Exploration.** If the architectural context was already provided in
+   this conversation, use it. Only do the code exploration when know NOTHING about
+   the codebase:
+   - Files directly touched by or adjacent to the feature.
    - Files that will be affected (blast radius)
    - Code that already partially or fully solves sub-problems
-   - Existing ASCII diagrams in blast-radius files (grep for `diagram`, `flow`,
+   - Existing ASCII diagrams in blast-radius files (search for `diagram`, `flow`,
      `→`, `──`, `┌`, `└` etc.) — these will need accuracy review if the plan
      changes their surrounding code
    - If input is a Design Brief: verify its claims — does the code it says to
@@ -257,7 +258,7 @@ logic" but "Map the array of `User` objects to `UserDTO`, filtering out items
 where `isActive` is false. Throw `ValidationError` if the array is empty."
 
 **Identifier rule:** File paths, function names, class/type names, and public
-interfaces referenced in WBS tasks must be verified via `Read` first. If a file
+interfaces referenced in WBS tasks must be verified first. If a file
 does not exist yet, state explicitly: "New file — create with these specs."
 Internal logic within a function should be described by business rules and
 conditions (input, output, error cases), not by specific local variable names.

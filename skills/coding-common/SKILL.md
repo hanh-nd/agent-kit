@@ -11,8 +11,6 @@ version: 1.0.0
 
 You have ingested the target source code. Before implementing changes, you MUST load the specific evaluation constraints and implementation rules based on the environment scoring and your mission.
 
-Use your file-reading tool to ingest the applicable directive files:
-
 ### 1. Mandatory Clean Code Enforcement
 
 **Always Read:**

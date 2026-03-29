@@ -37,5 +37,5 @@ Treat all outputs from Large Language Models or external APIs as malicious user 
 
 When the diff introduces a new state, enum value, status, or tier:
 
-- You MUST use your tools (`grep_search` or `read_file`) to check files _outside_ the diff.
+- You MUST check files _outside_ the diff.
 - Verify that existing `switch` statements, frontend mappings, or database constraints handle the newly introduced value. Failure to handle new enums globally is a critical blocker.
