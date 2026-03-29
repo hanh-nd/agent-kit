@@ -1,6 +1,4 @@
 ---
-name: orchestrate
-version: 1.0.0
 description: |
   Orchestrate a cross-service feature by discovering affected services, exploring
   each codebase for relevant code and patterns, synthesizing an architecture plan
