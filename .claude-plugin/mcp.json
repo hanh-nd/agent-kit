@@ -1,6 +1,6 @@
 {
   "kit-agents": {
-    "command": "node",
-    "args": ["${CLAUDE_PLUGIN_ROOT}/dist/kit-server.js"]
+    "command": "npx",
+    "args": ["-y", "@hanhnd/agent-kit"]
   }
 }

@@ -243,8 +243,12 @@ Every source cited in the report. Every claim maps to at least one entry here.
 
 ## Phase 5: Persistence & Handoff
 
-- **Action:** Save the generated blueprint to `.agent-kit/handoffs/research/research-[timestamp]-[feature].md`.
-- **Handoff:** Request explicit user approval. Upon receiving "Approve", output the exact command for the coder agent: `/brainstorm @.agent-kit/handoffs/research/[filename].md`.
+1. **Persist the blueprint** Call `kit_save_handoff(type: "research", content: <full blueprint markdown>, slug: <feature-name>)`.
+   The tool returns the saved file path. Output the next step:
+   ```
+   ✅ Research saved. To implement:
+   /brainstorm @<returned-path>
+   ```
 
 ## Operational Constraints
 
