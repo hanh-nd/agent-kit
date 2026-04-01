@@ -128,6 +128,10 @@ When presenting choices, follow this structure:
   is and move on. Only present choices when there's a genuine trade-off.
 - Connect your recommendation to a specific cognitive pattern (e.g., "Recommend A —
   this is a lake worth boiling, test coverage costs minutes").
+- **Wait for selection.** After presenting options A and B with your recommendation,
+  you MUST stop and wait for the user to make a choice. Do NOT proceed to the
+  next section or phase until the user has selection an option or approved
+  your recommendation.
 
 ---
 
@@ -199,14 +203,18 @@ Answer these questions:
 ```
 
 **Gate:** Scope must be agreed before proceeding. If the user accepts or rejects
-a scope reduction, commit fully. Do not re-argue scope in later phases.
+a scope reduction, commit fully.
+**Stop and wait for user selection.** Do NOT start Phase 3 until Phase 2
+decisions are resolved by the user.
 
 ### Phase 3: Structured Review (MANDATORY for Medium/Complex)
 
 Walk through four review pillars sequentially. For each section: present critical
 issues (architecture, data integrity, security) one at a time with recommendations.
-Batch non-critical issues (DRY, naming, minor quality) into a table. Move to the
-next section only after all issues in the current section are resolved.
+Batch non-critical issues (DRY, naming, minor quality) into a table.
+**Stop and wait for user selection/feedback** after each section or decision
+point. Move to the next section only after all issues in the current section
+are resolved by the user.
 
 **3A. Architecture Review**
 
@@ -325,7 +333,9 @@ Never guess public identifiers — a wrong name produces code rác downstream.
 - **Verify before referencing.** Every identifier in WBS must be confirmed via `Read`.
 - **Severity-based interaction.** Critical issues one at a time. Non-critical batched.
 - **Always recommend.** Every question has your position and a reason.
-- **Commit to scope decisions.** Once scope is agreed, do not re-argue in later phases.
+- **Consensus required.** Do NOT proceed to the next Phase or generate the
+  blueprint until all intermediate decisions are explicitly approved or
+  selected by the user. Everything before the final blueprint is conversation.
 - **Diagram liberally.** ASCII diagrams for data flow, state machines, dependency
   graphs, processing pipelines. These go in the blueprint AND should be flagged
   for embedding in code comments where appropriate.
