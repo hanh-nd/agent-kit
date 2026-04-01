@@ -11,6 +11,7 @@
 | `/ak:brainstorm [idea]`          | Strategic architectural analysis                                   |
 | `/ak:plan [file or idea]`        | Create an implementation blueprint                                 |
 | `/ak:code [file or task]`        | Implement from a plan                                              |
+| `/ak:research [topic]`           | Research a topic                                                   |
 | `/ak:review-pr [PR URL]`         | Review a pull request                                              |
 | `/ak:review`                     | Review uncommitted local changes                                   |
 | `/ak:ticket [ID]`                | Fetch a Jira ticket and plan from it                               |
@@ -85,6 +86,16 @@ export BITBUCKET_DEFAULT_WORKSPACE="your-default-workspace-slug"
 
 ```
 /ak:brainstorm test idea
+```
+
+---
+
+### Option 3: Install as Gemini Extension (Optional)
+
+If you want to reuse the commands with [Gemini CLI](https://geminicli.com) (for `/ak:delegate` to Gemini), install it using:
+
+```bash
+gemini extension install https://github.com/hanh-nd/agent-kit
 ```
 
 ---
