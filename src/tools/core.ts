@@ -7,51 +7,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { z } from 'zod';
 
-import { getExtensionRoot, getWorkspaceRoot } from '../utils.js';
+import { getWorkspaceRoot } from '../utils.js';
 import { DEFAULT_EXTENSIONS } from './config.js';
 
 /**
  * Register core tools with MCP server
  */
 export function registerCoreTools(server: McpServer): void {
-  // ═══════════════════════════════════════════════════════════════
-  // TOOL: GET EXTENSION INFO
-  // Returns absolute paths so agents can use native Read tool
-  // for loading agent personas and skill files
-  // ═══════════════════════════════════════════════════════════════
-  server.tool(
-    'kit_get_extension_info',
-    'Get absolute paths to the agent-kit extension directories (agents, skills, commands, scripts). Use the returned paths with the native Read tool to load agent personas and skill modules.',
-    {},
-    async () => {
-      try {
-        const root = getExtensionRoot();
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: JSON.stringify(
-                {
-                  extensionRoot: root,
-                  agentsDir: path.join(root, 'agents'),
-                  skillsDir: path.join(root, 'skills'),
-                  commandsDir: path.join(root, 'commands'),
-                  scriptsDir: path.join(root, 'scripts'),
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [{ type: 'text' as const, text: `Error getting extension info: ${error}` }],
-        };
-      }
-    },
-  );
-
   // ═══════════════════════════════════════════════════════════════
   // TOOL: SAVE HANDOFF
   // Writes brainstorm/plan/ticket artifacts to the workspace
@@ -89,7 +51,7 @@ export function registerCoreTools(server: McpServer): void {
           content: [{ type: 'text' as const, text: `Error saving handoff: ${error}` }],
         };
       }
-    },
+    }
   );
 }
 

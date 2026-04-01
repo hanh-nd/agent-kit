@@ -7,7 +7,7 @@
           {
             "name": "kit-init",
             "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/hooks/session-start.js",
+            "command": "node \"${extensionPath}${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start.js",
             "description": "Initialize Agent-Kit",
             "timeout": 10000
           }
@@ -21,7 +21,7 @@
           {
             "name": "inject-project-dna",
             "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT\"/hooks/prompt-submit.js",
+            "command": "node \"${extensionPath}${CLAUDE_PLUGIN_ROOT}\"/hooks/prompt-submit.js",
             "description": "Inject project DNA into context for command invocations",
             "timeout": 5000
           }
