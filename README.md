@@ -11,6 +11,7 @@
 | `/ak:brainstorm [idea]`          | Strategic architectural analysis                                   |
 | `/ak:plan [file or idea]`        | Create an implementation blueprint                                 |
 | `/ak:code [file or task]`        | Implement from a plan                                              |
+| `/ak:code-simplifier`            | Refactor modified code for readability                             |
 | `/ak:research [topic]`           | Research a topic                                                   |
 | `/ak:review-pr [PR URL]`         | Review a pull request                                              |
 | `/ak:review`                     | Review uncommitted local changes                                   |
