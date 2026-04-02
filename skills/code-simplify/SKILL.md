@@ -43,15 +43,16 @@ From the diff, extract:
 If diff size > 500 lines, do **not** refactor everything in one pass. Propose a file-by-file plan and ask which file to start with.
 
 **Step 0.3 — Load project conventions**
- 
+
 Read `.agent-kit/project.md` if it exists. Extract:
+
 - Language and framework
 - Naming conventions
 - Architectural patterns
 - Any explicit style rules
- 
+
 If `.agent-kit/project.md` does not exist, infer conventions from the existing codebase — look at 2–3 non-modified files in the same module to understand the project's style baseline.
- 
+
 ---
 
 # PHASE 1 — TRIAGE (No-Op Gate)
