@@ -42,6 +42,16 @@ From the diff, extract:
 
 If diff size > 500 lines, do **not** refactor everything in one pass. Propose a file-by-file plan and ask which file to start with.
 
+**Step 0.3 — Load project conventions**
+ 
+Read `.agent-kit/project.md` if it exists. Extract:
+- Language and framework
+- Naming conventions
+- Architectural patterns
+- Any explicit style rules
+ 
+If `.agent-kit/project.md` does not exist, infer conventions from the existing codebase — look at 2–3 non-modified files in the same module to understand the project's style baseline.
+ 
 ---
 
 # PHASE 1 — TRIAGE (No-Op Gate)
@@ -117,7 +127,7 @@ Apply these patterns to the identified change set, in this priority order:
 ### 3.3 Magic Value Elimination
 
 - Every raw string or number used more than once, or used in a meaningful comparison, becomes a named constant.
-- Constants are **UPPER_SNAKE_CASE** and placed at the top of the file or in a dedicated constants module (follow project convention from `CLAUDE.md`).
+- Constants are **UPPER_SNAKE_CASE** and placed at the top of the file or in a dedicated constants module (follow project convention from `.agent-kit/project.md`).
 - Exception: single-use strings that are already self-describing in context (e.g., a log message) do not need constants.
 
 ### 3.4 Abstraction Extraction
@@ -164,7 +174,7 @@ These are always safe to remove from modified code:
   ```
 
 - **Upgrade** outdated comments — if a comment contradicts the current code, fix the comment, not the code.
-- **Add** JSDoc/TSDoc for public functions that lack them, if the project uses them (check `CLAUDE.md`).
+- **Add** JSDoc/TSDoc for public functions that lack them, if the project uses them (check `.agent-kit/project.md`).
 
 ---
 
