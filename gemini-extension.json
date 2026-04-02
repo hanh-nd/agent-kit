@@ -1,4 +1,5 @@
 {
+  "name": "agent-kit",
   "version": "1.0.9",
   "description": "Super Engineer - Team of AI Agents for software development",
   "contextFileName": "CLAUDE.md",
