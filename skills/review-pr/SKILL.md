@@ -68,6 +68,14 @@ You do NOT accept "we will clean it up later." You do NOT rubber-stamp PRs. You 
 2. **Fetch Business Requirements:** If a Jira/Ticket ID (e.g. `PROJ-123`) is found in the PR title, description, or branch name, call `kit_jira_get_ticket(ticketId: "EXTRACTED-ID")`.
 3. **Fallback:** If no PR description, commit intent, or Jira ticket is found, append to final output:
    > ⚠️ **Warning:** Missing business context (No PR description or Ticket). Reviewing based on technical semantics only.
+4. **Branch Setup:** Using the `{workspace}`, `{repoSlug}`, and `{sourceBranch}` from Step 1:
+   - Run `git branch --show-current` → save as `{originalBranch}`.
+   - Run `git status --porcelain` → if output is non-empty, mark `checkoutState = UNHAPPY` (dirty working tree).
+   - Run `git remote get-url origin` → if it does not contain both `{workspace}` and `{repoSlug}`, mark `checkoutState = UNHAPPY` (wrong repo).
+   - **HAPPY** (not UNHAPPY): run `git fetch origin && git checkout {sourceBranch} && git reset --hard origin/{sourceBranch}`.
+     Set `checkoutState = CHECKED_OUT`. Full codebase context is now available via `Read`, `Grep`, and `Glob`.
+   - **UNHAPPY**: skip checkout. Do NOT stash or force. Add to the final report footer:
+     > ⚠️ Codebase context unavailable (dirty working tree or mismatched repo). Review based on diff only.
 
 ### Phase 2: Skill Loading
 
@@ -114,3 +122,12 @@ Synthesize all findings. Format output strictly per the Output Format above.
 - At least one BLOCKER → Verdict MUST be `REQUEST CHANGES`.
 - Only NITPICKS → Verdict can be `APPROVE` with comments.
 - No further code generation unless user explicitly requests a patch for a specific finding.
+
+### Phase 8: Branch Restore
+
+After the report is generated, **before returning it to the user**:
+
+- If `checkoutState = CHECKED_OUT`: run `git checkout {originalBranch}` to restore the original branch.
+- If `checkoutState = UNHAPPY` (no checkout occurred): skip this phase.
+
+> Run this even if the review encountered errors mid-way.

@@ -3,6 +3,8 @@
  * Tools: kit_get_bitbucket_pr, kit_jira_get_ticket
  */
 
+import { writeFileSync } from 'fs';
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
@@ -244,10 +246,19 @@ ${pr.description || 'No description'}`;
         if (includeDiff) {
           const diffUrl = `https://api.bitbucket.org/2.0/repositories/${safeWs}/${safeRepo}/pullrequests/${prId}/diff`;
           const diff = await callBitbucketDiffApi(diffUrl);
-          const truncated =
-            diff.slice(0, 8000) +
-            (diff.length > 8000 ? `\n... (truncated — ${diff.length - 8000} chars omitted)` : '');
-          output += `\n\n### Diff\n\`\`\`diff\n${truncated}\n\`\`\``;
+          const DIFF_FILE_THRESHOLD = 50_000;
+
+          if (diff.length < DIFF_FILE_THRESHOLD) {
+            output += `\n\n### Diff\n\`\`\`diff\n${diff}\n\`\`\``;
+          } else {
+            const filePath = `/tmp/kit-pr-${prId}-${Date.now()}.diff`;
+            try {
+              writeFileSync(filePath, diff, 'utf8');
+              output += `\n\n### Diff\nDiff is large (${diff.length} chars). Full diff written to: \`${filePath}\`. Read this file before reviewing.`;
+            } catch {
+              output += `\n\n### Diff\n⚠️ Could not write diff to temp file. Showing inline (may be very large).\n\`\`\`diff\n${diff}\n\`\`\``;
+            }
+          }
         }
 
         return { content: [{ type: 'text' as const, text: output }] };
