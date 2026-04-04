@@ -35,6 +35,38 @@ up under scrutiny and what didn't.
 
 ---
 
+## Step 0: Load Originating Skill Context
+
+Before anything else, identify which skill produced the primary output and extract its
+evaluation framework. Debaters need this to evaluate whether the primary agent applied
+its own methodology correctly and completely — not just whether its conclusions are right.
+
+**Identify the originating skill from conversation context:**
+Look at which skill was explicitly invoked before the debate was triggered (e.g., the user
+ran `/review-pr`, `/brainstorm`, `/plan`, `/security`). This is more reliable than
+pattern-matching the output format.
+
+**Extract the evaluation framework from the primary output:**
+Scan the primary output for its evaluation structure:
+- What dimensions did it evaluate? (severity tiers, categories, section headers, options)
+- What was the scoring or verdict model? (APPROVE/REQUEST CHANGES, CRITICAL/MAJOR/MINOR, etc.)
+- What claims or conclusions did it make that can be contested?
+
+If the originating skill's SKILL.md is available, read it to see what the agent was
+*supposed* to check — compare against what the output shows it *actually* checked.
+That gap is a finding category in its own right.
+
+Synthesize into a compact block you'll pass to both debaters:
+
+```
+ORIGINATING SKILL: [skill name, e.g., ak:review-pr]
+EVALUATION DIMENSIONS: [what the primary agent evaluated, e.g., correctness, coverage, severity accuracy]
+VERDICT MODEL: [e.g., REQUEST CHANGES with CRITICAL/MAJOR/MINOR tiers]
+METHODOLOGY CHECKLIST: [what the primary agent was supposed to check per its own SKILL.md]
+```
+
+---
+
 ## Step 1: Resolve Subject, Source, and Scope
 
 Before spawning any agent, establish three things:
@@ -48,20 +80,36 @@ Before spawning any agent, establish three things:
 
 **2. Source material** — can the debaters read the original source?
 
-- PR review → note the PR URL or checked-out branch path from the review context
-- Brainstorm/plan → note the file path or paste content inline
-- Specific bug → note the file path and line range
-- Source access makes the debate significantly more powerful. Always try to identify it.
-- If source is unavailable, note: debate will be output-only (weaker, flag this).
+- PR review → fetch the actual diff and paste it inline
+- Brainstorm/plan → read the file and paste the content inline
+- Specific bug → read the file and paste the relevant section inline
+- **Inline content is required.** File paths and URLs alone invite hallucination — debaters
+  will confabulate plausible-sounding filenames from references alone. If you can fetch or
+  read the source, paste it. The source material you paste is the debaters' citation
+  boundary: they may only cite what you provide here.
+- If source is truly inaccessible: note "Source inaccessible — output-only debate. Confidence: LOW."
 
 **3. Scope** — is the debate targeted or full?
 
 - **Full:** debate the entire output
 - **Scoped:** debate only the specified finding, section, or question (cheaper, faster)
 
+- **Full (default):** the entire primary output — every claim, finding, and recommendation.
+  When invoked with `using /debate` or `debate mode`, scope is always FULL unless the user
+  explicitly narrows it.
+- **Scoped:** only the specified finding, section, or question (cheaper, faster)
+
 If scope is too broad (e.g., "debate the entire codebase"), stop and tell the user:
 
 > "Scope too large — specify a file, function, finding, or section to keep this focused."
+
+**4. Evaluation framework** — what methodology did the primary agent apply?
+
+Derive this from the primary output's structure (section headers, severity tiers, verdict
+model) and supplement with the originating skill's SKILL.md if available. This becomes the
+`ORIGINATING SKILL CRITERIA` block in Step 2 prompts. Both debaters evaluate against this
+standard — Gilfoyle attacks whether the criteria were fully and correctly applied, Dinesh
+defends that they were.
 
 ---
 
@@ -84,8 +132,15 @@ DEBATE SUBJECT:
 [paste the primary skill output, or the scoped section only]
 ---
 
-SOURCE MATERIAL:
-[paste file paths / PR URL / inline source content, or "Not available — debate output only"]
+SOURCE MATERIAL (your citation boundary — you may only cite what is here):
+---
+[paste the actual inline source content: diff, document, file sections — NOT just paths or URLs]
+---
+
+ORIGINATING SKILL CRITERIA:
+---
+[paste the ORIGINATING SKILL CRITERIA block from Step 0]
+---
 
 SCOPE: [Full output | Specific finding: "[X]" | Section: "[Y]"]
 
@@ -97,12 +152,18 @@ PREVIOUS ROUND SUMMARY FROM JUDGE:
 [paste Judge's round summary]
 ---
 
+Coverage first: before generating findings, enumerate every top-level claim, conclusion,
+and recommendation in DEBATE SUBJECT. Your findings are selected from across the full
+subject — not just the first issue you spot.
+
 Attack the subject. Read source material first, then find what the primary agent
-missed or got wrong. Every finding must cite evidence. No speculation.
+missed or got wrong. Every finding must cite evidence from SOURCE MATERIAL only.
+You may not cite files, functions, or lines that do not appear in SOURCE MATERIAL.
+Citing something not in the source is a disqualifying error.
 
 Return your findings in this exact format:
 FINDING [N]: [one-line description]
-EVIDENCE: [file:line or direct quote from source]
+EVIDENCE: [exact quote or file:line that appears in SOURCE MATERIAL — nothing else]
 SEVERITY: [CRITICAL | MAJOR | MINOR]
 WHAT PRIMARY MISSED: [why the primary output failed to catch this]
 ```
@@ -118,8 +179,15 @@ DEBATE SUBJECT:
 [paste the primary skill output, or the scoped section only]
 ---
 
-SOURCE MATERIAL:
-[paste file paths / PR URL / inline source content, or "Not available — debate output only"]
+SOURCE MATERIAL (your citation boundary — you may only cite what is here):
+---
+[paste the actual inline source content: diff, document, file sections — NOT just paths or URLs]
+---
+
+ORIGINATING SKILL CRITERIA:
+---
+[paste the ORIGINATING SKILL CRITERIA block from Step 0]
+---
 
 SCOPE: [Full output | Specific finding: "[X]" | Section: "[Y]"]
 
@@ -132,14 +200,20 @@ PREVIOUS ROUND SUMMARY FROM JUDGE:
 ---
 
 Defend the subject. Read source material first, then find evidence that supports
-the primary output's conclusions. Every defense must cite evidence.
-Do not capitulate without proof.
+the primary output's conclusions. Every defense must cite evidence from SOURCE MATERIAL only.
+You may not cite files, functions, or lines that do not appear in SOURCE MATERIAL.
+
+ROUND 1: You have not seen Gilfoyle's output. Identify the 3-5 conclusions in the primary
+output most vulnerable to attack and defend them proactively with evidence. Use
+COUNTERS: "preemptive" for all round-1 defenses.
+
+ROUND 2+: Respond directly to Gilfoyle's confirmed findings from the Judge's summary.
 
 Return your defenses in this exact format:
 DEFENSE [N]: [one-line description of what you're defending]
-EVIDENCE: [file:line or direct quote from source]
-COUNTERS: [Gilfoyle finding number this addresses, or "general"]
-CONCESSION (if any): [if Gilfoyle has a fair point you can't counter, say so]
+EVIDENCE: [exact quote or file:line that appears in SOURCE MATERIAL — nothing else]
+COUNTERS: [Gilfoyle finding number (round 2+), or "preemptive" (round 1), or "general"]
+CONCESSION (if any): [if Gilfoyle has a fair sub-point you can't counter with evidence, name it]
 ```
 
 ---
@@ -153,6 +227,11 @@ After both agents return, spawn the Judge (sequentially — it reads both output
 ```
 You are the Judge — a neutral synthesizer.
 Read your full protocol in [[references/02-judge-protocol.md]].
+
+SOURCE MATERIAL (citation boundary — use this to verify all citations):
+---
+[paste the same inline source content provided to the debaters]
+---
 
 ROUND [N] — GILFOYLE'S FINDINGS:
 ---
@@ -169,6 +248,9 @@ PREVIOUS ROUNDS SUMMARY:
 [paste all prior round summaries, or "None — this is Round 1"]
 ---
 
+0. Citation audit: for each EVIDENCE field in Gilfoyle's findings and Dinesh's defenses,
+   verify the cited file, function, or line appears in SOURCE MATERIAL. Flag any citation
+   not found as HALLUCINATED before proceeding. Hallucinated citations = no evidence.
 1. Match each finding against defenses. Weigh evidence quality.
 2. Classify each finding: CONFIRMED / REFUTED / PARTIAL / CONCEDED.
 3. Check for convergence (see your protocol).

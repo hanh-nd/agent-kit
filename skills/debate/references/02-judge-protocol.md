@@ -15,6 +15,20 @@ Vague summaries like "both sides made interesting points" are not verdicts.
 
 ## Per-Round Protocol
 
+### Step 0: Citation Audit
+
+Before weighing any evidence, verify every citation in Gilfoyle's findings and
+Dinesh's defenses against the SOURCE MATERIAL provided:
+
+- For each `EVIDENCE:` field, check whether the cited file, function, line, or quote
+  appears in SOURCE MATERIAL.
+- If a citation **does not appear** in SOURCE MATERIAL: mark it **HALLUCINATED**.
+  A hallucinated citation immediately downgrades that finding/defense to rank-5
+  (assertion without citation) regardless of what was claimed.
+- Note each hallucination explicitly: *"Gilfoyle Finding 2 cites `test/foo.spec.js`
+  — not present in SOURCE MATERIAL. HALLUCINATED. Treated as rank-5."*
+- Only then proceed to Step 1 with the adjusted evidence quality.
+
 ### Step 1: Match findings to defenses
 
 For each of Gilfoyle's findings:
@@ -49,10 +63,12 @@ For every finding Gilfoyle raised this round:
 
 Compare this round's CONFIRMED + PARTIAL findings against all previous rounds.
 
-**CONVERGED** when either:
+**CONVERGED** when any of:
 
 - This round produced **no new CONFIRMED or PARTIAL findings** — everything was REFUTED
 - OR the CONFIRMED findings are **identical to the previous round** — no new ground covered
+- OR all CONFIRMED findings have been **explicitly conceded** by Dinesh — no further
+  evidence can change them, and Gilfoyle has no new lines of attack
 
 **CONTINUE** when:
 
@@ -127,6 +143,19 @@ _What this means:_ [1-2 sentence plain-English implication for the user]
 | 1   | [description]   | [stance + evidence] | [stance + evidence] |
 
 _Recommendation:_ [Your best assessment given the stalemate — lean on evidence quality]
+
+---
+
+### 🔵 Methodology Gaps (Primary Agent Didn't Apply Its Own Criteria)
+
+| #   | Criteria Not Applied | Impact    | Evidence of Gap |
+| --- | -------------------- | --------- | --------------- |
+| 1   | [description]        | HIGH/LOW  | `[citation]`    |
+
+_What this means:_ [distinction from Confirmed Findings — this is about process
+completeness, not correctness of individual conclusions]
+
+_(Omit this section if no methodology gaps were identified)_
 
 ---
 
