@@ -240,24 +240,26 @@ architecture.
 
 ### What to produce
 
-1. **System flow diagram.** An ASCII diagram showing the end-to-end data path
+1. **System flow diagram.** A Mermaid diagram showing the end-to-end data path
    for this feature — from user action through each service to storage and back.
    Show which service owns each step.
 
-```
-User clicks "Approve" in Web UI
-    │
-    ▼
-[web] POST /api/bookings/:id/approve
-    │
-    ▼
-[booking] BookingStatusService.transition(id, "approved")
-    ├── Updates DB status
-    └── Emits "booking.status.changed" event
-           │
-           ▼
-[connectivity] WebhookHandler.onBookingStatusChanged()
-    └── Pushes status to Airbnb API
+```mermaid
+flowchart TD
+    A["User clicks 'Approve' in Web UI"]
+    B["[web] POST /api/bookings/:id/approve"]
+    C["[booking] BookingStatusService.transition(id, 'approved')"]
+    D["Updates DB status"]
+    E["Emits 'booking.status.changed' event"]
+    F["[connectivity] WebhookHandler.onBookingStatusChanged()"]
+    G["Pushes status to Airbnb API"]
+
+    A --> B
+    B --> C
+    C --> D
+    C --> E
+    E --> F
+    F --> G
 ```
 
 2. **Interface contracts.** For each boundary between services, define:
@@ -334,7 +336,7 @@ Discovery findings for this service:
 Architecture contracts (approved by user):
 ---
 System flow:
-[paste the ASCII system flow diagram]
+[paste the Mermaid system flow diagram]
 
 Interface contracts relevant to this service:
 [paste only the interfaces this service owns or consumes]

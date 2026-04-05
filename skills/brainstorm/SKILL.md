@@ -250,7 +250,7 @@ Only reached after consensus. Request explicit user approval ("Approve") for thi
 
 **System Flow:**
 \```
-[ASCII diagram: data flow, state machine, or user journey]
+[Mermaid diagram: data flow, state machine, or user journey]
 \```
 
 **Core Entities:**

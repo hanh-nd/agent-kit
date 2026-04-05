@@ -159,9 +159,9 @@ Determine input type — this decides which phases to run:
    - Files directly touched by or adjacent to the feature.
    - Files that will be affected (blast radius)
    - Code that already partially or fully solves sub-problems
-   - Existing ASCII diagrams in blast-radius files (search for `diagram`, `flow`,
-     `→`, `──`, `┌`, `└` etc.) — these will need accuracy review if the plan
-     changes their surrounding code
+   - Existing Mermaid diagrams in blast-radius files (search for ` ```mermaid `,
+     `flowchart`, `sequenceDiagram`, `stateDiagram` etc.) — these will need
+     accuracy review if the plan changes their surrounding code
    - If input is a Design Brief: verify its claims — does the code it says to
      reuse actually exist and work as described? Flag discrepancies.
 3. **What Already Exists.** List existing code, flows, utilities that overlap with
@@ -235,7 +235,7 @@ are resolved by the user.
 - DRY violations — flag aggressively
 - Error handling patterns and missing edge cases
 - Over-engineering vs under-engineering assessment
-- Existing ASCII diagrams in touched files — still accurate after this change?
+- Existing Mermaid diagrams in touched files — still accurate after this change?
 
 **3C. Test Review**
 
@@ -279,7 +279,7 @@ Never guess public identifiers — a wrong name produces code rác downstream.
 
 #### 1. Technical Architecture & Contracts
 
-- **ASCII Diagram:** [Data flow, state machine, or pipeline]
+- **Mermaid Diagram:** [Data flow, state machine, or pipeline]
 - **Data Contracts:** [Exact schemas, interfaces, or API payloads]
 - **Failure Modes:** [Production failure scenarios and required handling]
 - **NOT in Scope:** [Considered and explicitly deferred — one-line rationale each]
@@ -297,7 +297,7 @@ Never guess public identifiers — a wrong name produces code rác downstream.
 
 #### 3. Test Plan
 
-- **New Codepaths Diagram:** [ASCII diagram of all new paths requiring tests]
+- **New Codepaths Diagram:** [Mermaid diagram of all new paths requiring tests]
 - **Required Unit Tests:** [Exact scenarios per codepath]
 - **Edge Cases to Mock:** [Dependencies to mock, states to simulate]
 - **Critical Gaps:** [Any failure modes with no test + no error handling + silent failure]
@@ -336,8 +336,8 @@ Never guess public identifiers — a wrong name produces code rác downstream.
 - **Consensus required.** Do NOT proceed to the next Phase or generate the
   blueprint until all intermediate decisions are explicitly approved or
   selected by the user. Everything before the final blueprint is conversation.
-- **Diagram liberally.** ASCII diagrams for data flow, state machines, dependency
+- **Diagram liberally.** Mermaid diagrams for data flow, state machines, dependency
   graphs, processing pipelines. These go in the blueprint AND should be flagged
   for embedding in code comments where appropriate.
 - **Stale diagrams are worse than none.** If the plan touches code near existing
-  ASCII diagrams, verify they're still accurate. Flag stale ones.
+  Mermaid diagrams, verify they're still accurate. Flag stale ones.
