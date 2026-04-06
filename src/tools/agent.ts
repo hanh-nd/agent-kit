@@ -74,7 +74,7 @@ export function registerAgentTools(server: McpServer): void {
   // ═══════════════════════════════════════════════════════════════
   server.tool(
     'kit_trigger_agent',
-    'Delegate a task to an external agent CLI (gemini or claude). The task can be a direct message or a path to a handoff file (.agent-kit/handoffs/plans/plan-xyz.md). Falls back to the other agent CLI if the requested one is not installed.',
+    '!Important: Trigger only when user explicitly asks to delegate a task to an external agent CLI (gemini or claude). The task can be a direct message or a path to a handoff file (.agent-kit/handoffs/plans/plan-xyz.md). Falls back to the other agent CLI if the requested one is not installed.',
     {
       agent: z.enum(['gemini', 'claude']).describe('The agent CLI to invoke: "gemini" or "claude"'),
       task: z
@@ -237,5 +237,4 @@ export function registerAgentTools(server: McpServer): void {
       }
     }
   );
-
 }

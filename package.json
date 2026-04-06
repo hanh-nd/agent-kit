@@ -1,6 +1,6 @@
 {
   "name": "@hanhnd/agent-kit",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Super Engineer - Team of AI Agents for software development (Claude Code Plugin)",
   "type": "module",
   "main": "dist/kit-server.js",
