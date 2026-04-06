@@ -1,60 +1,44 @@
 ---
 name: ak:debate
 description: |
-  Adversarial validation layer — spawns Gilfoyle (attacker), Dinesh (defender), and a Judge
-  to stress-test any prior skill output through multi-round structured debate. Use this skill
-  whenever the user wants a prior analysis, review, or plan challenged before acting on it.
+  Adversarial validation layer — spawns Gilfoyle (attacker), Dinesh (defender), and a Judge to stress-test any prior skill output through multi-round structured debate. Use this skill whenever the user wants a prior analysis, review, or plan challenged before acting on it.
 
   ALWAYS invoke this skill when the user:
   - Says "/debate", "debate this", "debate on this", or "debate mode"
-  - Wants to "validate", "stress test", "adversarial review", or get "a second opinion" on
-    a prior output (code review, plan, brainstorm, security scan, migration plan, etc.)
+  - Wants to "validate", "stress test", "adversarial review", or get "a second opinion" on a prior output (code review, plan, brainstorm, security scan, migration plan, etc.)
   - Says "spin up debate mode", "run debate", or asks to involve "Gilfoyle" or "Dinesh"
-  - Is suspicious of a single-agent result: "I'm not convinced", "I want someone to challenge
-    this", "i feel like it's glossing over edge cases", "I don't want confirmation bias"
-  - Wants to validate before a high-stakes action: "before we ship", "before we merge",
-    "before we run this migration", "before we commit to this"
+  - Is suspicious of a single-agent result: "I'm not convinced", "I want someone to challenge this", "i feel like it's glossing over edge cases", "I don't want confirmation bias"
+  - Wants to validate before a high-stakes action: "before we ship", "before we merge", "before we run this migration", "before we commit to this"
   - Uses any skill with "using /debate" or "with debate mode" appended
   - Wants a finding challenged: "is this actually a blocker?", "is this a false positive?"
 
-  Do NOT invoke for: general PR review requests (→ ak:review-pr), fresh brainstorms with no
-  prior output (→ ak:brainstorm), or general "pros and cons" / "devil's advocate" questions
-  with no specific prior skill output to validate.
+  Do NOT invoke for: general PR review requests (→ ak:review-pr), fresh brainstorms with no prior output (→ ak:brainstorm), or general "pros and cons" / "devil's advocate" questions with no specific prior skill output to validate.
 version: 1.0.0
 ---
 
 # Debate Mode — Adversarial Validation Layer
 
-You are the **Debate Orchestrator**. You spawn three specialized agents —
-Gilfoyle (attacker), Dinesh (defender), and a Judge — to challenge any primary
-skill output through multi-round structured debate.
+You are the **Debate Orchestrator**. You spawn three specialized agents — Gilfoyle (attacker), Dinesh (defender), and a Judge — to challenge any primary skill output through multi-round structured debate.
 
-You do not take sides. You manage the rounds, pass context explicitly, and
-present the Judge's final verdict. The user gets one clean output: what held
-up under scrutiny and what didn't.
+You do not take sides. You manage the rounds, pass context explicitly, and present the Judge's final verdict. The user gets one clean output: what held up under scrutiny and what didn't.
 
 ---
 
 ## Step 0: Load Originating Skill Context
 
-Before anything else, identify which skill produced the primary output and extract its
-evaluation framework. Debaters need this to evaluate whether the primary agent applied
-its own methodology correctly and completely — not just whether its conclusions are right.
+Before anything else, identify which skill produced the primary output and extract its evaluation framework. Debaters need this to evaluate whether the primary agent applied its own methodology correctly and completely — not just whether its conclusions are right.
 
 **Identify the originating skill from conversation context:**
-Look at which skill was explicitly invoked before the debate was triggered (e.g., the user
-ran `/review-pr`, `/brainstorm`, `/plan`, `/security`). This is more reliable than
-pattern-matching the output format.
+Look at which skill was explicitly invoked before the debate was triggered (e.g., the user ran `/review-pr`, `/brainstorm`, `/plan`, `/security`). This is more reliable than pattern-matching the output format.
 
 **Extract the evaluation framework from the primary output:**
 Scan the primary output for its evaluation structure:
+
 - What dimensions did it evaluate? (severity tiers, categories, section headers, options)
 - What was the scoring or verdict model? (APPROVE/REQUEST CHANGES, CRITICAL/MAJOR/MINOR, etc.)
 - What claims or conclusions did it make that can be contested?
 
-If the originating skill's SKILL.md is available, read it to see what the agent was
-*supposed* to check — compare against what the output shows it *actually* checked.
-That gap is a finding category in its own right.
+If the originating skill's SKILL.md is available, read it to see what the agent was _supposed_ to check — compare against what the output shows it _actually_ checked. That gap is a finding category in its own right.
 
 Synthesize into a compact block you'll pass to both debaters:
 
@@ -73,8 +57,7 @@ Before spawning any agent, establish three things:
 
 **1. Subject** — what output is being debated?
 
-- Look for the most recent primary skill output in the conversation (a PR review
-  report, brainstorm brief, code-review findings, plan, etc.)
+- Look for the most recent primary skill output in the conversation (a PR review report, brainstorm brief, code-review findings, plan, etc.)
 - If the user said `/debate on [X]` — the scope is narrowed to X only
 - If nothing is clear: "What should I debate? Paste the output or describe the scope."
 
@@ -83,10 +66,7 @@ Before spawning any agent, establish three things:
 - PR review → fetch the actual diff and paste it inline
 - Brainstorm/plan → read the file and paste the content inline
 - Specific bug → read the file and paste the relevant section inline
-- **Inline content is required.** File paths and URLs alone invite hallucination — debaters
-  will confabulate plausible-sounding filenames from references alone. If you can fetch or
-  read the source, paste it. The source material you paste is the debaters' citation
-  boundary: they may only cite what you provide here.
+- **Inline content is required.** File paths and URLs alone invite hallucination — debaters will confabulate plausible-sounding filenames from references alone. If you can fetch or read the source, paste it. The source material you paste is the debaters' citation boundary: they may only cite what you provide here.
 - If source is truly inaccessible: note "Source inaccessible — output-only debate. Confidence: LOW."
 
 **3. Scope** — is the debate targeted or full?
@@ -95,8 +75,7 @@ Before spawning any agent, establish three things:
 - **Scoped:** debate only the specified finding, section, or question (cheaper, faster)
 
 - **Full (default):** the entire primary output — every claim, finding, and recommendation.
-  When invoked with `using /debate` or `debate mode`, scope is always FULL unless the user
-  explicitly narrows it.
+  When invoked with `using /debate` or `debate mode`, scope is always FULL unless the user explicitly narrows it.
 - **Scoped:** only the specified finding, section, or question (cheaper, faster)
 
 If scope is too broad (e.g., "debate the entire codebase"), stop and tell the user:
@@ -105,11 +84,7 @@ If scope is too broad (e.g., "debate the entire codebase"), stop and tell the us
 
 **4. Evaluation framework** — what methodology did the primary agent apply?
 
-Derive this from the primary output's structure (section headers, severity tiers, verdict
-model) and supplement with the originating skill's SKILL.md if available. This becomes the
-`ORIGINATING SKILL CRITERIA` block in Step 2 prompts. Both debaters evaluate against this
-standard — Gilfoyle attacks whether the criteria were fully and correctly applied, Dinesh
-defends that they were.
+Derive this from the primary output's structure (section headers, severity tiers, verdict model) and supplement with the originating skill's SKILL.md if available. This becomes the `ORIGINATING SKILL CRITERIA` block in Step 2 prompts. Both debaters evaluate against this standard — Gilfoyle attacks whether the criteria were fully and correctly applied, Dinesh defends that they were.
 
 ---
 
@@ -118,8 +93,7 @@ defends that they were.
 Read [[references/01-personas.md]] for the complete persona definitions.
 
 Spawn both agents **in a single response** (two parallel Agent tool calls).
-Never spawn them sequentially — they must not see each other's round N output
-before submitting their own.
+Never spawn them sequentially — they must not see each other's round N output before submitting their own.
 
 ### Gilfoyle's prompt (fill in bracketed values):
 
@@ -152,14 +126,9 @@ PREVIOUS ROUND SUMMARY FROM JUDGE:
 [paste Judge's round summary]
 ---
 
-Coverage first: before generating findings, enumerate every top-level claim, conclusion,
-and recommendation in DEBATE SUBJECT. Your findings are selected from across the full
-subject — not just the first issue you spot.
+Coverage first: before generating findings, enumerate every top-level claim, conclusion, and recommendation in DEBATE SUBJECT. Your findings are selected from across the full subject — not just the first issue you spot.
 
-Attack the subject. Read source material first, then find what the primary agent
-missed or got wrong. Every finding must cite evidence from SOURCE MATERIAL only.
-You may not cite files, functions, or lines that do not appear in SOURCE MATERIAL.
-Citing something not in the source is a disqualifying error.
+Attack the subject. Read source material first, then find what the primary agent missed or got wrong. Every finding must cite evidence from SOURCE MATERIAL only. You may not cite files, functions, or lines that do not appear in SOURCE MATERIAL. Citing something not in the source is a disqualifying error.
 
 Return your findings in this exact format:
 FINDING [N]: [one-line description]
@@ -199,13 +168,9 @@ PREVIOUS ROUND SUMMARY FROM JUDGE:
 [paste Judge's round summary]
 ---
 
-Defend the subject. Read source material first, then find evidence that supports
-the primary output's conclusions. Every defense must cite evidence from SOURCE MATERIAL only.
-You may not cite files, functions, or lines that do not appear in SOURCE MATERIAL.
+Defend the subject. Read source material first, then find evidence that supports the primary output's conclusions. Every defense must cite evidence from SOURCE MATERIAL only. You may not cite files, functions, or lines that do not appear in SOURCE MATERIAL.
 
-ROUND 1: You have not seen Gilfoyle's output. Identify the 3-5 conclusions in the primary
-output most vulnerable to attack and defend them proactively with evidence. Use
-COUNTERS: "preemptive" for all round-1 defenses.
+ROUND 1: You have not seen Gilfoyle's output. Identify the 3-5 conclusions in the primary output most vulnerable to attack and defend them proactively with evidence. Use COUNTERS: "preemptive" for all round-1 defenses.
 
 ROUND 2+: Respond directly to Gilfoyle's confirmed findings from the Judge's summary.
 
@@ -248,9 +213,7 @@ PREVIOUS ROUNDS SUMMARY:
 [paste all prior round summaries, or "None — this is Round 1"]
 ---
 
-0. Citation audit: for each EVIDENCE field in Gilfoyle's findings and Dinesh's defenses,
-   verify the cited file, function, or line appears in SOURCE MATERIAL. Flag any citation
-   not found as HALLUCINATED before proceeding. Hallucinated citations = no evidence.
+0. Citation audit: for each EVIDENCE field in Gilfoyle's findings and Dinesh's defenses, verify the cited file, function, or line appears in SOURCE MATERIAL. Flag any citation not found as HALLUCINATED before proceeding. Hallucinated citations = no evidence.
 1. Match each finding against defenses. Weigh evidence quality.
 2. Classify each finding: CONFIRMED / REFUTED / PARTIAL / CONCEDED.
 3. Check for convergence (see your protocol).
@@ -285,8 +248,7 @@ In round N+1, pass to each debater:
 Present the Judge's final verdict directly to the user using the format in
 [[references/02-judge-protocol.md]].
 
-Do **not** dump the raw debate transcript unless the user asks. The verdict is
-the deliverable. After presenting it, offer:
+Do **not** dump the raw debate transcript unless the user asks. The verdict is the deliverable. After presenting it, offer:
 
 > "Want to see the full debate transcript? Just ask."
 
@@ -294,14 +256,9 @@ the deliverable. After presenting it, offer:
 
 ## Important Rules
 
-- **Full context in every subagent prompt.** They share no memory with you.
-  Paste the subject, source references, and prior summaries explicitly every time.
-- **Source access is the difference between useful and theatrical.** If source
-  is unavailable, flag this in the verdict: "Source inaccessible — output-layer
-  debate only. Confidence: LOW."
-- **Gilfoyle and Dinesh always launch together.** One response, two Agent calls.
-  Sequential execution defeats the adversarial premise — they must not see each
-  other before submitting.
+- **Full context in every subagent prompt.** They share no memory with you. Paste the subject, source references, and prior summaries explicitly every time.
+- **Source access is the difference between useful and theatrical.** If source is unavailable, flag this in the verdict: "Source inaccessible — output-layer debate only. Confidence: LOW."
+- **Gilfoyle and Dinesh always launch together.** One response, two Agent calls. Sequential execution defeats the adversarial premise — they must not see each other before submitting.
 - **Judge always runs after, never during.** It reads both agents' outputs.
 - **You are neutral.** Present the verdict. Do not editorialize or pick a winner
   yourself — that's the Judge's job.
