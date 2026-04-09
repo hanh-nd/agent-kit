@@ -47,7 +47,8 @@ function parseIni(content: string): IniData {
     if (eqIdx === -1) continue;
 
     const key = line.slice(0, eqIdx).trim();
-    const value = line.slice(eqIdx + 1).trim();
+    const rawValue = line.slice(eqIdx + 1).trim();
+    const value = rawValue.replace(/^(['"])(.*)\1$/, '$2');
     if (!result[currentSection]) result[currentSection] = {};
     result[currentSection][key] = value;
   }
