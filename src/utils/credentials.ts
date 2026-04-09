@@ -101,6 +101,9 @@ function loadCredentials(): IniProfile {
  *   process.env.KEY → ~/.claude/credentials [profile] → undefined
  */
 export function getCredential(key: string): string | undefined {
-  if (process.env[key] !== undefined) return process.env[key];
+  if (process.env[key]) {
+    return process.env[key];
+  }
+
   return loadCredentials()[key];
 }
