@@ -91,12 +91,20 @@ runWhenInvoked(import.meta.url, async () => {
     noOp();
   }
 
+  const response = {};
   try {
     const inboxPath = path.join(KIT_PATH, 'wiki', 'raw', 'inbox.md');
     fs.appendFileSync(inboxPath, '\n' + entry + '\n', 'utf8');
+
+    // Count entries and alert if > 10
+    const content = fs.readFileSync(inboxPath, 'utf8');
+    const entryCount = (content.match(/^## \[/gm) || []).length;
+    if (entryCount > 10) {
+      response.systemMessage = `⚠️ Wiki Inbox has more than 10 entries. Please run \`/wiki compile\` to organize them.`;
+    }
   } catch {
     // Fail-open: never block user workflow
   }
 
-  console.log(JSON.stringify({}));
+  console.log(JSON.stringify(response));
 });

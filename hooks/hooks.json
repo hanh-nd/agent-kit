@@ -10,6 +10,13 @@
             "command": "node \"${extensionPath}${CLAUDE_PLUGIN_ROOT}\"/scripts/kit-init.js",
             "description": "Initialize Agent-Kit",
             "timeout": 10000
+          },
+          {
+            "name": "inject-instructions",
+            "type": "command",
+            "command": "node \"${extensionPath}${CLAUDE_PLUGIN_ROOT}\"/scripts/inject-agent-instructions.js",
+            "description": "Inject agent instructions at session start",
+            "timeout": 5000
           }
         ]
       },
@@ -17,10 +24,10 @@
         "matcher": "clear",
         "hooks": [
           {
-            "name": "reinject-wiki-after-clear",
+            "name": "inject-instructions",
             "type": "command",
-            "command": "node \"${extensionPath}${CLAUDE_PLUGIN_ROOT}\"/scripts/wiki-context-reinject.js",
-            "description": "Re-inject wiki context after /clear",
+            "command": "node \"${extensionPath}${CLAUDE_PLUGIN_ROOT}\"/scripts/inject-agent-instructions.js",
+            "description": "Inject agent instructions after /clear",
             "timeout": 5000
           }
         ]
@@ -30,13 +37,6 @@
       {
         "matcher": "",
         "hooks": [
-          {
-            "name": "inject-project-dna",
-            "type": "command",
-            "command": "node \"${extensionPath}${CLAUDE_PLUGIN_ROOT}\"/scripts/inject-project-dna.js",
-            "description": "Inject project DNA into context for skill command invocations",
-            "timeout": 5000
-          },
           {
             "name": "security-blocker",
             "type": "command",
@@ -80,10 +80,10 @@
         "matcher": "",
         "hooks": [
           {
-            "name": "export-conversation-history",
+            "name": "export-history",
             "type": "command",
             "command": "node \"${extensionPath}${CLAUDE_PLUGIN_ROOT}\"/scripts/export-conversation-history.js",
-            "description": "Export conversation transcript to wiki/raw before /compact discards context",
+            "description": "Export transcript to wiki before /compact",
             "timeout": 10000
           }
         ]
@@ -94,10 +94,10 @@
         "matcher": "",
         "hooks": [
           {
-            "name": "kit-wiki-reinject",
+            "name": "inject-instructions",
             "type": "command",
-            "command": "node \"${extensionPath}${CLAUDE_PLUGIN_ROOT}\"/scripts/wiki-context-reinject.js",
-            "description": "Re-inject wiki context after /compact",
+            "command": "node \"${extensionPath}${CLAUDE_PLUGIN_ROOT}\"/scripts/inject-agent-instructions.js",
+            "description": "Inject agent instructions after /compact",
             "timeout": 5000
           }
         ]
@@ -108,10 +108,10 @@
         "matcher": "",
         "hooks": [
           {
-            "name": "export-conversation-history-on-exit",
+            "name": "export-history",
             "type": "command",
             "command": "node \"${extensionPath}${CLAUDE_PLUGIN_ROOT}\"/scripts/export-conversation-history.js",
-            "description": "Export conversation transcript to wiki/raw on any session exit (/clear, Ctrl+C, logout, etc.)",
+            "description": "Export transcript to wiki on session exit",
             "timeout": 10000
           }
         ]
