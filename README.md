@@ -28,7 +28,9 @@ claude plugin install [plugin-name]
 To install as a Gemini extension:
 
 ```bash
-gemini extension install https://github.com/hanh-nd/agent-kit/plugins/[plugin-name]
+git clone https://github.com/hanh-nd/agent-kit.git
+cd agent-kit/plugins/[plugin-name]
+gemini extension link .gemini
 ```
 
 ## Development

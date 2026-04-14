@@ -1,6 +1,5 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs';
-import * as path from 'path';
 import { fileURLToPath } from 'url';
 
 /**
@@ -18,7 +17,9 @@ import { fileURLToPath } from 'url';
  * @param {() => Promise<void>} fn - async hook body
  */
 export function runWhenInvoked(importMetaUrl, fn) {
-  if (path.resolve(process.argv[1]) === fileURLToPath(importMetaUrl)) {
+  const entryPath = fs.realpathSync(process.argv[1]);
+  const modulePath = fs.realpathSync(fileURLToPath(importMetaUrl));
+  if (entryPath === modulePath) {
     fn();
   }
 }
@@ -58,6 +59,15 @@ export function spawnBackground(scriptUrl, args = []) {
  * @returns {Promise<{ messages: Array<{ role: string, content: string }> }>}
  */
 export function parseTranscript(transcriptPath) {
+  if (transcriptPath.endsWith('.jsonl')) {
+    return parseClaudeTranscript(transcriptPath);
+  }
+  if (transcriptPath.endsWith('.json')) {
+    return parseGeminiTranscript(transcriptPath);
+  }
+}
+
+function parseClaudeTranscript(transcriptPath) {
   try {
     const content = fs.readFileSync(transcriptPath, 'utf8');
     const lines = content.trim().split('\n');
@@ -96,6 +106,38 @@ export function parseTranscript(transcriptPath) {
       } catch {
         // Skip malformed lines
         continue;
+      }
+    }
+
+    return { messages };
+  } catch (error) {
+    console.error('Failed to parse transcript:', error.message);
+    return { messages: [] };
+  }
+}
+
+function parseGeminiTranscript(transcriptPath) {
+  try {
+    const content = fs.readFileSync(transcriptPath, 'utf8');
+    const { messages: rawMessages = [] } = JSON.parse(content);
+
+    const messages = [];
+    for (const msg of rawMessages) {
+      if (msg.type === 'user' || msg.type === 'gemini') {
+        let contentText = '';
+        const msgContent = msg.displayContent || msg.content;
+        if (typeof msgContent === 'string') {
+          contentText = msgContent;
+        } else if (Array.isArray(msgContent)) {
+          contentText = msgContent.map((block) => block.text).join('\n');
+        }
+
+        if (contentText) {
+          messages.push({
+            role: msg.type,
+            content: contentText,
+          });
+        }
       }
     }
 

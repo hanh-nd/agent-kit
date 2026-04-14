@@ -91,7 +91,9 @@ This registers the MCP server automatically (pointing to your local build). Do *
 If you want to reuse the commands with [Gemini CLI](https://geminicli.com), install it using:
 
 ```bash
-gemini extension install https://github.com/hanh-nd/agent-kit/plugins/learning-kit
+git clone https://github.com/hanh-nd/agent-kit.git
+cd agent-kit/plugins/learning-kit
+gemini extension link .gemini
 ```
 
 ---

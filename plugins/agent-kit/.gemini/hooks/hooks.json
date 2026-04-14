@@ -7,14 +7,14 @@
           {
             "name": "kit-init",
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/kit-init.js",
+            "command": "node \"${extensionPath}/scripts/kit-init.js\"",
             "description": "Initialize Agent-Kit",
             "timeout": 10000
           },
           {
             "name": "inject-instructions",
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/inject-agent-instructions.js",
+            "command": "node \"${extensionPath}/scripts/inject-agent-instructions.js\"",
             "description": "Inject agent instructions at session start",
             "timeout": 5000
           }
@@ -26,79 +26,65 @@
           {
             "name": "inject-instructions",
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/inject-agent-instructions.js",
+            "command": "node \"${extensionPath}/scripts/inject-agent-instructions.js\"",
             "description": "Inject agent instructions after /clear",
             "timeout": 5000
           }
         ]
       }
     ],
-    "UserPromptSubmit": [
+    "BeforeModel": [
       {
         "matcher": "",
         "hooks": [
           {
             "name": "security-blocker",
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/security-privacy.js",
+            "command": "node \"${extensionPath}/scripts/security-privacy.js\"",
             "description": "Hard-block access to sensitive files",
             "timeout": 5000
           }
         ]
       }
     ],
-    "PostToolUse": [
+    "AfterTool": [
       {
         "matcher": "",
         "hooks": [
           {
             "name": "kit-wiki-inbox",
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/wiki-inbox-append.js",
+            "command": "node \"${extensionPath}/scripts/wiki-inbox-append.js\"",
             "description": "Log kit_save_handoff calls to wiki inbox",
             "timeout": 5000
           }
         ]
       }
     ],
-    "PreToolUse": [
+    "BeforeTool": [
       {
         "matcher": "",
         "hooks": [
           {
             "name": "security-blocker",
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/security-privacy.js",
+            "command": "node \"${extensionPath}/scripts/security-privacy.js\"",
             "description": "Hard-block access to sensitive files",
             "timeout": 5000
           }
         ]
       }
     ],
-    "PreCompact": [
+    "PreCompress": [
       {
         "matcher": "",
         "hooks": [
           {
             "name": "export-history",
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/export-conversation-history.js",
+            "command": "node \"${extensionPath}/scripts/export-conversation-history.js\"",
             "description": "Export transcript to wiki before /compact",
             "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "PostCompact": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "name": "inject-instructions",
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/inject-agent-instructions.js",
-            "description": "Inject agent instructions after /compact",
-            "timeout": 5000
           }
         ]
       }
@@ -110,7 +96,7 @@
           {
             "name": "export-history",
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/export-conversation-history.js",
+            "command": "node \"${extensionPath}/scripts/export-conversation-history.js\"",
             "description": "Export transcript to wiki on session exit",
             "timeout": 10000
           }

@@ -1,7 +1,8 @@
 {
-  "name": "agent-suite",
-  "version": "1.0.0",
-  "description": "A collection of specialized AI agents for software development",
+  "name": "agent-kit",
+  "version": "1.0.17",
+  "description": "Super Engineer - Team of AI Agents for software development",
+  "contextFileName": "docs/instruction.md",
   "mcpServers": {
     "kit-agents": {
       "command": "npx",
