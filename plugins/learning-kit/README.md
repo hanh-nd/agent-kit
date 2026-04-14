@@ -11,7 +11,6 @@
 | `/lk:init [topic]`    | Initialize a new learning topic with NotebookLM                            |
 | `/lk:roadmap [topic]` | Build the final learning roadmap and save to Obsidian                      |
 | `/lk:list`            | List all in-progress and completed learning topics tracked by Learning Kit |
-| `/nlm [command]`      | Direct access to NotebookLM CLI/MCP expert                                 |
 
 ---
 

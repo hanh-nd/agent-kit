@@ -1,10 +1,10 @@
 ---
 name: lk:roadmap
 description: 'Build the final learning roadmap by extracting adversarial insights from NotebookLM and writing to Obsidian. Use this skill ONLY after the user has completed the manual Deep Research phase in their browser. Supports natural language like: "/lk:roadmap [topic]", "/lk:roadmap I finished the [topic] research", "/lk:roadmap build roadmap for [topic]"'
-version: 1.0.2
+version: 2.4.0
 ---
 
-# Learning Kit — Roadmap
+# Learning Kit — Deep Roadmap (v2.4)
 
 **Input:** $ARGUMENTS (Raw string or object with `subject`)
 
@@ -12,55 +12,46 @@ version: 1.0.2
 
 ## Identity
 
-You are the Architect for the Learning Kit. Your purpose is to resume a learning workflow after the user has completed Deep Research.
+You are the **Orchestrator** for the Learning Kit. Your purpose is to build a deep, interrogative learning roadmap. 
 
-**Input Parsing Logic:**
-1.  **Subject Extraction**: If $ARGUMENTS is a string, extract the main subject (e.g., "How a mechanical watch works"). Ignore conversational filler like "I finished the", "research for", or "build roadmap for".
-2.  **Fallback**: If $ARGUMENTS is an object, use `arguments.subject`.
+**DO NOT assume personas yourself.** Instead, you MUST delegate the interrogation of each topic to independent **Persona Subagents** using the `generalist` tool. This ensures clean context and prevents "persona drift" in the main conversation.
 
 ---
 
 ## Workflow: Phase 1c Roadmap Generation
 
-### Step 1 — Load State
-1. Slugify the extracted subject.
-2. Read `state/[slug].json`. Recover `knowledgeMap`, `researchQueries`, `adversarialNotebookId`, `seedNotebookId`.
+### Step 1 — Load State & Persona Definitions
+1. Slugify the subject and read `state/[slug].json`.
+2. Reference persona and protocol files:
+   - **Protocol**: `skills/roadmap/references/protocol.md`
+   - **Personas**: `skills/roadmap/references/persona_theorist.md`, `persona_practitioner.md`, `persona_auditor.md`.
 
 ### Step 2 — Verify Adversarial Sources
 1. Retrieve adversarial notebook details: `notebook_get(notebook_id: "[adversarialNotebookId]")`.
-2. Inspect the returned source list.
-   - If `sources` count is 0, output "Adversarial Notebook is empty. Run queries in browser." and **stop**.
-   - If `sources` count is less than `researchQueries.length`, prompt the user: "Partial Deep Research detected. Continue anyway? (yes/no)".
+2. Ensure at least one source exists.
 
-### Step 3 — Sequential Extraction (Isolated)
-Extract insights for each topic individually using `notebook_query`.
-For each `topic` in `knowledgeMap.topics`:
-1. Ask the adversarial notebook: `notebook_query(notebook_id: "[adversarialNotebookId]", query: "...")`:
-   ```
-   For the topic "[topic]": what does this notebook say about it? Max 3 bullets each. Return ONLY JSON:
-   {
-     "topic": "[topic]",
-     "insights": ["<core findings from research>"],
-     "criticisms": ["<adversarial viewpoints or risks>"],
-     "examples": ["<real-world cases or failure modes>"]
-   }
-   ```
-2. Accumulate the `TopicInsight` results. Skip and warn on failure.
+### Step 3 — Persona Subagent Orchestration
+For each `topic` in `knowledgeMap.topics`, you MUST spawn three independent subagents sequentially (Theorist, Practitioner, Auditor).
+
+**For each persona (Theorist -> Practitioner -> Auditor):**
+1.  **Spawn Subagent**: Use `generalist(request: "...")`.
+2.  **Subagent Mission**: Give the subagent the following mission:
+    - **Identity**: Read and assume the identity in `skills/roadmap/references/persona_[persona].md`.
+    - **Context**: "Topic: [Topic]. KnowledgeMap: [Relevant part of state]. NotebookID: [adversarialNotebookId]."
+    - **Goal**: Follow the **Iterative Evidence Mapping Protocol** in `skills/roadmap/references/protocol.md`.
+3.  **Collect Report**: The subagent returns a consolidated, evidence-backed report using the structure defined in `protocol.md`.
+4.  **Handle Unknown Unknowns**: If the report contains "NEW TOPIC CANDIDATE", add it to the `knowledgeMap` for the next topic iteration.
 
 ### Step 4 — Build Roadmap Content
-Construct Markdown using `knowledgeMap` + `topicInsights` + `researchQueries`.
+Aggregate the reports from all subagents into the final Roadmap.
 REQUIRED SECTIONS:
 1. **Executive Summary**: One-sentence goal + top risk.
 2. **Guided Reading Plan**: Ordered list of sections (Source, Section, Order) with 3 Feynman prompts each.
-3. **Deep Dive Analysis**: Per-topic synthesis of seed material vs. adversarial findings.
-4. **Borderline Concepts (Unknown Unknowns)**: List of adjacent concepts discovered.
-5. **Phase 2 Interrogation Templates**: Copy-paste prompts for the user to use in the NotebookLM browser to test their mastery.
+3. **Deep Dive Analysis**: Per-topic synthesis (Seed material vs. Persona Reports).
+4. **Borderline Concepts (Unknown Unknowns)**: Aggregated list of candidates from Gap Audits.
+5. **Phase 2 Interrogation Templates**: Mastery-testing prompts for the user.
 
-### Step 5 — Output & Save
-Check `OBSIDIAN_VAULT_PATH` environment variable.
-**If set:** Write to `$OBSIDIAN_VAULT_PATH/00_Roadmaps/[slug]_Roadmap.md`.
-**If not set:** Output full Markdown block in chat and suggest setting the env var.
-
-### Step 6 — Finalize
-1. Update `state/[slug].json`: `phase = "complete"`.
-2. Notify the user of completion and roadmap location.
+### Step 5 — Save & Finalize
+1. Check `OBSIDIAN_VAULT_PATH`. Write to `$OBSIDIAN_VAULT_PATH/00_Roadmaps/[slug]_Roadmap.md`.
+2. Update `state/[slug].json`: set `phase = "complete"` and save the updated `knowledgeMap`.
+3. Notify the user of completion.

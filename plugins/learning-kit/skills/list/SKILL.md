@@ -23,7 +23,7 @@ You use the Bash tool to scan the state folder and the Read tool to parse metada
 ### Step 1 — Scan State Folder
 
 Search for state files: `ls state/*.json 2>/dev/null`.
-If none found, output: "No learning topics found. Start one with `/lk:learn:init subject=\"...\"`." **Stop.**
+If none found, output: "No learning topics found. Start one with `/lk:init subject=\"...\"`." **Stop.**
 
 ### Step 2 — Parse & Summarize
 
@@ -46,6 +46,6 @@ Display the results as a Markdown table:
 
 Based on the phases, suggest next commands:
 
-- If `queries_ready`: "Run `/lk:learn:build subject=\"[Subject]\"` to generate roadmap."
+- If `queries_ready`: "Run `/lk:roadmap subject=\"[Subject]\"` to generate roadmap."
 - If `complete`: "Roadmap ready in Obsidian."
-- If `sources_uploaded`: "Run `/lk:learn:init subject=\"[Subject]\"` again to extract KnowledgeMap."
+- If `sources_uploaded`: "Run `/lk:init subject=\"[Subject]\"` again to extract KnowledgeMap."
