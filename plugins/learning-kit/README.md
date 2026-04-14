@@ -6,12 +6,12 @@
 
 ### Commands
 
-| Command                           | Description                                                                 |
-| --------------------------------- | --------------------------------------------------------------------------- |
-| `/lk:init [topic]`                | Initialize a new learning topic with NotebookLM                             |
-| `/lk:roadmap [topic]`             | Build the final learning roadmap and save to Obsidian                       |
-| `/lk:learn:list`                  | List all in-progress and completed learning topics tracked by Learning Kit |
-| `/nlm [command]`                  | Direct access to NotebookLM CLI/MCP expert                                  |
+| Command               | Description                                                                |
+| --------------------- | -------------------------------------------------------------------------- |
+| `/lk:init [topic]`    | Initialize a new learning topic with NotebookLM                            |
+| `/lk:roadmap [topic]` | Build the final learning roadmap and save to Obsidian                      |
+| `/lk:list`            | List all in-progress and completed learning topics tracked by Learning Kit |
+| `/nlm [command]`      | Direct access to NotebookLM CLI/MCP expert                                 |
 
 ---
 
@@ -20,17 +20,20 @@
 The Learning Kit follows a specific 3-phase workflow to ensure deep mastery and identification of "Unknown Unknowns":
 
 ### Phase 1a: Init & Discovery (`/lk:init`)
+
 - Discovers sources (from a local directory or via automatic web research)
 - Creates a **Seed** notebook in NotebookLM
 - Extracts a **KnowledgeMap** (topics, subtopics, and current knowledge gaps)
 - Generates **Clustered Research Queries** to feed into the adversarial research phase
 
 ### Phase 1b: Deep Research (Manual)
+
 - The user opens the **Adversarial** notebook in their browser
 - Runs the generated clustered queries in the NotebookLM Deep Research tool
 - Saves the resulting reports as **Notes** within the notebook
 
 ### Phase 1c: Roadmap Generation (`/lk:roadmap`)
+
 - Resumes the workflow after the user completes the manual research
 - Performs sequential extraction of insights and adversarial viewpoints from the research
 - Synthesizes all findings into a comprehensive **Markdown Learning Roadmap**
@@ -79,7 +82,7 @@ This registers the MCP server automatically (pointing to your local build). Do *
 **3. Verify**
 
 ```
-/lk:learn:list
+/lk:list
 ```
 
 ---
