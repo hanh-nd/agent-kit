@@ -25,7 +25,7 @@ You are the Initializer for the Learning Kit. Your sole purpose is to set up the
 
 ### Step 1 — Resume Check
 1. Slugify the extracted subject (lowercase, alphanumeric + hyphens).
-2. Read `state/[slug].json`.
+2. Read `output/state/[slug].json`.
 3. If `phase == "complete"` or `phase == "queries_ready"`, notify the user and **stop**.
 
 ### Step 2 — Source Discovery & Selection
@@ -73,7 +73,7 @@ You are the Initializer for the Learning Kit. Your sole purpose is to set up the
 2. Create the adversarial notebook: `notebook_create(title: "[Subject] — Adversarial")`. Capture the `id` as `adversarialNotebookId`.
 
 ### Step 5 — Save State & Output
-1. Write `state/[slug].json`.
+1. Write `output/state/[slug].json`.
 2. Output the generated **Clustered Queries**.
 3. **MANDATORY INSTRUCTION**: Tell the user to open the `[Subject] — Adversarial` notebook, run the clustered queries in the Deep Research tool, and **save the resulting reports as Notes**.
 4. End with: "Run queries in NotebookLM, then run `/lk:roadmap subject=\"[subject]\"`."

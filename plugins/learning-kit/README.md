@@ -9,7 +9,7 @@
 | Command               | Description                                                                |
 | --------------------- | -------------------------------------------------------------------------- |
 | `/lk:init [topic]`    | Initialize a new learning topic with NotebookLM                            |
-| `/lk:roadmap [topic]` | Build the final learning roadmap and save to Obsidian                      |
+| `/lk:roadmap [topic]` | Build the final learning roadmap and save to the output folder             |
 | `/lk:list`            | List all in-progress and completed learning topics tracked by Learning Kit |
 
 ---
@@ -36,7 +36,7 @@ The Learning Kit follows a specific 3-phase workflow to ensure deep mastery and 
 - Resumes the workflow after the user completes the manual research
 - Performs sequential extraction of insights and adversarial viewpoints from the research
 - Synthesizes all findings into a comprehensive **Markdown Learning Roadmap**
-- Automatically writes the roadmap to your **Obsidian vault** (if configured)
+- Automatically writes the roadmap to the `output/roadmaps/` folder
 
 ---
 
@@ -129,9 +129,9 @@ Used for all notebook operations, research, and query tasks.
 - Run `nlm login` to authenticate before using Learning Kit commands.
 - Run `nlm login switch <profile>` if you use multiple Google accounts.
 
-### Obsidian
+### Output Folder
 
-Learning Kit can automatically save your roadmaps to your Obsidian vault.
+All results and states are stored in the `output/` folder at the root of the project.
 
-- Set the `OBSIDIAN_VAULT_PATH` environment variable to the absolute path of your Obsidian vault.
-- Roadmaps will be saved in `00_Roadmaps/[slug]_Roadmap.md`.
+- `output/state/`: JSON files containing the current state and KnowledgeMap for each topic.
+- `output/roadmaps/`: The final generated Markdown roadmaps.

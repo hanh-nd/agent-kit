@@ -21,8 +21,11 @@ You are the **Orchestrator** for the Learning Kit. Your purpose is to build a de
 ## Workflow: Phase 1c Roadmap Generation
 
 ### Step 1 — Load State & Persona Definitions
-1. Slugify the subject and read `state/[slug].json`.
-2. Reference persona and protocol files:
+1. Slugify the subject and read `output/state/[slug].json`.
+2. Ensure checkpointing infrastructure is ready:
+   - Create directory `output/state/[slug]/reports/` if it doesn't exist.
+   - If `progressManifest` is missing in `[slug].json`, initialize it as an empty object `{}`.
+3. Reference persona and protocol files:
    - **Protocol**: `skills/roadmap/references/protocol.md`
    - **Personas**: `skills/roadmap/references/persona_theorist.md`, `persona_practitioner.md`, `persona_auditor.md`.
 
@@ -34,16 +37,25 @@ You are the **Orchestrator** for the Learning Kit. Your purpose is to build a de
 For each `topic` in `knowledgeMap.topics`, you MUST spawn three independent subagents sequentially (Theorist, Practitioner, Auditor).
 
 **For each persona (Theorist -> Practitioner -> Auditor):**
-1.  **Spawn Subagent**: Use `generalist(request: "...")`.
-2.  **Subagent Mission**: Give the subagent the following mission:
+1.  **Skip Check**: 
+    - Construct the `key`: `[index]_[topic-slug]_[persona]`. (Example: `01_mechanical-watch-anatomy_theorist`)
+    - Check if `progressManifest[key] == "completed"` OR if `output/state/[slug]/reports/[key].md` exists and is non-empty.
+    - If either is true, set `progressManifest[key] = "completed"` in the state JSON (if not already), save `[slug].json`, and **SKIP** this subagent task.
+2.  **Spawn Subagent**: Use `generalist(request: "...")`.
+3.  **Subagent Mission**: Give the subagent the following mission:
     - **Identity**: Read and assume the identity in `skills/roadmap/references/persona_[persona].md`.
     - **Context**: "Topic: [Topic]. KnowledgeMap: [Relevant part of state]. NotebookID: [adversarialNotebookId]."
     - **Goal**: Follow the **Iterative Evidence Mapping Protocol** in `skills/roadmap/references/protocol.md`.
-3.  **Collect Report**: The subagent returns a consolidated, evidence-backed report using the structure defined in `protocol.md`.
-4.  **Handle Unknown Unknowns**: If the report contains "NEW TOPIC CANDIDATE", add it to the `knowledgeMap` for the next topic iteration.
+4.  **Checkpoint Report**: 
+    - The subagent returns a consolidated report.
+    - **Immediately** save this report to `output/state/[slug]/reports/[key].md`.
+    - Update `progressManifest[key] = "completed"`.
+    - **Immediately** save `output/state/[slug].json`.
+5.  **Handle Unknown Unknowns**: If the report contains "NEW TOPIC CANDIDATE", add it to the `knowledgeMap` for the next topic iteration.
 
-### Step 4 — Build Roadmap Content
-Aggregate the reports from all subagents into the final Roadmap.
+### Step 4 — Build Roadmap Content (Stateless Aggregation)
+1.  **Read Saved Reports**: Read all persona reports from `output/state/[slug]/reports/`.
+2.  **Aggregate**: Synthesize the reports into the final Roadmap structure.
 REQUIRED SECTIONS:
 1. **Executive Summary**: One-sentence goal + top risk.
 2. **Guided Reading Plan**: Ordered list of sections (Source, Section, Order) with 3 Feynman prompts each.
@@ -52,6 +64,9 @@ REQUIRED SECTIONS:
 5. **Phase 2 Interrogation Templates**: Mastery-testing prompts for the user.
 
 ### Step 5 — Save & Finalize
-1. Check `OBSIDIAN_VAULT_PATH`. Write to `$OBSIDIAN_VAULT_PATH/00_Roadmaps/[slug]_Roadmap.md`.
-2. Update `state/[slug].json`: set `phase = "complete"` and save the updated `knowledgeMap`.
-3. Notify the user of completion.
+1.  **Write Final Roadmap**: Write the roadmap to `output/roadmaps/[slug]_Roadmap.md`.
+2.  **Finalize State**:
+    - Update `output/state/[slug].json`: set `phase = "complete"` and save the updated `knowledgeMap`.
+    - Only perform this step if the roadmap was successfully written.
+3.  **Cleanup**: (Optional) You may inform the user that checkpoint files in `output/state/[slug]/reports/` are preserved for future reference.
+4.  **Notify**: Tell the user where the final roadmap is located.
