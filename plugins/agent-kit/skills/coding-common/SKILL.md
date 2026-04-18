@@ -15,8 +15,8 @@ You have ingested the target source code. Before implementing changes, you MUST 
 
 **Always Read:**
 
-- [[01-clean-code-standard.md]]
-- [[02-refactoring-standard.md]]
+- [[references/01-clean-code-standard.md]]
+- [[references/02-refactoring-standard.md]]
 
 - Focus: Naming conventions, architectural patterns (SOLID/DRY), and local style mirroring.
 - Action: You are required to refactor any existing "bad code" encountered in the files you are modifying.

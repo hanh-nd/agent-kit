@@ -88,12 +88,20 @@ For inbox entries, the `path` field points to the actual handoff document. For e
 
 Read all raw material. Before touching any file, answer:
 
-- **What entities appear?** Named features, services, integrations, or components being actively built. Signal: has a proper name, decisions are being made about it. Handoff types map naturally: brainstorm = discovery, plan = blueprint, ticket = task. Track the lifecycle — an entity that has a brainstorm and a plan is more mature than one with only a brainstorm.
+- **What entities appear?** Named features, services, integrations, or components being actively built. Signal: has a proper name, decisions are being made about it. Handoff types map naturally: brainstorm = discovery, plan = blueprint, ticket = task.
+- **Synthesize Lifecycle & Rationale:** Distinguish between active, parked, and rejected ideas:
+  - **active:** The brainstorm is followed by a `plan` or `ticket`.
+  - **rejected:** The brainstorm has no subsequent plan AND the agent identified a blocker, red-flag, or high-risk trade-off in the conversation. Use the agent's own critique as the rationale.
+  - **parked:** The brainstorm has no subsequent plan and no explicit blockers (a "stale" or "for later" idea).
+- **Verify against Codebase (Reality Check):** For any entity with a `plan` or `ticket` status, verify the existence of mentioned files/directories:
+  - If files exist and have content: status remains `active` or `in-progress`.
+  - If files are missing but a plan exists: downgrade status to `parked` and add a `⚠️ Reality Gap: Plan exists but files are missing` marker.
+  - If a feature was previously `complete` but its files are now gone: mark as `deprecated`.
 - **What concepts emerge?** Architectural decisions, patterns, or rules that will constrain future choices. Signal: "we always...", "the rule is...", the same pattern appearing in two or more features (that's when it earns its own concept page vs staying as a bullet on an entity).
 - **What cross-links exist?** Which entities implement which concepts? Which entities relate to each other?
 - **What's new vs confirmatory?** For pages that already exist, does this material extend, confirm, or contradict them?
 
-Build a working inventory: `(type, slug, sources[], key-facts[], links-to[])` before writing.
+Build a working inventory: `(type, slug, status, rationale, sources[], key-facts[], links-to[])` before writing.
 
 ### Step 3: Update or create entity pages
 
@@ -182,10 +190,11 @@ The synthesis paragraph is what makes this more than a filing operation. Write i
 1. Read `wiki/compiled/index.md` to enumerate all pages.
 2. **Broken links:** Scan every compiled page for `[[target]]` where the linked file doesn't exist.
 3. **Orphan pages:** Find compiled pages that no other compiled page links to via `[[slug]]`.
-4. **Unresolved contradictions:** Scan for `⚠️ Contradiction:` markers across all pages — these are flagged but unresolved, list them for human attention.
-5. **Stale inbox:** Check `wiki/raw/inbox.md` for entries with timestamps older than 7 days.
-6. **Missing concept pages:** Find `[[slug]]` references in entity pages that have no corresponding `concepts/{slug}.md`.
-7. **Suggested investigations:** Based on the gaps and orphans found, suggest 2-3 specific questions worth exploring or topics worth compiling next. The wiki is a map of what's known — lint should point toward what isn't.
+4. **Unresolved contradictions:** Scan for `⚠️ Contradiction:` or `⚠️ Reality Gap:` markers across all pages — these are flagged but unresolved, list them for human attention.
+5. **Shadow Features:** Find directories/files in `src/` that have significant logic but no corresponding entity page in the wiki.
+6. **Stale inbox:** Check `wiki/raw/inbox.md` for entries with timestamps older than 7 days.
+7. **Missing concept pages:** Find `[[slug]]` references in entity pages that have no corresponding `concepts/{slug}.md`.
+8. **Suggested investigations:** Based on the gaps and orphans found, suggest 2-3 specific questions worth exploring or topics worth compiling next. The wiki is a map of what's known — lint should point toward what isn't.
 
 **Output:**
 
@@ -201,8 +210,14 @@ The synthesis paragraph is what makes this more than a filing operation. Write i
 ### ⚠️ Unresolved Contradictions ({N})
 - {page}: flagged contradiction on "{topic}" — human resolution needed
 
+### 🏗️ Reality Gaps ({N})
+- {page}: documented as {status} but files {path} are missing or empty
+
+### 🕵️ Shadow Features ({N})
+- {path}: source code exists but no wiki entity page found — consider compiling
+
 ### 📥 Stale Inbox
-- {N} entries older than 7 days — run /wiki compile to process
+...
 
 ### 📄 Missing Concept Pages ({N})
 - [[{slug}]] referenced in {page} but concepts/{slug}.md doesn't exist
@@ -231,8 +246,12 @@ If no issues: `✅ Wiki is healthy. No broken links, orphans, or contradictions 
 
 ## Lifecycle
 
-{brainstorm | plan | ticket | in-progress | complete | deprecated}
+{active | parked | rejected | in-progress | complete | deprecated}
 {Link the stages: [[brainstorm-slug]] → [[plan-slug]] → [[ticket-slug]]}
+
+## Rationale (for rejected/parked)
+
+{Synthesized reason for rejection or why the idea is parked} — [[source-slug]]
 
 ## Key Decisions
 

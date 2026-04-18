@@ -110,9 +110,6 @@ Always read these. They are small and extremely information-dense.
 - **README.md** (first 200 lines only): → Extract: project description, setup instructions, architectural overview if present.
 - **.gitignore**: → Extract: what's generated vs. authored, environment patterns.
 
-Read the ecosystem-specific signal file list in `references/ecosystem-signals.md`
-for the detected ecosystem to identify additional Tier 1 files.
-
 #### Tier 2 — Architecture Signals (~10,000 tokens)
 
 Read selectively based on Phase 1 findings. Goal: understand the structural patterns.

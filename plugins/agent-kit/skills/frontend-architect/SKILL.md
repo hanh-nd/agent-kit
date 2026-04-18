@@ -34,8 +34,8 @@ Apply the identified patterns to the implementation plan or code review. Ensure 
 
 ## 📚 Specialized Domain Knowledge
 
-- [[01-component-architecture]]: Composition, Props, & Logic Separation.
-- [[02-state-and-data-sync]]: Server State, Client Store, & URL Persistence.
-- [[03-styling-and-layout]]: CSS Governance, Theming, & Responsive Design.
-- [[04-performance-and-delivery]]: Web Vitals, Hydration, & Bundle Optimization.
-- [[05-resiliency-and-quality]]: A11y, Error Boundaries, & Testing.
+- [[references/01-component-architecture.md]]: Composition, Props, & Logic Separation.
+- [[references/02-state-and-data-sync.md]]: Server State, Client Store, & URL Persistence.
+- [[references/03-styling-and-layout.md]]: CSS Governance, Theming, & Responsive Design.
+- [[references/04-performance-and-delivery.md]]: Web Vitals, Hydration, & Bundle Optimization.
+- [[references/05-resiliency-and-quality.md]]: A11y, Error Boundaries, & Testing.

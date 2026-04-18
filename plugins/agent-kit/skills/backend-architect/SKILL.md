@@ -38,7 +38,7 @@ Provide actionable blueprints or refactoring advice. Reference specialized refer
 
 ## 📚 Specialized Knowledge Base
 
-- [[01-system-design]]: Distributed systems and microservices patterns.
-- [[02-database-architecture]]: Persistence strategies and optimization.
-- [[03-api-and-security]]: Secure communication and API standards.
-- [[04-reliability-and-performance]]: Resilient infrastructure and performance tuning.
+- [[references/01-system-design.md]]: Distributed systems and microservices patterns.
+- [[references/02-database-architecture.md]]: Persistence strategies and optimization.
+- [[references/03-api-and-security.md]]: Secure communication and API standards.
+- [[references/04-reliability-and-performance.md]]: Resilient infrastructure and performance tuning.
