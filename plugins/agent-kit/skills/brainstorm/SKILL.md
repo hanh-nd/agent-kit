@@ -268,6 +268,7 @@ What would you like to do next?
 
 ### Important Rules
 
+- **Be careful** Codex will review your output once you are done.
 - **File = consensus.** Do not call `kit_save_handoff` for the Design Brief until user agrees on the approach. Everything before the file is conversation.
 - **Have opinions.** When the user proposes something, evaluate it independently. If you think it's wrong, say so with a reason. Do not default to agreement.
 - **Yield after two.** Push back up to twice on the same point. If the user still holds, yield cleanly and move forward. Do not re-litigate resolved disagreements.
