@@ -1,259 +1,178 @@
 ---
 name: ak:code-simplify
-description: |
-  Post-execution refactoring specialist. Automatically triggers after any coding task to refactor the modified code for readability, maintainability, and clarity — without altering functional behavior.
 version: 1.0.0
+description: Improve the readability and clarity of code within its existing structure — better names, guard clauses, dead-code removal, magic-value consolidation, comment hygiene — without changing external behavior or signatures. Use whenever the user wants to clean up current code changes, polish a function, tighten a diff, or says "simplify this", "clean this up", "make this readable", "reduce noise". Distinct from `ak:code-refactor`: this skill preserves the structure; `ak:code-refactor` questions the structure. If a change requires altering a function signature, merging functions across files, or reversing a design decision, this skill routes out to `ak:code-refactor` rather than forcing a fit.
 ---
 
-# ROLE
+# Code Simplify
 
-You are a Senior Refactoring Engineer operating in **read-only mode for logic** and **write mode for structure**. Your single mission: take working code and make it readable for the next developer (who could be a junior, or yourself six months from now). You are NOT a feature developer. You do not add logic. You do not optimize performance. You clarify intent.
+Improve the readability of existing code without changing what it does or how it's shaped externally. Accept the design; sharpen the expression.
 
----
+**Core thesis:** every change must earn its rent. A rename that confuses more than it clarifies is worse than the original. An explaining variable used once is overhead without benefit. A constant introduced for a single-use literal adds indirection for no gain. The skill's job is to apply changes that make the next reader's life easier — not to apply changes that look like cleanup.
 
-# PHASE 0 — INPUT ACQUISITION
+**The primary failure mode this skill guards against is pattern-matching on hunks.** A rule like "rename `data` to something specific" fires correctly only when you've read the whole file and understand what `data` holds in context. Reading the diff hunk alone produces confident-looking bad renames.
 
-Before refactoring anything, establish exactly what changed.
+## Relationship to `ak:code-refactor`
 
-**Step 0.1 — Collect the diff**
+These skills are orthogonal, not a spectrum.
 
-Run the following in order until you get a non-empty result:
+- `ak:code-simplify` works **within** the current structure. Signatures preserved (external ABI: types, arity, observable side effects, error surface). Call sites untouched.
+- `ak:code-refactor` works **on** the current structure. Signatures negotiable, call sites reshape atomically, design premise on the table.
 
-```bash
-# Priority 1: staged changes (about to be committed)
-git diff --staged
-
-# Priority 2: unstaged working tree changes
-git diff HEAD
-
-# Priority 3: last commit (if user says "I just committed")
-git diff HEAD~1 HEAD
-```
-
-If **none** of these return changes, ask the user: _"Which files were modified? I can't find a diff to work from."_
-
-**Step 0.2 — Parse the diff**
-
-From the diff, extract:
-
-- **Changed files** (list them explicitly)
-- **Modified functions/classes** per file (not just line numbers — name the units)
-- **Diff size** (approximate lines changed)
-
-If diff size > 500 lines, do **not** refactor everything in one pass. Propose a file-by-file plan and ask which file to start with.
-
-**Step 0.3 — Load project conventions**
-
-Read `.agent-kit/project.md` if it exists. Extract:
-
-- Language and framework
-- Naming conventions
-- Architectural patterns
-- Any explicit style rules
-
-If `.agent-kit/project.md` does not exist, infer conventions from the existing codebase — look at 2–3 non-modified files in the same module to understand the project's style baseline.
+If triage reveals that the real improvement requires signature changes, cross-file merges, or reversing a design choice, this skill **stops and routes out** rather than degrading the change into a within-signature half-measure.
 
 ---
 
-# PHASE 1 — TRIAGE (No-Op Gate)
+## Inputs
 
-Before writing a single change, assess whether refactoring is warranted.
+Three things are needed. If invoked directly, request what's missing:
 
-For each modified unit (function/class/module), answer:
+1. **The target.** A diff, a set of changed files, or explicit paths. Defaults to staged + unstaged changes (`git diff HEAD`).
+2. **Read access to the full files**, not just the diff. File-scope context is required.
+3. **Project conventions.** Read `.agent-kit/project.md` if it exists. Otherwise infer from 2–3 non-modified files in the same module. Conventions matter for naming, constant placement, and import style.
 
-- Is cyclomatic complexity > 3? (nested ifs, ternary chains, flag variables)
-- Are there generic variable names? (`data`, `res`, `tmp`, `item`, `val`)
-- Are there magic values? (raw strings/numbers not assigned to constants)
-- Are there "What" comments? (`// increment counter`)
-- Is there dead code? (unused vars, commented-out blocks, console.logs)
-- Is there repeated logic (≥2 occurrences) that could be extracted?
-
-**If the answer to ALL of the above is NO → output:**
-
-```
-✓ Code is already clean. No refactoring needed.
-```
-
-Do not produce unnecessary output. Do not pad. Exit here.
+If the target is empty, stop and tell the user.
 
 ---
 
-# PHASE 2 — BEHAVIORAL INVARIANCE CONTRACT
+## Execution — Four Ordered Phases
 
-Before making changes, establish the invariance baseline for each modified unit:
+### Phase 1 — Orient
 
-1. **Signature contract**: Record the exact function signature (params + types + return type). It must not change.
-2. **Return path map**: List every `return` statement and what it returns. The set must not change.
-3. **Side effect inventory**: List every mutation, I/O call, or external state modification. Order and conditions must not change.
-4. **Error surface**: List every thrown error or rejected promise. Conditions that trigger them must not change.
+Read each changed file **in full** before considering any change. The diff hunk is never enough.
 
-This baseline is your **refactoring contract**. Any proposed change that would alter any item in this contract is **rejected**, regardless of how clean it looks.
+For each file, internally answer:
 
----
+- What is this file's responsibility? (one sentence)
+- What naming conventions does the file already follow? (camelCase, what kinds of names for what kinds of values)
+- What constants, enums, or helpers already exist in or near this file that a new change might duplicate?
+- What does the surrounding module look like? (glance at sibling files if helpful — do not read the whole codebase)
 
-# PHASE 3 — REFACTORING HEURISTICS
+This phase produces no output. Its purpose is to install the context that every later decision depends on. Skipping it is the skill's top failure mode.
 
-Apply these patterns to the identified change set, in this priority order:
+### Phase 2 — Triage
 
-### 3.1 Cyclomatic Complexity Reduction
+For each modified unit, classify what's present. Use these categories — and only flag items that belong to each:
 
-- Replace nested `if` chains with **guard clauses + early returns**. Fail fast, succeed late.
-- Replace complex nested ternaries with `if/else` chains. Ternary is only valid for simple, symmetric binary choices.
-- Replace repeated `if (x === 'a') ... else if (x === 'b') ...` with `switch`, lookup maps, or strategy pattern if ≥3 branches.
-- Introduce **explaining variables** for complex boolean expressions:
+**Simplify-in-scope (Phase 3 applies):**
 
-  ```js
-  // Before
-  if (user.role === 'admin' && !user.suspended && Date.now() < user.sessionExpiry) { ... }
+- Name lies about what a value holds, misleads in its context, or breaks symmetry with siblings.
+- Nested conditionals where guard clauses would flatten without changing logic.
+- Literal value repeated within the file, or a new literal that duplicates an existing named constant elsewhere in the file.
+- Dead code: unused variables, commented-out blocks, `console.log` not part of intentional logging, logically impossible branches.
+- Comments that restate what the code does in English ("What" comments).
+- Comments that contradict the current code.
 
-  // After
-  const isActiveAdmin = user.role === 'admin' && !user.suspended;
-  const isSessionValid = Date.now() < user.sessionExpiry;
-  if (isActiveAdmin && isSessionValid) { ... }
-  ```
+**Simplify-out-of-scope — route to `ak:code-refactor`:**
 
-### 3.2 Naming & Semantics
+- Function signature is wrong (misnamed, parameters unused at all call sites, boolean flag splitting the function into two behaviors, return type leaks implementation detail).
+- Two functions in the same file or module that serve the same domain purpose.
+- A wrapper that adds nothing (forwards arguments unchanged).
+- Parameter threaded through layers to reach one usage site.
+- Abstraction introduced for flexibility that never materialized.
+- Any change that would alter external ABI.
 
-- Rename generic → semantic:
-  - `data` → what kind of data? (`userProfile`, `bookingDetails`, `apiPayload`)
-  - `res` → `apiResponse`, `queryResult`, `httpResponse`
-  - `item` → `booking`, `notification`, `invoice`
-  - `flag` → `isEligible`, `hasPermission`, `shouldRetry`
-  - `temp` → inline it or name it by what it holds
-- Boolean variables must start with: `is`, `has`, `can`, `should`, `did`
-- Functions must be named by **what they return or do**, not how:
-  - `processData()` → `normalizeUserInput()` / `buildBookingPayload()`
-  - `handleStuff()` → `applyDiscountRules()` / `validateCheckoutForm()`
+**Do nothing:**
 
-### 3.3 Magic Value Elimination
+- Redundancy that aids readability (nil-check before length check; explicit `else` after an early `return` that some teams prefer).
+- Established convention mismatches that are project-wide, not local. Don't fight the codebase.
+- Style preferences not grounded in a specific rule the project enforces.
+- Names that are generic _and correct in context_ (`data` in a data-handling function; `item` in a small loop body).
 
-- Every raw string or number used more than once, or used in a meaningful comparison, becomes a named constant.
-- Constants are **UPPER_SNAKE_CASE** and placed at the top of the file or in a dedicated constants module (follow project convention from `.agent-kit/project.md`).
-- Exception: single-use strings that are already self-describing in context (e.g., a log message) do not need constants.
+**Triage exits:**
 
-### 3.4 Abstraction Extraction
+- If the unit has zero simplify-in-scope items and zero out-of-scope items → `✓ Code is already clean. No changes needed.` Stop.
+- If the unit has only out-of-scope items → do not simplify. Surface them as a route-out message (see Phase 4 output). Stop.
+- If mixed → proceed to Phase 3 with the in-scope items; record the out-of-scope items for the report.
 
-- Extract a helper function if:
-  - A logic block appears ≥2 times (deduplication)
-  - A logic block has ≥3 steps and a single coherent purpose (density)
-  - A logic block can be described in 4 words or less (extraction candidates)
-- Do **not** extract if:
-  - The extracted function would only ever be called once AND is not reusable in principle
-  - Extraction would require adding parameters that obscure the original flow
-- Prefer collocating extracted helpers in the same file unless they're clearly cross-cutting utilities.
+### Phase 3 — Apply (with rent check and invariance)
 
-### 3.5 Dead Code Removal
+Apply changes in place. Every change must pass two checks before it goes in:
 
-These are always safe to remove from modified code:
+**Rent check** — ask for each change: _is the file actually easier to read after this?_ If the answer is "same, maybe slightly different," revert the change. Specifically:
 
-- `console.log` / `console.debug` statements not part of intentional logging infrastructure
-- Variables declared but never read
-- Commented-out code blocks (if it's in git history, it's safe to remove)
-- Redundant conditions (`if (true)`, `if (x !== null && x !== undefined)` when `if (x)` suffices in context)
-- Explicit `return undefined` at end of void functions
+- An explaining variable is only warranted when (a) the expression is reused in scope, or (b) the expression requires domain knowledge the reader can't derive inline. One-use explaining variables fail rent.
+- A named constant is only warranted when (a) the literal appears 2+ times in the file, (b) a named version already exists elsewhere in the file that should be reused, or (c) the literal's meaning isn't self-evident from context. A single-use `'PENDING'` in a status assignment does not need a constant.
+- A function extraction is only warranted when the logic block is duplicated in the file. "3+ steps with coherent purpose" and "describable in 4 words" are not sufficient reasons — they license speculative extraction.
+- A rename is only warranted when the original name is misleading _in its context_. Generic names in generic contexts can stay.
 
-### 3.6 Comment Hygiene
+**Invariance check** — the following must not change:
 
-- **Delete** "What" comments — comments that restate the code in English:
+- Function parameter types, parameter count, return type.
+- Observable side effects (mutations, I/O, logging) and the conditions that trigger them.
+- Thrown errors or rejected promises and the conditions that trigger them.
+- Public exports.
 
-  ```js
-  // increment counter ← DELETE
-  counter++;
+Parameter _names_ are internal unless a call site uses named arguments. If any call site uses named arguments (Python kwargs, TypeScript destructuring at the call site), the rename is a call-site reshape — route out, do not apply here.
 
-  // call the API ← DELETE
-  await fetchUserProfile(userId);
-  ```
+**Apply rules:**
 
-- **Preserve** "Why" comments — comments that explain non-obvious decisions:
+- Changes are file-local. Do not modify call sites or files outside the changed set.
+- Order within a file is not meaningful — apply each change as its own atomic edit.
+- Match the project's existing convention for constant placement (top of file, `constants.ts`, etc.). Do not invent a new convention.
 
-  ```js
-  // BOCM requires ISO 8601 with explicit UTC offset, not 'Z' suffix
-  const timestamp = formatDate(date, "YYYY-MM-DDTHH:mm:ssZ");
+### Phase 4 — Self-Review and Log
 
-  // Retry once on 429 — Twilio rate limits burst, not sustained traffic
-  if (status === 429 && retryCount === 0) { ... }
-  ```
+After all changes are applied, re-read each modified file as if seeing it for the first time. For each change you made, ask:
 
-- **Upgrade** outdated comments — if a comment contradicts the current code, fix the comment, not the code.
-- **Add** JSDoc/TSDoc for public functions that lack them, if the project uses them (check `.agent-kit/project.md`).
+1. **Rent re-check** — does this change actually make the file easier to read, or does it just look like a cleanup rule fired?
+2. **Context fit** — does the renamed identifier fit the file's broader naming style, or does it stand out?
+3. **Introduced indirection** — did I add an explaining variable, constant, or helper that the reader now has to scroll to understand? If yes, was the inlined version genuinely worse?
+4. **Invariance re-check** — did any edit accidentally change a type, a return path, or a side-effect condition?
 
----
+Revert any change that fails self-review. Reverts tagged `[self-review]` in the log.
 
-# PHASE 4 — CONFIDENCE CLASSIFICATION
+**Produce the log:**
 
-Before applying each change, classify it:
-
-| Level         | Criteria                                                                 | Action                         |
-| ------------- | ------------------------------------------------------------------------ | ------------------------------ |
-| **SAFE**      | Rename only, or dead code removal, or comment change                     | Apply directly                 |
-| **CONFIDENT** | Guard clause extraction, magic value → constant, explaining variable     | Apply directly                 |
-| **UNCERTAIN** | Function extraction that changes call structure, refactoring error paths | Apply but flag in Refactor Log |
-| **SKIP**      | Any change that would alter the invariance contract                      | Do not apply; note in log      |
-
-Never apply a **SKIP** change. If a cleaner design requires breaking the contract, note it as a **Design Suggestion** in the log and leave the code unchanged.
-
----
-
-# PHASE 5 — VERIFICATION
-
-After drafting the refactored code:
-
-**5.1 — Contract verification**
-Re-check every item from the Phase 2 invariance contract. If any item changed, find and fix the divergence before outputting.
-
-**5.2 — Test check**
-
-```bash
-# Check if tests exist for the modified files
-find . -type f -name "*.test.*" -o -name "*.spec.*" | head -20
-```
-
-If tests exist: instruct the user to run them after applying the changes. If tests do not exist: add a note in the Refactor Log that behavioral invariance was verified by code review only, not by automated tests.
-
-**5.3 — Style consistency check**
-Scan 1–2 non-modified files in the same module. Confirm indentation, quote style, import order, and brace style match.
-
----
-
-# PHASE 6 — OUTPUT
-
-**Format:** Apply changes directly using file-editing tools (str_replace / write) unless the user asked for a code block review only.
-
-Refactor one file at a time. After each file, confirm with a one-line summary before moving to the next.
-
-**Always append a Refactor Log at the end:**
-
-```
----
+```markdown
 ## Refactor Log
 
 ### Files Modified
-- `src/services/booking.service.ts` — 3 changes
-- `src/utils/date.utils.ts` — 1 change
+
+- `path/to/file.ts` — N changes applied, M reverted on self-review
+- ...
 
 ### Changes Applied
-- **[SAFE] Renamed**: `data` → `bookingPayload`, `res` → `apiResponse` in `createBooking()`
-- **[CONFIDENT] Guard clause**: Extracted early return for null `userId` check in `validateBooking()` — removed 1 nesting level
-- **[CONFIDENT] Constant**: `'PENDING'` → `BOOKING_STATUS.PENDING` (3 occurrences)
-- **[CONFIDENT] Dead code**: Removed unused `tempResult` variable and 2 debug console.logs
-- **[SAFE] Comment**: Deleted 4 "What" comments; kept 1 "Why" comment explaining Twilio retry logic
 
-### Changes Skipped
-- **[SKIP] Abstraction**: `formatBookingResponse()` logic could be extracted, but extraction would require changing the return type shape — behavioral contract violation. Noted as Design Suggestion.
+- **Rename:** `data` → `bookingPayload` in `createBooking()` — original misled in context (file handles multiple payload types).
+- **Guard clause:** early-return for null `userId` in `validateBooking()` — removed one nesting level.
+- **Constant reuse:** inline `'PENDING'` → `BOOKING_STATUS.PENDING` — constant already exists in same file (3 other call sites).
+- **Dead code:** removed unused `tempResult`, 2 debug `console.log`.
+- **Comment hygiene:** deleted 4 "What" comments; kept 1 "Why" comment explaining Twilio retry.
 
-### Design Suggestions (non-blocking)
-- `BookingService.createBooking()` is doing validation + persistence + notification in one function. Consider decomposing in a future refactor if the function grows.
+### Changes Reverted on Self-Review
+
+- **[self-review]** Explaining variable `isActiveAdmin` — used once, inlined version reads clearly in context.
+
+### Route-Out to `ak:code-refactor`
+
+- `processOrder()` in `order.service.ts` takes a boolean `isExpress` that splits the function into two different behaviors. This is a signature-level issue — outside simplify's scope.
+- `getUserData()` wraps `fetchUser()` with no transformation. Wrapper collapse requires call-site updates.
+
+Run `/code-refactor order.service.ts user.service.ts` to address these.
 
 ### Test Status
-⚠️ No test files found for modified modules. Behavioral invariance verified by code review only.
+
+- Adjacent test files found: `order.service.test.ts`, `booking.service.test.ts`.
+- Run them to confirm behavior preservation. No tests found for `date.utils.ts` — behavior-preservation verified by code review only.
 ```
+
+If the triage exited early with `No changes needed` or route-out-only, the log is just the relevant message — no empty sections.
 
 ---
 
-# OPERATING CONSTRAINTS
+## What this skill does NOT do
 
-- **Scope**: Only refactor code that was part of the current session's diff. Do not touch untouched files.
-- **Atomicity**: Each change is independent. A failed change does not block others.
-- **Conservative default**: When uncertain between two approaches, always take the more conservative (less invasive) one.
-- **No feature creep**: If you notice a bug or missing feature while refactoring, note it in the log. Do not fix it.
-- **No performance optimization**: That is a separate concern. Readability > micro-performance.
+- **Does not change signatures.** Parameter types, count, return type, names-when-call-sites-use-them: all untouched. Route to `ak:code-refactor`.
+- **Does not merge or split functions.** Cross-function shape is structural, not expressive.
+- **Does not introduce new abstractions.** No new helpers, no new base classes, no new patterns. If you want one, `ak:code-refactor` is the tool.
+- **Does not modify tests.** If a test is wrong, that's a separate concern.
+- **Does not optimize performance.** Readability over micro-performance.
+- **Does not fix bugs.** If a bug is noticed during simplify, log it in the report and leave the code unchanged.
+- **Does not touch untouched files.** Scope is the changed set plus its immediate context for reads only.
+
+## Operating principles
+
+- **Conservative by default.** When two cleanup paths are valid, take the less invasive one.
+- **Silence over noise.** "Nothing to simplify" is a perfectly valid and common result. A skill that always finds something to change is vandalism.
+- **Reviewer voice in the log.** Each change entry says _why_ this change earns its rent, not just _what_ changed. The user should be able to audit each decision without re-reading the diff.

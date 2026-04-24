@@ -1,6 +1,7 @@
 ---
 name: ak:code-refactor
-description: Perform structural refactoring on a code component — question the current design, reshape signatures, remove obsolete abstractions, collapse leaky layers, and delete clearly dead code — while preserving reachable behavior. Use this skill whenever the user asks to refactor, restructure, clean up, modernize, untangle, rethink, or "make better" an existing component, module, file, directory, or diff — especially when they mention legacy code, tech debt, messy code, leaky abstractions, wrong design, or code that "needs a rethink." Use it even when the user just says "refactor this" without further detail. This skill is distinct from `code-simplifier`: `code-simplifier` works within the existing structure (extract, dedupe, rename, preserve signatures); `code-refactor` questions the structure itself (change signatures, reshape call sites, challenge the design premise). Prefer this skill whenever the refactor target might involve a wrong design choice, not just messy expression of a correct one.
+version: 1.0.0
+description: Perform structural refactoring on a code component — question the current design, reshape signatures, remove obsolete abstractions, collapse leaky layers, and delete clearly dead code — while preserving reachable behavior. Use this skill whenever the user asks to refactor, restructure, clean up, modernize, untangle, rethink, or "make better" an existing component, module, file, directory, or diff — especially when they mention legacy code, tech debt, messy code, leaky abstractions, wrong design, or code that "needs a rethink." Use it even when the user just says "refactor this" without further detail. This skill is distinct from `ak:code-simplify`: `ak:code-simplify` works within the existing structure (extract, dedupe, rename, preserve signatures); `ak:code-refactor` questions the structure itself (change signatures, reshape call sites, challenge the design premise). Prefer this skill whenever the refactor target might involve a wrong design choice, not just messy expression of a correct one.
 ---
 
 ## Core thesis
@@ -9,18 +10,18 @@ description: Perform structural refactoring on a code component — question the
 
 This skill does not find things to clean up. It asks whether the current shape of a component is the right shape, and proposes structural changes when it isn't. Surface-level smells are treated as evidence, not as the thing to fix.
 
-The skill's primary failure mode is **bottom-up cataloguing**: listing four symptoms, proposing four independent fixes, and missing that all four trace back to one upstream design decision. Guard against this above all else. Premise-first diagnosis is what makes this skill different from `code-simplifier`, not "being bolder."
+The skill's primary failure mode is **bottom-up cataloguing**: listing four symptoms, proposing four independent fixes, and missing that all four trace back to one upstream design decision. Guard against this above all else. Premise-first diagnosis is what makes this skill different from `ak:code-simplify`, not "being bolder."
 
-## Relationship to code-simplifier
+## Relationship to `ak:code-simplify`
 
 These skills are orthogonal, not a spectrum.
 
-- `code-simplifier` operates **within** the current structure. Accept the design, improve the expression. Signatures preserved, call sites untouched.
-- `code-refactor` operates **on** the current structure. Question the design, reshape it if wrong. Signatures negotiable, call sites reshape atomically.
+- `ak:code-simplify` operates **within** the current structure. Accept the design, improve the expression. Signatures preserved, call sites untouched.
+- `ak:code-refactor` operates **on** the current structure. Question the design, reshape it if wrong. Signatures negotiable, call sites reshape atomically.
 
 A piece of code can need either, both, or neither. They do not interpolate.
 
-If a user request is fundamentally about code expression (long method, unclear variable names, dedup within a function, style), route to `code-simplifier`. If it involves questioning whether the current decomposition is right, this skill applies.
+If a user request is fundamentally about code expression (long method, unclear variable names, dedup within a function, style), route to `ak:code-simplify`. If it involves questioning whether the current decomposition is right, this skill applies.
 
 ## When to use
 
@@ -34,7 +35,7 @@ If a user request is fundamentally about code expression (long method, unclear v
 
 ## When NOT to use
 
-- **Pure style / within-function dedup / extraction that preserves signatures** → use `code-simplifier`.
+- **Pure style / within-function dedup / extraction that preserves signatures** → use `ak:code-simplify`.
 - **Full rewrites** → this is not a rewrite skill. Say so and stop.
 - **Adding features** → refactor first (separate run), then add features.
 - **Performance work** → behavior preservation is the contract; perf changes can break it.
@@ -62,6 +63,8 @@ Build a map of the component. For each key symbol in the boundary:
 - What external surfaces does it expose (exports, HTTP handlers, event listeners, schemas, reflection targets)?
 
 Use deterministic tools where available (`rg`, `grep`, language servers, `tsc`, `ts-prune`, `knip`, `vulture`, `gopls`) to find callers — do not rely on naming conventions. If no tools are available, read files.
+
+**For boundaries over ~10 files:** do not attempt to deep-survey every symbol. Survey everything shallowly first (file responsibilities, exports, obvious call relationships), then identify the 5–10 **load-bearing symbols** — widely called, central to the boundary's purpose, or exposed as external surface — and survey those deeply. Skim the rest: what does it do, is it reached from outside the boundary. Deep-surveying every symbol in a 50-file boundary produces a map that's exhaustive and useless. The load-bearing symbols are where design decisions live; the rest inherits from them.
 
 Phase 1's output is an internal map. Do not present it unless asked.
 
@@ -113,8 +116,8 @@ _Dead code:_
 
 **Do not flag:**
 
-- "Old-looking" style — that's `code-simplifier`'s job
-- Long functions without signature problems — that's `code-simplifier`'s job
+- "Old-looking" style — that's `ak:code-simplify`'s job
+- Long functions without signature problems — that's `ak:code-simplify`'s job
 - "Could use a design pattern here" — speculative abstractions are the #1 refactor failure mode
 - Defensive code without evidence of unreachability
 
@@ -122,9 +125,9 @@ _Dead code:_
 
 ### Phase 3 — Propose
 
-The proposal's shape depends on what Phase 2 found.
+The proposal's shape depends on what Phase 2 found. There are three cases, not two.
 
-**If Phase 2 found a root-cause decision:** lead with prose, not a table. Explain the upstream decision, why it's wrong, what the reversal looks like, and how the downstream symptoms become free consequences. Example shape:
+**Case A — Root-cause decision only, no residuals.** Lead with prose, not a table. Explain the upstream decision, why it's wrong, what the reversal looks like, and how the downstream symptoms become free consequences. Example shape:
 
 > The 2nd parameter on `createPublicBooking` is the wrong abstraction. Encryption is a test-setup concern and doesn't belong in the booking service. If you push the encrypted card into the payload at the call site, three things happen for free: the duplicated transform disappears, the VCC/regular inconsistency disappears (both use the same pattern), and the `apiEverVault` constructor leak in management services disappears (the service no longer needs to build encrypted payloads internally).
 >
@@ -132,7 +135,20 @@ The proposal's shape depends on what Phase 2 found.
 
 This is reviewer voice — a senior engineer explaining the real fix, not a cataloguer producing a severity matrix.
 
-**If Phase 2 found a bag of independent issues:** list them, each with a confidence tier. Tables are appropriate here. Example shape:
+**Case B — Root cause AND residual independent issues.** Lead with the root-cause prose as in Case A. Then, underneath, add a short residuals section for the items the reversal does NOT absorb. Do not mix them — the root cause is the headline; the residuals are a follow-up note. Example shape:
+
+> [root-cause prose, as in Case A]
+>
+> **Residual items (not absorbed by the reversal):**
+>
+> | Change                                       | Files touched | Confidence | Why                                |
+> | -------------------------------------------- | ------------- | ---------- | ---------------------------------- |
+> | Rename `processStuff` → `reconcileInventory` | `stock.ts`    | HIGH       | Name lies; unrelated to root cause |
+> | Remove unused `debug` param from `logAudit`  | `audit.ts`    | HIGH       | Zero callers pass it               |
+
+The residuals table follows the same confidence-tier rules as Case C. Keep it short — if the residuals table is longer than the root-cause prose, reconsider whether you actually found a root cause or whether it's really Case C.
+
+**Case C — Bag of independent issues, no root cause.** List them, each with a confidence tier. Tables are appropriate here. Example shape:
 
 | Change                                            | Files touched            | Confidence | Why                                                 |
 | ------------------------------------------------- | ------------------------ | ---------- | --------------------------------------------------- |
@@ -148,7 +164,7 @@ This is reviewer voice — a senior engineer explaining the real fix, not a cata
 
 **For every proposal**, state concrete numbers: "7 call sites," not "several." Vagueness is how silent drift starts.
 
-**Halt at the end of Phase 3.** Do not move to apply without user approval. The handshake mechanism is the invoker's choice — a chat message, a written plan file, a review comment — the skill just has to stop and wait.
+**Halt at the end of Phase 3.** Stop and present the plan. Wait for the user's response in chat before moving to Phase 4. For very large plans, offer to write the plan to a file for the user's reference — but the approval itself still comes through chat. Do not move to apply without explicit user sign-off.
 
 ### Phase 4 — Apply
 
@@ -156,9 +172,17 @@ Apply each approved change as a complete, atomic unit: the signature change and 
 
 Order changes lowest-risk first. HIGH-risk changes (param removal, reorder, type change on widely-called functions) are applied one at a time, not batched.
 
-**Tests, if they exist, are the verification mechanism.** After each atomic change, run them. If they pass, continue. If they fail, revert _that change_ and log it — do not proceed to the next change on top of a failed one, and do not attempt to "fix" the failing tests. A failing test on a supposedly behavior-preserving refactor is a signal the refactor wasn't actually behavior-preserving. Surface it, don't paper over it.
+**Tests, where they exist, are the verification mechanism.**
 
-If tests don't exist, the Phase 3 plan review was the verification — and the confidence tiers should have been lower accordingly.
+**Establish baseline first.** Before the first apply, run the test suite (or the subset relevant to the boundary) and record which tests pass, which fail, which are skipped. Pre-existing failing tests are not caused by this refactor; treating them as regressions will cause spurious reverts and block progress. Save the baseline as the reference point for every subsequent run.
+
+**After each atomic change, re-run tests.** A test that passed in baseline and now fails is a **regression** — revert that change, log it, do not proceed to the next change on top of it, and do not attempt to "fix" the regressed test. A regression on a supposedly behavior-preserving refactor signals that the refactor wasn't actually behavior-preserving. Surface it, don't paper over it.
+
+A test that was failing in baseline and still fails is pre-existing, not a regression. Note it in the final report if it looks related to the refactor area, but it does not block progress.
+
+**Partial coverage.** Tests may cover some modified files and not others. Where tests exist, they are the verification for those files. Where they don't, the Phase 3 plan review and user sign-off are the verification. Phase 3 confidence tiers should already reflect this — if an uncovered file's change was tiered HIGH, either a caller's test exercises it transitively, or the tier was wrong and should have been MEDIUM.
+
+**No tests at all.** Phase 3 plan review was the only verification. Confidence tiers should have been lower accordingly, and the user's sign-off should have been explicit about accepting that risk.
 
 How commits, branches, or revert mechanics work is the invoker's concern. The skill produces correct code transitions; the execution environment (local branch, PR, staging, CI) handles persistence and rollback.
 
@@ -167,9 +191,10 @@ How commits, branches, or revert mechanics work is the invoker's concern. The sk
 Produce a terse, factual report:
 
 - What was applied
-- What was skipped and why (including reverts from failed tests)
+- What was skipped and why (including reverts from test regressions)
 - Anything flagged UNCERTAIN and left alone, with enough context for the user to decide manually
-- Suggested follow-ups, if any (e.g., "after this refactor, `code-simplifier` could now dedupe within `processOrder`")
+- Pre-existing test failures in the baseline that look related to the refactor area (if any), flagged so the user can investigate separately
+- Suggested follow-ups, if any (e.g., "after this refactor, `ak:code-simplify` could now dedupe within `processOrder`")
 
 No self-congratulation. The report is an audit trail.
 
@@ -193,7 +218,7 @@ No self-congratulation. The report is an audit trail.
 
 - Delete UNCERTAIN code (no _visible_ references but dynamic dispatch possible)
 - Introduce speculative abstractions not demanded by 3+ concrete use cases
-- Extract, dedup, rename within a function on live code — that's `code-simplifier`
+- Extract, dedup, rename within a function on live code — that's `ak:code-simplify`
 - Modify tests to make them pass a refactored signature
 - Change behavior on any live code path, even if current behavior seems wrong
 - Touch code behind reflection, `eval`, `getattr`, `method_missing`, decorator metaprogramming, codegen
@@ -219,7 +244,7 @@ Halt at Phase 3 and flag these. General "looks good" approval is insufficient.
 
 ## Common pitfalls
 
-1. **Cataloguer voice when reviewer voice is needed.** If Phase 2 found a root cause, Phase 3 must lead with prose that names the wrong decision and its reversal. Tables are for bags of independent changes, not root-cause refactors. Producing a severity matrix when the real answer is "the 2nd parameter shouldn't exist" is the exact failure this skill is designed to avoid.
+1. **Cataloguer voice when reviewer voice is needed.** If Phase 2 found a root cause, Phase 3 must lead with prose that names the wrong decision and its reversal. Tables are for residuals or bags of independent changes, not root-cause refactors. Producing a severity matrix when the real answer is "the 2nd parameter shouldn't exist" is the exact failure this skill is designed to avoid.
 
 2. **Speculative abstraction.** "I could extract this into a strategy pattern" → almost always wrong. Only propose new abstractions when 3+ concrete uses demand it.
 
@@ -232,3 +257,5 @@ Halt at Phase 3 and flag these. General "looks good" approval is insufficient.
 6. **Feature-flag removal from config.** Never infer state from `config.yaml` or `launchdarkly.json`. Only remove when the user explicitly states the flag is retired.
 
 7. **Scope creep during apply.** If Phase 4 reveals a new issue not in the plan, do not silently fix it. Log it for the report and surface it for a separate run.
+
+8. **Treating baseline failures as regressions.** A test that was failing before the refactor started is not caused by the refactor. Record the baseline once at the start of Phase 4 and compare against it, not against "all green."
