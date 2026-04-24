@@ -119,10 +119,25 @@ export function registerAgentTools(server: McpServer): void {
         logPath = lp;
 
         const jobId = randomUUID();
+        // detached=true on Unix creates a new process group so we can kill the
+        // entire tree (CLI + its sub-agents) with process.kill(-pid, signal).
         const child = spawn(usedAgent, agentArgs, {
           cwd: workspaceRoot,
           env: { ...process.env, GEMINI_WORKSPACE: workspaceRoot },
+          detached: process.platform !== 'win32',
         });
+
+        const killTree = (sig: NodeJS.Signals) => {
+          if (process.platform !== 'win32' && child.pid) {
+            try {
+              process.kill(-child.pid, sig);
+            } catch {
+              child.kill(sig);
+            }
+          } else {
+            child.kill(sig);
+          }
+        };
 
         job = {
           agent: usedAgent as 'gemini' | 'claude',
@@ -130,14 +145,14 @@ export function registerAgentTools(server: McpServer): void {
           startedAt: new Date(),
           chunks: [],
           logStream,
-          timeoutHandle: setTimeout(() => child.kill('SIGTERM'), AGENT_TIMEOUT),
+          timeoutHandle: setTimeout(() => killTree('SIGTERM'), AGENT_TIMEOUT),
         };
         jobRegistry.set(jobId, job);
 
         // Kill child if the MCP request is cancelled (e.g. user presses ESC)
         killChild = () => {
-          child.kill('SIGTERM');
-          setTimeout(() => child.kill('SIGKILL'), 5000).unref();
+          killTree('SIGTERM');
+          setTimeout(() => killTree('SIGKILL'), 5000).unref();
         };
         if (extra.signal.aborted) killChild();
         else extra.signal.addEventListener('abort', killChild);

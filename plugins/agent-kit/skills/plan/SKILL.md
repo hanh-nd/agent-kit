@@ -4,7 +4,7 @@ description: 'Create an intern-proof implementation blueprint from a Design Brie
 version: 3.0.0
 ---
 
-# 🏛️ Ultrathink Plan
+# 🏛️ Plan
 
 **Input:** $ARGUMENTS
 

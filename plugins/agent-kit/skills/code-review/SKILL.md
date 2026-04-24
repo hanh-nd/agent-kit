@@ -2,7 +2,6 @@
 name: code-review
 version: 3.0.0
 effort: max
-allowed-tools: Read Bash Grep
 description: |
   Domain expertise for code reviews. Provides critical/informational checklists, blast radius analysis, and logic verification for any pipeline that loads it. Used as a sub-skill by ak:review and ak:review-pr; also invocable standalone for ad-hoc diff review.
 ---
