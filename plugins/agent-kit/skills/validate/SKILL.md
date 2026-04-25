@@ -1,7 +1,7 @@
 ---
 name: ak:validate
-description: 'Quality gate that wraps any producer skill with a fresh-eyes validator subagent and a bounded feedback loop. Trigger when the user appends `with /validate` to another command (e.g. `/plan ticket YR-1234 with /validate`, `/code plan.md with /validate`) OR invokes `/validate <artifact> --against <expectation>` directly. Producer-agnostic — judges any artifact (plan, code, brainstorm, file produced by `delegate`) against a stated expectation. Verdict is binary: PASS or FAILED. On FAILED, feeds critique back to the producer and re-runs, up to a bounded budget.'
-version: 1.1.0
+description: 'PRIMARY ENTRY POINT whenever the user appends `with /validate` (or any equivalent: `, with /validate`, `+ /validate`, `then /validate`) to ANY other slash command — load THIS skill BEFORE the producer skill it modifies. The orchestrator owns the full flow: it invokes the producer, captures the output, spawns a fresh-eyes validator subagent, and runs a bounded PASS/FAILED feedback loop. Examples that MUST trigger this skill first: `/plan ticket YR-1234 with /validate`, `/code @plan.md with /validate`, `/brainstorm idea with /validate`. Also handles standalone `/validate <artifact> --against <expectation>`. Producer-agnostic — judges any artifact (plan, code, brainstorm, delegate output) against a stated expectation. Verdict is binary: PASS or FAILED. If you find yourself reading this skill AFTER a producer has already run (because dispatch missed the modifier), recover by switching to Mode B on the existing artifact — see Activation Priority section.'
+version: 1.2.0
 ---
 
 # 🛡️ Validate
@@ -17,6 +17,45 @@ You are a **Quality Gate Orchestrator**. Your only job is to ensure that an arti
 You operate at a layer above the producer skills. You do **not** rewrite plans, refactor code, or polish prose. You do **not** judge "could be better." You judge "does it meet the bar — yes or no." If no, you hand the producer the validator's diagnosis and let it try again, up to a bounded budget.
 
 You are **producer-agnostic**. You do not care whether the artifact came from `ak:plan`, `ak:code`, `ak:brainstorm`, Gemini via `ak:delegate`, or a human. You judge the artifact, not its author.
+
+---
+
+## Activation Priority — Read This First
+
+This skill has a known dispatch failure mode. Read this section before doing anything else.
+
+### The Rule
+
+When the user's message contains `with /validate` (or any of: `, with /validate`, `+ /validate`, `then /validate`, `&& /validate`), **`ak:validate` is the entry point** — not the producer skill it modifies. The dispatch order is:
+
+1. User: `/plan ticket YR-1234 with /validate`
+2. **Load `ak:validate` FIRST** — it owns the orchestration.
+3. `ak:validate` Phase 1 parses: producer = `ak:plan`, args = `ticket YR-1234`.
+4. `ak:validate` Phase 3 invokes `ak:plan` (in main context — interactive gates intact).
+5. `ak:plan` runs end-to-end, returns its artifact.
+6. `ak:validate` Phase 4 spawns the validator subagent.
+7. Loop or PASS.
+
+The producer skill does not know it is being wrapped. The orchestration is invisible to it. **You** are the one who has to remember.
+
+### The Failure Mode (and Recovery)
+
+The dispatcher sometimes loads only the producer (e.g. `ak:plan`) because the leading slash command is the most prominent token in the user's message, and runs it to completion — never returning to `ak:validate`. The user then has to manually remind the agent to validate.
+
+**If you are reading this skill AFTER the producer has already produced its artifact** (e.g. plan was saved, code was written, and only now is `ak:validate` loading), do the following:
+
+1. **Acknowledge the dispatch miss to the user** — one line, no apology theater. Example: `Note: dispatched late — running validation on the existing artifact.`
+2. **Switch to Mode B.** The artifact and expectation are both in hand:
+   - Artifact = whatever the producer just saved/edited.
+   - Expectation = the producer's input (the ticket, brief, or plan it was given).
+3. **Run a single-shot validation.** No loop — Mode B is single-shot by design (Trade-off #3). The producer already finished; there is no clean way to feed FAILED findings back to it without re-running it from scratch, which would force the user through the interactive gates again.
+4. **In the final report, set `Mode: A→B (recovered)`** so the audit trail records the dispatch miss.
+
+This recovery is a fail-safe, not the happy path. It loses the loop's repair ability. The next run should fire `ak:validate` first — re-read this section.
+
+### Hard Rule for the Dispatcher
+
+If the user's message contains `with /validate` (or any equivalent ordering listed above), `ak:validate` MUST load before the producer's skill. Loading both in parallel is acceptable; loading only the producer is the bug this section exists to prevent.
 
 ---
 
@@ -207,9 +246,9 @@ Emit a single report at the end of the loop. The validator's final report is inc
 ```markdown
 ## 🛡️ Validate Report
 
-**Mode:** `A | B`
+**Mode:** `A | B | A→B (recovered)`
 **Producer:** `<skill or 'external'>`
-**Producer Isolation:** `main-context | --isolate`
+**Producer Isolation:** `main-context | --isolate | n/a (recovered)`
 **Artifact:** `<path>`
 **Expectation:** `<path or quoted expectation>`
 **Status:** `PASS | FAILED | PARTIAL`

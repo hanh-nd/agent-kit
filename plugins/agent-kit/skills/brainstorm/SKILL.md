@@ -247,7 +247,7 @@ Only reached after consensus. Write the Design Brief immediately — do not requ
 - [...]
 ````
 
-After writing the Design Brief: call `kit_save_handoff(type: "brainstorm", content: <full PRD markdown>, slug: <feature-slug>)` immediately — do not ask for approval first. The tool returns the saved file path. Then present the execution menu as an interactive TUI menu using arrow keys, (use `AskUserQuestion` tool or `ask_user` with type of `choice`) with the following format:
+After writing the Design Brief: call `kit_save_handoff(type: "brainstorm", content: <full PRD markdown>, slug: <feature-slug-without-versioning>)` immediately — do not ask for approval first. The tool will handle versioning automatically and returns the saved file path. Then present the execution menu as an interactive TUI menu using arrow keys, (use `AskUserQuestion` tool or `ask_user` with type of `choice`) with the following format:
 
 ```
 ✅ Design Brief saved → `<returned-path>`

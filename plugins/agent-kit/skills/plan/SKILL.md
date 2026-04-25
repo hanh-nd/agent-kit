@@ -239,7 +239,7 @@ Draft the WBS strictly bottom-up. Tasks must be granular — not "Implement the 
 ### Phase 5: Handoff
 
 1. **Constraint check.** Verify NO source code was modified during this session.
-2. **Persist the blueprint immediately** — do NOT ask for approval first. Call `kit_save_handoff(type: "plan", content: <full blueprint markdown>, slug: <feature-name>)`. The tool returns the saved file path.
+2. **Persist the blueprint immediately** — do NOT ask for approval first. Call `kit_save_handoff(type: "plan", content: <full blueprint markdown>, slug: <feature-name-without-versioning>)`. The tool will handle versioning automatically and returns the saved file path.
 3. **Present execution menu.** Present the execution menu as an interactive TUI menu using arrow keys (use `AskUserQuestion` tool or `ask_user` with type of `choice`) with the following format:
 
 ```
