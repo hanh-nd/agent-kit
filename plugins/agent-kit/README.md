@@ -6,24 +6,25 @@
 
 ### Commands
 
-| Command                           | Description                                                          |
-| --------------------------------- | -------------------------------------------------------------------- |
-| `/ak:brainstorm [idea]`           | Strategic architectural analysis                                     |
-| `/ak:plan [file or idea]`         | Create an implementation blueprint                                   |
-| `/ak:code [file or task]`         | Implement from a plan                                                |
-| `/ak:code-simplify`               | Simplify modified code for readability                               |
-| `/ak:code-refactor`               | Refactor modified code for readability                               |
-| `/ak:validate [artifact]`         | Validate artifacts against expectations (or append `with /validate`) |
-| `/ak:research [topic]`            | Research a topic                                                     |
-| `/ak:review-pr [PR URL]`          | Review a pull request                                                |
-| `/ak:review`                      | Review uncommitted local changes                                     |
-| `/ak:debate [subject]`            | Run adversarial debate (Gilfoyle vs Dinesh vs Judge)                 |
-| `/ak:ticket [ID]`                 | Fetch a Jira ticket and plan from it                                 |
-| `/ak:git`                         | Git commit, branch, and PR workflow                                  |
-| `/ak:init`                        | Create the project overview file                                     |
-| `/ak:orchestrate [file or idea]`  | Orchestrate agents to solve problems span across multiple projects   |
-| `/ak:delegate <agent> <task>`     | Delegate a task to Gemini or Claude CLI                              |
-| `/ak:wiki [compile\|query\|lint]` | Maintain a persistent, compounding project knowledge wiki            |
+| Command                           | Description                                                                             |
+| --------------------------------- | --------------------------------------------------------------------------------------- |
+| `/ak:brainstorm [idea]`           | Strategic architectural analysis                                                        |
+| `/ak:clarify <file or task>`      | Clarify requirements based on acceptance criteria (Experimental - eat tokens like hell) |
+| `/ak:plan [file or idea]`         | Create an implementation blueprint                                                      |
+| `/ak:code [file or task]`         | Implement from a plan                                                                   |
+| `/ak:code-simplify`               | Simplify modified code for readability                                                  |
+| `/ak:code-refactor`               | Refactor modified code for readability                                                  |
+| `/ak:validate [artifact]`         | Validate artifacts against expectations (or append `with /validate`)                    |
+| `/ak:research [topic]`            | Research a topic                                                                        |
+| `/ak:review-pr [PR URL]`          | Review a pull request                                                                   |
+| `/ak:review`                      | Review uncommitted local changes                                                        |
+| `/ak:debate [subject]`            | Run adversarial debate (Gilfoyle vs Dinesh vs Judge)                                    |
+| `/ak:ticket [ID]`                 | Fetch a Jira ticket and plan from it                                                    |
+| `/ak:git`                         | Git commit, branch, and PR workflow                                                     |
+| `/ak:init`                        | Create the project overview file                                                        |
+| `/ak:orchestrate [file or idea]`  | Orchestrate agents to solve problems span across multiple projects                      |
+| `/ak:delegate <agent> <task>`     | Delegate a task to Gemini or Claude CLI                                                 |
+| `/ak:wiki [compile\|query\|lint]` | Maintain a persistent, compounding project knowledge wiki                               |
 
 ---
 

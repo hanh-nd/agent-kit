@@ -2,7 +2,7 @@
 name: ak:wiki
 description: >
   Maintains a persistent, compounding project wiki anchored to the codebase — not to handoff streams. The wiki annotates what exists in the code (entities), the patterns that constrain it (concepts), how the user wants the agent to work (preferences), and short reference notes (glossary). Use when the user wants to: compile session logs into wiki pages (`/wiki compile`), recall past decisions or feature context (`/wiki query {question}`), or health-check the wiki (`/wiki lint`). Trigger when the user says "what did we decide about", "what's the status of", "catch me up on", "why do we use", "what patterns do we follow", "what did we say about my preference for", or asks about something from a previous session. Default with no arguments runs compile.
-version: 3.1.0
+version: 3.2.0
 ---
 
 # 📖 Wiki
@@ -72,7 +72,7 @@ Written by the `PostToolUse` hook after each `kit_save_handoff` call:
 
 ```
 ## [YYYY-MM-DDTHH:MM:SS] handoff | {type}-{slug}
-- type: {brainstorm | plan | ticket | research}
+- type: {brainstorm | plan | ticket | clarify | research}
 - slug: {slug}
 - path: {relative path to handoff file}
 - summary: {one-line summary}
@@ -339,7 +339,7 @@ If no issues: `✅ Wiki is healthy. No anti-patterns, orphans, or contradictions
 
 ## Events
 
-- {YYYY-MM-DD} — {kind: brainstorm | plan | ticket | refactor | bugfix | migration} — {one-line description} — [[handoff-slug]]
+- {YYYY-MM-DD} — {kind: brainstorm | plan | ticket | clarify | refactor | bugfix | migration} — {one-line description} — [[handoff-slug]]
 - {YYYY-MM-DD} — {kind} — {description} — [[handoff-slug]]
 
 ## Open Questions
