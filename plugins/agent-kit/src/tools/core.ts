@@ -16,19 +16,19 @@ import { DEFAULT_EXTENSIONS } from './config.js';
 export function registerCoreTools(server: McpServer): void {
   // ═══════════════════════════════════════════════════════════════
   // TOOL: SAVE HANDOFF
-  // Writes brainstorm/plan/ticket artifacts to the workspace
-  // Returns the saved file path for use in next-step instructions
+  // Writes handoff artifacts to the workspace
+  // Returns the saved file path to use in next-step instructions
   // ═══════════════════════════════════════════════════════════════
   server.tool(
     'kit_save_handoff',
-    'Save a brainstorm, plan, or ticket handoff artifact to .agent-kit/handoffs/. Returns the saved file path to use in next-step instructions.',
+    `Save a handoff artifact to .agent-kit/handoffs/. Returns the saved file path to use in next-step instructions. Do NOT append version numbers (v2, v3, etc.) to the slug.`,
     {
       type: z.enum(['brainstorm', 'plan', 'ticket', 'research']).describe('Handoff type'),
       content: z.string().describe('Full markdown content to save'),
       slug: z
         .string()
         .describe(
-          'Short identifier for the filename, e.g. "user-auth" or "PROJ-123". Do NOT append version numbers (v2, v3, etc); the tool will automatically update the existing file if it exists.'
+          'Short identifier for the filename, e.g. "user-auth" or "PROJ-123". Do NOT append version numbers (v2, v3, etc.).'
         ),
     },
     async ({ type, content, slug }) => {
