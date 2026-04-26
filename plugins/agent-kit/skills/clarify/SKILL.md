@@ -1,7 +1,7 @@
 ---
 name: ak:clarify
-description: 'Acceptance criteria (AC) driven clarification — walks the acceptance criteria of a ticket / brief / requirement, asks the user on the rail, never off-rail. Recon is subordinate to the AC. Output: a Clarification Brief that becomes plan input.'
-version: 2.3.0
+description: "Business clarification — reads code as evidence of current behavior to find gaps the requirement left silent. Not a planner. Output: a Clarification Brief that captures the user's resolutions on those gaps and feeds ak:plan."
+version: 3.0.0
 ---
 
 # 🔎 Clarify
@@ -10,30 +10,44 @@ version: 2.3.0
 
 ---
 
-## Mission — Walk the AC, Ask on the Rail
+## Mission — Audit the Requirement, Not the Code
 
-You are an **AC walker**, not a code archaeologist. The acceptance criteria is the rail. Your job is to walk each AC line and, for each one, end with three things established:
+You are a **business clarifier**, not a code archaeologist or a planner. The acceptance criteria are the rail. Your job is to walk each AC line and, for each one, end with the **business questions the ticket didn't answer** identified and resolved by the user.
 
-1. **Owner** — the file or function that owns the behavior today (or "new — must be created"). _Found by recon, not by asking._
-2. **Change** — the specific behavior change required. _Derived from reading the owner's code._
-3. **Edges analyzed** — failure paths, races, data edges, hidden costs, cross-AC interactions. _Surfaced by you as findings, confirmed by the user._
+The code is **evidence of current business behavior** — nothing more. You read it to verify what the system does today so you can compare that against what the ticket specifies. You do **not** read it to identify where to edit, name owners, or specify implementation changes — those are `ak:plan`'s job.
 
-The user enters the loop only when something is **decision-shaped** (multiple valid answers, business intent required) or to **confirm a finding** you already analyzed. The user does not enter the loop to answer questions whose answers are in the code.
+For each AC item, the walk must establish:
+
+1. **Type** — A (pure new), B (modification of existing), or C (new with business integration).
+2. **Current Business Behavior** — what the system does today in this scenario, in business terms (Type B/C only).
+3. **Specified Business Behavior** — what the AC asks for, in business terms.
+4. **Gaps Resolved** — every scenario the AC was silent on or contradicted, surfaced as a business question and answered by the user.
+
+The user enters the loop only when something is **decision-resolvable** (the AC didn't specify the business answer) or to **confirm a finding** you already analyzed. The user does not enter the loop to answer questions the code or the requirement can answer.
 
 **Hard rules of the rail:**
 
-- **The AC is the budget.** There is no tool-call cap because the AC bounds depth. You stop reconning when every AC line has a known owner + change + analyzed edges.
-- **Off-rail = forbidden.** If you find yourself about to read a file or grep a symbol that doesn't serve a current AC item, **stop**. Ask yourself: "which AC line does this serve?" If you cannot name the line, do not read.
-- **Side keywords are background.** Tickets mention systems and terms in passing (e.g. a sibling ticket ID, an upstream service, a data format). These are context, not AC. Do not recon them unless an AC line directly acts on them.
-- **The user is for decisions and intent. The codebase is for facts.** Before asking the user any question, classify it:
-  - **Code-resolvable** ("which file owns X?", "what does function Y return?", "is there an existing branch for Z?") → **read the code.** The user's attention is the scarce resource, not tool calls. Asking the user a code-resolvable question is a bug.
-  - **Decision-resolvable** ("should we deprecate or run parallel?", "last-write-wins or pessimistic lock?", "which user role can do this?") → **ask the user.** No amount of reading answers business intent.
-  - **Edge-case discovery** ("what could break that the requirement didn't anticipate?") → **the agent's job.** Analyze the code, surface findings as statements, ask the user only to confirm or override.
+- **Reading scope: the business surface of the AC.** Every read must target one of three zones, classified _before_ the call:
+  - **`current-rule`** — code that exhibits the existing business rule the AC modifies (Type B's primary zone).
+  - **`adjacent-rule`** — code that exhibits a _different_ business rule whose surface overlaps with the AC's (e.g., the AC changes status assignment; another rule reads status to gate emails).
+  - **`downstream-consumer`** — code that consumes the output of the new or changed behavior (Type C's primary zone).
+
+  If the target doesn't classify as one of these three zones, do not read — even if it lives inside the same file.
+
+- **Off-rail = forbidden.** Before every tool call, declare four slots: `AC-{N} | path={file} | question={specific business question} | zone={current-rule|adjacent-rule|downstream-consumer}`. If any slot is unfillable, do not read.
+
+- **Side keywords are background.** System names, sibling ticket IDs, integration names, and domain terms that appear in the input but are _not_ the verb of any AC are confirmed as the **side-keyword whitelist** in Phase 1. Once on the whitelist, they are forbidden recon targets for the rest of the walk.
+
+- **The user is for business decisions. The code is for evidence.** Before asking the user any question, classify it:
+  - **Code-resolvable** ("what does the system _currently do_ in case X?") → read the code.
+  - **Decision-resolvable** ("what _should_ the system do when ticket-unspecified case Y happens?") → ask the user.
+  - **Edge-case-discovery** ("which cases didn't the ticket anticipate?") → the agent's job. Read code to enumerate, then surface as business questions.
+
 - **No AC, no work.** If the input has no AC and the user can't articulate one, refuse to write the brief.
 
-**Output:** A Clarification Brief (`.md` file) that `ak:plan` consumes directly. Written only after the Saturation Gate passes.
+- **No implementation, no planning.** Clarify produces a Clarification Brief — a business artifact. No code, no WBS, no file/line targets in the brief, no "do X at booking.js:142" in the output. Implementation locations may appear in the conversation walk as evidence (so the user can challenge "the code currently does X at booking.js:142"), but never in the final brief.
 
-**No implementation. No planning.** This skill produces a Clarification Brief. No code, no WBS, no tickets.
+**Output:** A Clarification Brief (`.md` file) that `ak:plan` consumes directly. Written only after the Saturation Gate passes.
 
 ---
 
@@ -45,7 +59,7 @@ ticket       ├─►  CLARIFY  ─►  plan  ─►  code
 raw input   ─┘
 ```
 
-Optional but recommended when the AC has unknowns. `ak:plan` will ask its own questions if you skip clarify; clarify exists to surface and resolve them _before_ WBS time.
+Optional but recommended when the AC has unknowns. `ak:plan` will accept assumptions where clarify won't; clarify exists to surface and resolve those assumptions _before_ WBS time.
 
 ---
 
@@ -53,11 +67,11 @@ Optional but recommended when the AC has unknowns. `ak:plan` will ask its own qu
 
 **Before anything else**, locate the AC.
 
-| Input type                          | Where the AC lives                                                                                                                                                                             |
-| :---------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Design Brief (from `ak:brainstorm`) | **AC items** = §2 Scope IN list (one bullet → one AC item). **Pre-resolved edges** = §4 Edge Cases & Failure Modes table — attach to relevant AC items, do **not** re-sweep them in Phase 2.C. |
-| Jira ticket                         | "Requirements" / "Acceptance Criteria" section                                                                                                                                                 |
-| Raw input                           | **Ask the user.** First message: "Before I dig in — what does success look like? Give me the acceptance criteria, even rough bullets."                                                         |
+| Input type                          | Where the AC lives                                                                                                                                                                            |
+| :---------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Design Brief (from `ak:brainstorm`) | **AC items** = §2 Scope IN list (one bullet → one AC item). **Pre-resolved gaps** = §4 Edge Cases & Failure Modes table — attach to relevant AC items, do **not** re-sweep them in Phase 2.C. |
+| Jira ticket                         | "Requirements" / "Acceptance Criteria" section                                                                                                                                                |
+| Raw input                           | **Ask the user.** First message: "Before I dig in — what does success look like? Give me the acceptance criteria, even rough bullets."                                                        |
 
 If the AC cannot be found and the user cannot or will not articulate one → **exit with `NO_AC`**. Do not proceed. Recommend `/brainstorm` to produce one.
 
@@ -65,165 +79,312 @@ If the input is an existing Clarification Brief (re-entry — see §Re-entry bel
 
 ---
 
-## Phase 1: Parse the AC into a Walkable List
+## Phase 1: Parse, Classify, and Confirm the Rail
 
 Convert the AC into a numbered list of **behavior changes**. Each item must be:
 
 - A concrete change to system behavior — verb + condition + outcome.
 - Self-contained enough to be a future WBS leaf.
 
-**Example** (from a real ticket):
+For each AC item, also classify its **type**. Type drives recon scope and is locked at confirmation.
+
+### AC Type Classification
+
+- **Type A — Pure new behavior.** The AC creates a behavior that does not modify existing business rules and does not produce business outputs that existing rules consume.
+
+  _Integration is business-wise, not technical-wise._ A new feature using a logger, a feature flag, or a generic notification channel does **not** make the item Type B/C — those are infrastructure. Integration means the AC's behavior produces business state/output that another existing business rule reads, or modifies a business rule that already exists.
+
+  **Recon:** none. Gap analysis runs on AC text alone.
+
+- **Type B — Modification of existing behavior.** The AC changes how an existing business rule fires (different conditions, different outputs, different effects). The current rule lives in the code today.
+
+  **Recon:** `current-rule` zone (mandatory) + `downstream-consumer` zone (when the modification changes the rule's output shape).
+
+- **Type C — New behavior with business integration.** The AC creates new behavior whose business outputs feed existing business rules, or whose conditions overlap with existing rules.
+
+  **Recon:** `adjacent-rule` zone (rules whose surface the new behavior touches) + `downstream-consumer` zone (existing rules that consume the new output).
+
+### Example
 
 ```
 AC-1. WHEN booking is on-request AND from BOCM AND uses VCC
-       → status = pendingConfirm (currently: confirmed)
+      → status = pendingConfirm (currently: confirmed)
+      [Type B — modifies existing status-assignment rule for this branch]
+
 AC-2. WHEN AC-1 fires
-       → send email 14 to PM
+      → send email 14 to PM
+      [Type C — new behavior; integrates with the existing booking-event notification system]
+
 AC-3. WHEN PM accepts a pendingConfirm booking
-       → status = confirmed AND wallet is generated
+      → status = confirmed AND wallet is generated
+      [Type B — modifies existing PM-action handling]
+
 AC-4. WHEN PM declines a pendingConfirm booking
-       → status = declined
+      → status = declined
+      [Type B — modifies existing PM-action handling]
 ```
 
 **What is NOT an AC item:**
 
-- Background context ("there was a recent integration change from GW to v2") — not actionable, do not recon.
-- System names mentioned in passing without an action ("BOCM", "VCC") — these are conditions in AC items, not AC items themselves.
-- Sibling ticket references ("see YR-10557") — read only if an AC line directly references it.
+- Background context — not actionable, do not recon.
+- System names mentioned in passing without an action — these are conditions inside AC items, not items themselves.
+- Sibling ticket references — read only if an AC line directly references it.
 
-**Design Brief input — pre-populate edges from §4.** When the input is a `ak:brainstorm` Design Brief, attach §4 Edge Cases & Failure Modes rows to the AC items they apply to. These are user-validated decisions from the brainstorm phase — they are **not** open questions to re-ask in Phase 2.C.
+### Design Brief Pre-Resolved Gaps
+
+When the input is a `ak:brainstorm` Design Brief, attach §4 Edge Cases & Failure Modes rows to the AC items they apply to. These are user-validated decisions from the brainstorm phase — they are **not** open gaps to re-ask in Phase 2.C.
 
 Mapping rule:
 
-- If the §4 Scenario clearly belongs to one AC item → attach to that item, mark its edges as `pre-resolved`.
-- If the §4 Scenario is flow-level (touches multiple AC items) → attach to each AC item it touches, all marked `pre-resolved`.
-- If the mapping is ambiguous → **ask the user once** during rail confirmation: "Brainstorm §4 lists [scenario]. Which AC item(s) does it apply to?" Do not invent the mapping.
+- §4 Scenario clearly belongs to one AC item → attach to that item, mark gaps as `pre-resolved`.
+- §4 Scenario is flow-level (touches multiple AC items) → attach to each AC item it touches, all marked `pre-resolved`.
+- Mapping is ambiguous → **ask the user once** during rail confirmation: "Brainstorm §4 lists [scenario]. Which AC item(s) does it apply to?"
 
-Display the parsed AC list (with any pre-populated edges) to the user and ask: **"This is the rail I will walk. Anything missing or wrong before I start?"** Loop until user confirms. Now you have a fixed rail.
+### Side-keyword Whitelist Extraction
 
----
+Before confirming the rail, scan the input for **side keywords** — system names, sibling ticket IDs, upstream/downstream services, integration names, and domain terms that appear in the input but are **not the verb of any AC line**. These are background context.
 
-## Phase 2: Walk the Rail
+For each candidate side-keyword, label why it is background:
 
-For each AC item, run the **per-step loop**:
+- `condition` — used as a filter inside an AC item, not as a target system to explore.
+- `framing` — explains the bug or motivation, no AC line acts on it.
+- `sibling` — references another ticket / system / change for context, no AC line acts on it.
+- `dependency` — names a service the change depends on but does not modify.
 
-### A. Locate the owner (code-resolvable — recon first)
+### Rail Confirmation (HARD STOP — no tool calls until confirmed)
 
-> "Which file/function owns this behavior today?"
-
-This is a **code-resolvable** question. Default to recon, not asking.
-
-- **Known from input** (Design Brief named the path, or seen on prior AC item) → log, move to B.
-- **Not known** → **bounded recon first** (≤3 tool calls): grep for the AC's likely symbols (status names, function names, condition strings), open the most plausible entry-point.
-- **Recon yields one clear owner** → log, move to B.
-- **Recon yields multiple plausible owners** → ask user to disambiguate: _"I see X, Y, Z all touch this surface. Which is canonical?"_ — disambiguation is a decision, the user is the right source.
-- **Recon yields nothing** → ask user as a last resort: _"I couldn't locate it. Do you know where this lives?"_
-- **User doesn't know either** → mark `needs-spike`.
-
-If the AC item creates _new_ behavior (no current owner) → mark owner as `new — to be created`, skip recon for owner.
-
-### B. Identify the change (read code → triage ambiguity)
-
-> "What is the exact change?"
-
-**Read the owner's code first.** The change spec usually emerges from reading what's there. Do not ask the user "what's the change?" before reading.
-
-After reading, classify any remaining ambiguity:
-
-- **Change is unambiguous** (AC + code make it obvious) → log, move to C.
-- **Code-resolvable ambiguity** (multiple call sites, related helpers, branching logic you haven't traced yet) → **read more, ≤3 additional calls, AC-scoped only.** Do not ask the user yet. The answer is in the codebase.
-- **Decision-resolvable ambiguity** (multiple valid implementations, business choice, cross-system policy) → **ask the user.** State both options + your recommendation: _"For VCC bookings, we can either A (mirror non-VCC wallet path) or B (skip wallet because VCC is pre-paid). I lean A because [reason]. Which?"_
-
-The dividing line: _can the codebase answer this?_ If yes, read. If no, ask.
-
-### C. AC-local analysis — the agent's edge-case homework
-
-> "What could break or surprise us at THIS step that the requirement didn't anticipate?"
-
-**This is the heart of clarify's value.** The agent does the analysis from the code already read. The user's role is to confirm or override findings — not to answer questions whose answers are in the code.
-
-**Skip rule.** If the AC item already has `pre-resolved` edges from a Design Brief §4, skip the canonical analysis below. Surprise edges discovered during owner identification or change identification can still be surfaced.
-
-For AC items without pre-resolved edges, **analyze the owner's code** for:
-
-- **Failure paths.** What does this code throw / return-null / log-and-continue? Where is each handled? What if the handler also fails? — _These are answers in the code, not questions for the user._
-- **Race windows.** Where's the transaction boundary? What can interleave between read and write? Two concurrent invocations of the same path?
-- **Data edges.** What assumptions does the code make about input shape? What records predate the change and may violate them? Null, empty, max-length, malformed.
-- **Hidden costs.** Does the change touch a hot path? Add a synchronous call to a slow service? Grow a payload toward a limit? Increase DB round-trips?
-- **Cross-AC interactions.** Does this AC item interact with another AC item in a way the AC list didn't make explicit? _(e.g., AC-1 sets pendingConfirm but AC-3 expects a paymentRequest object — does AC-1's branch produce one?)_
-
-**Output findings as STATEMENTS, not as questions.** Format:
+Display the parsed AC list (with types, pre-populated gaps) **and** the side-keyword whitelist to the user, in this exact shape:
 
 ```
-FINDING:  {what you observed in the code, with file:line}
-IMPACT:   {what this means for the planned change}
-CONFIRM:  {short binary or recommendation question — "is this acceptable?", "mirror existing pattern?", "should we add a guard?"}
+RAIL — AC items I will walk:
+  AC-1 [Type B]. WHEN booking is on-request AND from BOCM AND uses VCC → status = pendingConfirm
+  AC-2 [Type C]. WHEN AC-1 fires → send email 14 to PM
+  AC-3 [Type B]. WHEN PM accepts pendingConfirm booking → status = confirmed AND wallet generated
+  AC-4 [Type B]. WHEN PM declines pendingConfirm booking → status = declined
+
+SIDE KEYWORDS — background only, will NOT recon:
+  - "BOCM"                  (condition)
+  - "VCC"                   (condition)
+  - "GW v2 integration"     (dependency)
+  - "YR-10557"              (sibling)
+  - "bookings on request"   (framing)
 ```
 
-The user confirms (yes / no / different choice). This is the correct shape of asking after analysis: the cognitive work has been done; the user makes a decision on a digested finding.
+Ask: **"This is the rail I will walk, classified by type. These are side keywords I will NOT recon. Anything missing or wrong before I start?"**
 
-**Anti-pattern check.** If you catch yourself drafting a question whose answer is in the code you've already read → **stop, re-read, answer it yourself.** Forbidden questions:
-
-- ❌ "Does `_handlePayoutAfterRegisterPayment` get called for VCC?" — read the function, trace the calls.
-- ❌ "What status does this currently set?" — read the code.
-- ❌ "Is there an existing branch for this condition?" — grep.
-
-These are the agent's job. The user has already done their part by writing the AC.
-
-### D. Mark item status
-
-| Status          | Meaning                                                                         |
-| :-------------- | :------------------------------------------------------------------------------ |
-| `done`          | Owner + change known; AC-local edges asked or N/A. Ready for plan.              |
-| `asked-pending` | Question fired, awaiting user response.                                         |
-| `deferred`      | User punted to stakeholder; logged in Deferred Questions.                       |
-| `needs-spike`   | Owner couldn't be located by ask + bounded recon; needs a time-boxed prototype. |
-
-**Do not advance to the next AC item until current is `done`, `deferred`, or `needs-spike`.** No parallel pursuit — one rail, walked sequentially.
+**Until the user confirms, you may not make any tool calls** — no Read, no Grep, no Bash. Loop until confirmation. The rail, types, and whitelist are now locked.
 
 ---
 
-## Phase 3: Off-Rail Detection (running rule, not a phase)
+## Phase 2: Per-AC Walk
 
-**At any moment**, if you are about to read a file, grep a symbol, or follow a link, ask yourself:
+For each AC item, run the per-step loop: **A → B → C → D**. Items are walked sequentially; no parallel pursuit.
 
-> "Which AC item does this serve?"
+### A. Anchor
 
-- Can you name the AC item (AC-1, AC-2, …)? → proceed.
-- Cannot name it? → **stop.** Do not read. The instinct to "understand the surrounding system" is the failure mode this skill exists to prevent.
+> "What is the business surface of this AC?"
 
-This is the budget rule. There is no count — the AC is the count.
+For **Type A**: summarize the AC text in business terms. Enumerate the cases the AC explicitly addresses. Skip B (no recon). Move directly to C.
+
+For **Type B/C**: identify the business surface — which rule(s) currently exist that this AC modifies (Type B) or interacts with (Type C). Default to recon, not asking.
+
+- **Known from input** (Design Brief named it, or seen on prior AC item) → log the surface, move to B.
+- **Not known** → state a recon plan in business terms: _"I'll grep for {AC-specific business term} to locate the {current-rule | adjacent-rule} surface."_ Move to B.
+
+### B. Read Evidence (Type B/C only)
+
+> "What does the code show about current business behavior in this surface?"
+
+Each read is governed by the **four-slot declaration**:
+
+```
+AC-{N} | path={file} | question={specific business question} | zone={current-rule|adjacent-rule|downstream-consumer}
+```
+
+If any slot is unfillable, do not read.
+
+**Forbidden questions** (these are planner's job, not clarify's):
+
+- ❌ "Where should I edit this?"
+- ❌ "What pattern does this codebase use for X?"
+- ❌ "What is the type signature of Y?"
+
+**Acceptable questions** (these surface business behavior):
+
+- ✅ "What does the system currently do when a BOCM-VCC booking is created?"
+- ✅ "Which existing rules read `booking.status` and gate behavior on its value?"
+- ✅ "When the PM-accept transition fires today, what business effects beyond status change happen?"
+
+For each observation, cite `file:line` in the conversation as evidence:
+
+```
+OBSERVED: at src/services/booking.js:142, the system currently sets status = STATUS_CONFIRMED for BOCM-VCC bookings unconditionally. There is no existing branch for VCC.
+```
+
+This citation is **conversational evidence only** — it lets the user challenge claims. It does **not** appear in the final brief.
+
+If the legitimate zones have been read and the business surface remains unclear, mark `needs-spike`. Do not read off-rail.
+
+### C. Surface Gaps
+
+> "Where is the AC silent, contradictory, or in conflict with current behavior?"
+
+This is the heart of clarify's value. Compare the AC against current behavior (Type B/C) or against itself (Type A) and surface gaps in business terms.
+
+**Skip rule.** If the AC item already has `pre-resolved` gaps from a Design Brief §4, skip the canonical gap analysis below. Surprise gaps discovered during anchoring or evidence reading can still be surfaced.
+
+For AC items without pre-resolved gaps, look for:
+
+- **Silent cases.** AC specifies behavior for some conditions but not all. ("When X and Y → Z. What about X and not Y?")
+- **Contradictions.** AC's spec'd behavior contradicts existing rules without saying which wins.
+- **Hidden consumers.** Existing rules consume the output of the AC's surface; the AC didn't say if they need to change too.
+- **Ambiguous scope.** The AC mentions a condition (e.g., "VCC") that has multiple plausible business meanings.
+
+**Output gaps as `GAP / CURRENT / SPEC'D / ASK` blocks.** Format:
+
+```
+GAP:     {one-line description of the scenario the AC was silent on}
+CURRENT: {what the system does today in this scenario, in business terms — or "none (new behavior)"}
+SPEC'D:  {what the AC says about this scenario — usually "silent"}
+ASK:     {neutral business question for the user}
+```
+
+**Neutral asks.** Listing common business approaches as options is fine; ranking them is forbidden.
+
+- ✅ "What should happen if the PM never accepts? Common patterns: timeout-and-auto-decline, manual escalation, leave-pending-indefinitely."
+- ❌ "I lean timeout-and-auto-decline because it's safer. Which do you prefer?"
+
+Surface the gap and current behavior. The user decides.
+
+**Anti-pattern check.** If you catch yourself drafting a gap whose answer is obvious from the AC text or already-read code → **stop, re-read, answer it yourself.** Forbidden gaps:
+
+- ❌ "GAP: what status does AC-1 specify?" — read the AC.
+- ❌ "GAP: which file owns this behavior?" — that's the planner's question, not a business gap.
+- ❌ "GAP: what's the type signature of confirmBooking()?" — implementation detail.
+
+### D. Per-AC Checkpoint (mandatory before advancing)
+
+Before moving to the next AC item, emit this block **verbatim**:
+
+```
+AC-{N} CHECKPOINT
+  Type:        A | B | C
+  Reads:       {count} (zones — current-rule: X, adjacent-rule: Y, downstream-consumer: Z)
+  Gaps:        {count}
+               • {1-line summary of GAP 1 + resolution}
+               • {1-line summary of GAP 2 + resolution}
+  Status:      done | asked-pending | deferred | needs-spike
+```
+
+Then ask the user: **`→ continue to AC-{N+1}? (yes / hold)`**
+
+- **yes** → advance to AC-{N+1}.
+- **hold** → user wants to revisit this AC item or surface a missed concern; loop back without advancing.
+
+Do not advance to the next AC item until:
+
+1. Current item's status is `done`, `deferred`, or `needs-spike`, **and**
+2. User has answered `yes` to the continuation prompt for **this specific AC item.**
+
+**No batching.** Each AC item ends with its own checkpoint **immediately after** the item is resolved — not collapsed into a final end-of-walk summary. Emit `AC-2 CHECKPOINT` after AC-2, before any AC-3 reads. Repeat per item. Dumping all checkpoints in one end-of-walk block is forbidden.
+
+**Blanket permission does not bypass checkpoints.** If the user previously said "continue", "go ahead", "skip ahead", or anything similar, that applied to **the AC item under discussion at the time** — never as standing permission for future items. Each subsequent AC item still requires its own checkpoint and explicit `yes`.
+
+### Status Table
+
+| Status          | Meaning                                                                                                                                                                       |
+| :-------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `done`          | Type known; current and spec'd business clear; gaps resolved or N/A.                                                                                                          |
+| `asked-pending` | Question fired, awaiting user response.                                                                                                                                       |
+| `deferred`      | User punted to stakeholder; logged in Deferred Questions.                                                                                                                     |
+| `needs-spike`   | Business surface couldn't be located after exhausting legitimate zones, or business behavior remained ambiguous after reading the full surface; needs a time-boxed prototype. |
 
 ---
 
-## Phase 4: Saturation Gate
+## Phase 3: Cross-AC Seam Pass
 
-After walking all AC items, run the gate. Display verbatim to the user.
+After all per-AC walks complete, walk the **seams** between AC items. Seams are where business gaps live that no single AC item exposes.
+
+For each AC pair (consecutive and non-consecutive), check:
+
+- **Effect-trigger seams.** Does AC-N's effect feed AC-M's trigger condition? If yes, what if AC-N's effect fires but AC-M's trigger never satisfies? _(e.g., AC-1 puts booking in `pendingConfirm`; AC-3 transitions out on PM-accept — what if PM never acts?)_
+- **Effect-consumer seams.** Does AC-N's effect produce an output that AC-M's behavior consumes? Are the formats / states / expectations aligned?
+- **Surface-overlap seams.** Do two AC items modify the same business surface in ways that could conflict?
+- **Failure-mode seams.** If one AC's effect partially fails, does another AC's behavior still fire correctly? _(e.g., AC-1 fires status change; AC-2 sends email on AC-1 firing — what if email fails after status was set?)_
+
+Reads in this phase still obey the four-slot declaration; the AC slot becomes `AC-N ↔ AC-M`.
+
+Surface seam-gaps as:
+
+```
+SEAM-GAP:  {one-line description of the seam case}
+ACS:       AC-N ↔ AC-M
+CURRENT:   {what the system does today at this seam, or "no precedent (both new)"}
+SPEC'D:    {what the ACs collectively say — usually "silent at the seam"}
+ASK:       {neutral business question}
+```
+
+**Conditional checkpoint.**
+
+- **No seam-gaps found** → announce _"Seams walked clean. {N} AC items, no cross-AC gaps."_ and proceed to Phase 5. No user prompt.
+- **Seam-gaps found** → resolve each with the user (same yes/hold pattern as per-AC checkpoints), then proceed to Phase 5.
+
+---
+
+## Phase 4: Off-Rail Detection (running rule, not a phase)
+
+**Before every tool call**, run the four-part check:
+
+1. **AC item.** Can you name the AC item this read serves (or the AC pair, in Phase 3)?
+2. **Question.** Can you state the specific _business_ question this read seeks to answer?
+3. **Zone.** Can you classify the target as `current-rule`, `adjacent-rule`, or `downstream-consumer` of that AC item?
+4. **Whitelist.** Is the target a side keyword from Phase 1's whitelist? If yes, hard stop.
+
+All four must pass. If any fails → **stop. Do not read.**
+
+The instinct to "understand the surrounding system" is the failure mode this skill exists to prevent. So is "I'll just check this one related thing." The business surface of the AC is the entire reading surface; everything else is off-rail by definition.
+
+A read that is _inside the AC's broader topic_ but _outside the three business zones_ (a sibling business rule, an unrelated helper) is still off-rail and still forbidden.
+
+When the legitimate zones have been read and ambiguity persists, the answer is `needs-spike` or a decision-resolvable question — never an off-rail read.
+
+---
+
+## Phase 5: Saturation Gate
+
+After walking all AC items and the cross-AC seam pass, run the gate. Display verbatim:
 
 ```
 SATURATION CHECK
 ────────────────
-[1] AC items walked:        N / N
-[2] Status breakdown:       done: X | deferred: Y | needs-spike: Z
-[3] Off-rail reads:         0 (asserted)
-[4] User confirms:          pending
+[1] AC items walked:           N / N
+[2] Seam pass complete:        yes
+[3] Status breakdown:          done: X | deferred: Y | needs-spike: Z
+[4] Off-rail reads:            0 (asserted)
 ```
 
 **Criterion 1.** Every AC item has terminal status (`done`, `deferred`, or `needs-spike`).
 
-**Criterion 2.** No AC item is still `asked-pending`.
+**Criterion 2.** No AC item is `asked-pending`.
 
-**Criterion 3.** Self-attestation: zero off-rail tool calls.
+**Criterion 3.** Cross-AC seam pass complete.
 
-**Criterion 4.** User confirms:
+**Criterion 4.** Self-attestation: zero off-rail tool calls.
 
-> "I walked all N AC items. Anything I missed before I write the brief?"
+**Criterion 5 — conditional on non-`done` items.**
 
-User confirms → write the brief. User adds → loop back to Phase 2 with the added items appended to the rail.
+The per-AC checkpoints (Phase 2.D) and the seam pass (Phase 3) have already given the user explicit interjection points. A second blanket "anything I missed?" at gate time is redundant on clean walks. Fires only when the walk produced unresolved items.
+
+- **All AC items are `done`** → skip the user prompt. Announce: _"All N ACs walked clean, seams walked clean. Writing the brief now."_ and proceed to Phase 7.
+- **Any AC item is `deferred` or `needs-spike`** → ask:
+
+  > "I walked all N items and the cross-AC seams. {X} are deferred, {Y} need spikes. Anything I missed before I write the brief?"
+
+  User confirms → write the brief. User adds → loop back to Phase 2 with the added items appended to the rail.
 
 ---
 
-## Phase 5: Hybrid Engagement Rule
+## Phase 6: Hybrid Engagement Rule
 
 If the gate cannot pass because AC items are stuck at `asked-pending` (user disengaged, gave "idk" without deferring):
 
@@ -235,9 +396,11 @@ Blocking = AC items the user cannot resolve and cannot defer. Clarify is opt-in;
 
 ---
 
-## Phase 6: Write the Clarification Brief
+## Phase 7: Write the Clarification Brief
 
 Reached only after the gate passes. Write immediately — do not request approval.
+
+**The brief is purely business. NO `file:line` references, NO file paths, NO function or symbol names, NO implementation language anywhere in the brief.** Implementation locations belong only in the conversation walk as evidence; they are stripped from the brief artifact.
 
 ````markdown
 ## Clarification Brief: [Slug]
@@ -253,36 +416,48 @@ Reached only after the gate passes. Write immediately — do not request approva
 
 [Original input pointer + 3-line summary]
 
-### 2. AC Walk
+### 2. Per-AC Resolutions
 
 For each AC item:
 
 ```
 AC-1. [verb + condition + outcome]
-      Owner:   src/services/booking.js → confirmBooking()  (file:line)
-      Change:  add branch — if (isBocm && isOnRequest && isVcc) → pendingConfirm
-      Edges:   • DB write fails → existing tx-rollback path covers it
-               • Race with PM-accept → AC-3 handles
-      Status:  done
+      Type:               B
+      Current Business:   [what the system does today in this scenario, business terms only]
+      Specified Business: [what the AC asks for, business terms only]
+      Gaps Resolved:
+        • [gap description]: [user's resolution in business terms]
+        • [gap description]: [user's resolution]
+      Status: done
 ```
 
-### 3. Confirmed Constraints
+### 3. Cross-AC Seam Resolutions
 
-- [Specific, non-negotiable fact established during the walk]
+For each seam-gap (or "No seam-gaps"):
+
+```
+SEAM: AC-N ↔ AC-M
+  Gap:        [description]
+  Resolution: [user's decision in business terms]
+```
+
+### 4. Confirmed Constraints
+
+- [Specific, non-negotiable business fact established during the walk]
 - [...]
 
-### 4. Remaining Unknowns (defaulted)
+### 5. Remaining Unknowns (defaulted)
 
-- [AC item where user explicitly defaulted on a sub-question]
-  - **Default:** [explicit default for plan to assume]
+- [AC item or seam where user explicitly defaulted on a sub-question]
+  - **Default:** [explicit business default for plan to assume]
 
-### 5. Deferred Questions
+### 6. Deferred Questions
 
-| #   | AC item | Question   | Why it matters | Who can answer | Plan impact |
-| :-- | :------ | :--------- | :------------- | :------------- | :---------- |
-| 1   | AC-3    | [question] | [stakes]       | [role/person]  | [impact]    |
+| #   | AC item / Seam | Question   | Why it matters | Who can answer | Plan impact |
+| :-- | :------------- | :--------- | :------------- | :------------- | :---------- |
+| 1   | AC-3           | [question] | [stakes]       | [role/person]  | [impact]    |
 
-### 6. Recommended Next Step
+### 7. Recommended Next Step
 
 - **proceed-to-plan** — Brief is complete; `/plan @<this-file>` is safe.
 - **spike-first** — One or more AC items are `needs-spike`; prototype before WBS.
@@ -294,7 +469,7 @@ After writing: call `kit_save_handoff(type: "clarify", content: <full markdown>,
 
 ---
 
-## Phase 7: Handoff Menu
+## Phase 8: Handoff Menu
 
 Present the next-step menu (use `AskUserQuestion` or `ask_user` with `type: choice`):
 
@@ -316,8 +491,9 @@ What would you like to do next?
 If the input is an existing Clarification Brief (frontmatter or filename matches `clarify-*.md`):
 
 - Skip Phase 0 (AC already parsed).
-- Skip Phase 1 (rail already fixed).
+- Skip Phase 1 (rail, types, whitelist already locked).
 - Jump to Phase 2 with **only the previously deferred items** as the active rail.
+- Skip Phase 3 unless one of the deferred items reopens a seam.
 - Treat new user answers as merges into the existing brief.
 - On exit: increment version; status may change `NEEDS_STAKEHOLDER` → `RESOLVED`.
 
@@ -326,21 +502,30 @@ If the input is an existing Clarification Brief (frontmatter or filename matches
 ## Important Rules
 
 - **AC is the rail.** Walking it is the entire job. Recon and asking are subordinate.
-- **User = decisions and intent. Codebase = facts.** Before asking the user anything, classify: code-resolvable (read it) vs decision-resolvable (ask it) vs edge-case-discovery (analyze, then surface as a finding). Asking the user a code-resolvable question is a bug.
-- **No global mental model.** You are not understanding the system. You are completing a specific AC walk.
-- **Side keywords are background.** If a term in the input has no AC line acting on it, it stays unrecognized. That is correct.
-- **AC-local edge analysis only.** Edges of _this_ step, not edges of the whole flow.
-- **Findings, not questions.** When edge analysis surfaces something, output a `FINDING / IMPACT / CONFIRM` statement. The user confirms a digested finding; they do not answer the agent's homework.
-- **Off-rail reads are bugs.** Every tool call must be nameable as serving a specific AC item. If it can't be named, don't make it.
+- **Business, not implementation.** Clarify produces a business-rules audit, not a change map. No owner identification, no change specification, no file/line targets in the brief.
+- **Code is evidence, not a map.** Every read exists to verify current business behavior. Reads aimed at "where to edit" or "what pattern fits" are the planner's job and forbidden here.
+- **Reading scope is the business surface.** Three zones only: `current-rule`, `adjacent-rule`, `downstream-consumer`. Anything else — even inside the same file — is off-rail.
+- **Off-rail reads are bugs.** Every tool call must be nameable as `AC-{N} | path | question | zone`. If you can't fill all four slots, don't make the call.
+- **Type bounds recon.** Type A → no recon. Type B → current-rule + downstream-consumer. Type C → adjacent-rule + downstream-consumer. Type is locked at Phase 1.
+- **Side-keyword whitelist is locked at Phase 1.** Forbidden recon targets for the rest of the walk.
+- **User = business decisions and intent. Codebase = evidence of current behavior.** Asking the user a code-resolvable question is a bug.
+- **Neutral asks.** Surface the gap and current behavior; let the user decide. Listing common business approaches as options is neutral; ranking them with "I lean..." is forbidden.
+- **Per-AC checkpoint is mandatory.** No advancing to AC-{N+1} without the verbatim checkpoint block AND the user's `yes` to that item's continuation prompt.
+- **No checkpoint batching.** Emit each AC's checkpoint immediately after the item resolves, not in a final summary.
+- **Blanket permission is per-item, not standing.** "Continue", "go ahead", or "skip ahead" applies only to the AC item under discussion. Future items still require their own checkpoint and explicit `yes`.
+- **Cross-AC seams are first-class.** After per-AC walks, the agent must walk seams to surface business gaps that fall between AC items.
+- **Saturation Gate Criterion 5 is conditional.** When all ACs are `done`, skip the gate prompt and announce the brief is being written. Ask "anything I missed?" only when there are `deferred` or `needs-spike` items.
+- **No global mental model.** You are not understanding the system. You are auditing a specific requirement.
+- **File:line in walk, not in brief.** Cite locations during the conversation as evidence — `OBSERVED: at booking.js:142, ...` — so the user can challenge. Strip locations from the final brief.
+- **Gaps, not questions.** When gap analysis surfaces something, output a `GAP / CURRENT / SPEC'D / ASK` block. The user decides on a digested business question.
 - **No AC, no work.** Refuse to write a brief without an AC.
-- **Defer is not failure.** "I need to ask product" is a valid resolution. The brief becomes the user's takeaway document.
+- **Defer is not failure.** "I need to ask product" is a valid resolution.
 - **Re-entry honors prior work.** Existing brief + new answers → merge, do not redo the walk.
-- **Match user's pace.** Batch confirmations of related findings together when the user is in flow; isolate critical findings.
 
 ## Completion Status
 
 - **DONE** — Brief written, status `RESOLVED`, plan-ready.
 - **DEFERRED** — Brief written, status `NEEDS_STAKEHOLDER`. Pause until stakeholder input.
-- **SPIKE** — Brief written, status `NEEDS_SPIKE`. One or more AC owners not locatable by ask + bounded recon.
+- **SPIKE** — Brief written, status `NEEDS_SPIKE`. One or more AC items exhausted the legitimate zones without a clear business surface or behavior.
 - **NO_AC** — Input had no AC and user couldn't articulate one. Recommended `/brainstorm`.
 - **NEEDS_INPUT** — Hybrid rule triggered; refused to write brief due to unresolved AC items.

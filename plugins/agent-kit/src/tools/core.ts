@@ -23,7 +23,9 @@ export function registerCoreTools(server: McpServer): void {
     'kit_save_handoff',
     `Save a handoff artifact to .agent-kit/handoffs/. Returns the saved file path to use in next-step instructions. Do NOT append version numbers (v2, v3, etc.) to the slug.`,
     {
-      type: z.enum(['brainstorm', 'plan', 'ticket', 'research']).describe('Handoff type'),
+      type: z
+        .enum(['brainstorm', 'clarify', 'plan', 'ticket', 'research'])
+        .describe('Handoff type'),
       content: z.string().describe('Full markdown content to save'),
       slug: z
         .string()
