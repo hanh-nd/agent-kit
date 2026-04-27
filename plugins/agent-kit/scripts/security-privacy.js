@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 
 import * as path from 'path';
-import { FORBIDDEN_DIRS, FORBIDDEN_FILES, FORBIDDEN_PATTERN_STRINGS } from './constants.js';
+import {
+  FORBIDDEN_DIRS,
+  FORBIDDEN_FILES,
+  FORBIDDEN_PATTERN_STRINGS,
+  PROJECT_DIR,
+} from './constants.js';
 import { blockAction, noOp, runWhenInvoked } from './utils.js';
 
 const FORBIDDEN_REGEXES = FORBIDDEN_PATTERN_STRINGS.map((p) => new RegExp(p, 'i'));
@@ -17,6 +22,12 @@ function isBlockedFilename(name) {
   if (FORBIDDEN_FILES.some((f) => lower === f.toLowerCase())) return true;
   if (FORBIDDEN_REGEXES.some((re) => re.test(name))) return true;
   return false;
+}
+
+function isOutsideWorkspace(filePath) {
+  const resolved = path.resolve(PROJECT_DIR, filePath);
+  // Block if it's not the project root and doesn't start with project root + separator
+  return resolved !== PROJECT_DIR && !resolved.startsWith(PROJECT_DIR + path.sep);
 }
 
 runWhenInvoked(import.meta.url, async () => {
@@ -43,6 +54,11 @@ runWhenInvoked(import.meta.url, async () => {
       if (isBlockedFilename(fileName)) {
         blockAction(`@-reference to '${fileName}' is strictly FORBIDDEN.`);
       }
+
+      // Check for path traversal or absolute paths in @-refs
+      if (isOutsideWorkspace(match[1])) {
+        blockAction(`@-reference to '${match[1]}' is outside the workspace and FORBIDDEN.`);
+      }
     }
   }
 
@@ -60,6 +76,11 @@ runWhenInvoked(import.meta.url, async () => {
       if (typeof value !== 'string') continue;
 
       if (PATH_ARG_KEYS.has(key)) {
+        // Workspace boundary check
+        if (isOutsideWorkspace(value)) {
+          blockAction(`Access to '${value}' is outside the workspace and strictly FORBIDDEN.`);
+        }
+
         // Direct filename check on the resolved basename
         const fileName = path.basename(value);
         if (isBlockedFilename(fileName)) {
@@ -67,19 +88,43 @@ runWhenInvoked(import.meta.url, async () => {
         }
 
         // Directory segment check
-        if (value.includes('/') || value.includes('\\')) {
-          for (const segment of value.split(/[/\\]+/)) {
-            if (FORBIDDEN_DIRS.some((d) => segment.toLowerCase() === d.toLowerCase())) {
-              blockAction(`Access to sensitive directory '${segment}' is FORBIDDEN.`);
-            }
-          }
+        const segment = value.split(/[/\\]+/).find((s) =>
+          FORBIDDEN_DIRS.some((d) => s.toLowerCase() === d.toLowerCase())
+        );
+        if (segment) {
+          blockAction(`Access to sensitive directory '${segment}' is FORBIDDEN.`);
         }
       }
 
       if (COMMAND_ARG_KEYS.has(key)) {
         // Tokenized check for shell commands (catches inline file references)
-        for (const token of value.split(/[\s/\\=]+/)) {
+        // Use regex to respect quotes (basic shell-like tokenization)
+        const tokenRegex = /"([^"]+)"|'([^']+)'|([^\s]+)/g;
+        let match;
+
+        while ((match = tokenRegex.exec(value)) !== null) {
+          const token = match[1] || match[2] || match[3];
           if (!token) continue;
+
+          // Boundary check for potential paths in shell commands
+          if (/[/\\]/.test(token) && isOutsideWorkspace(token)) {
+            // Allow common system binary paths
+            const isSystemBinary =
+              token.startsWith('/usr/bin/') ||
+              token.startsWith('/bin/') ||
+              token.startsWith('/usr/local/bin/');
+
+            // Heuristic: ignore short tokens starting with / that look like Windows flags (e.g. /W)
+            const isWindowsFlag =
+              process.platform === 'win32' && token.startsWith('/') && token.length <= 3;
+
+            if (!isSystemBinary && !isWindowsFlag) {
+              blockAction(
+                `Shell command references path '${token}' outside workspace via '${toolName}'.`
+              );
+            }
+          }
+
           if (isBlockedFilename(path.basename(token))) {
             blockAction(`Shell command references forbidden file '${token}' via '${toolName}'.`);
           }
