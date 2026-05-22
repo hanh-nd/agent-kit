@@ -1,9 +1,8 @@
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ContentBlock, Message, Transcript } from '@types';
 
-export interface FileLockOptions {
+interface FileLockOptions {
   retryMs?: number;
   timeoutMs?: number;
 }
@@ -43,6 +42,19 @@ export function runWhenInvoked(importMetaUrl: string, fn: () => void | Promise<v
 export function noOp(): never {
   console.log(JSON.stringify({}));
   process.exit(0);
+}
+
+export function exitWithSuccess(systemMessage: string): never {
+  console.log(JSON.stringify({ systemMessage }));
+  process.exit(0);
+}
+
+export function readStdin(): Promise<string> {
+  return new Promise((resolve) => {
+    let data = '';
+    process.stdin.on('data', (chunk) => (data += String(chunk)));
+    process.stdin.on('end', () => resolve(data));
+  });
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -194,13 +206,4 @@ function parseGeminiTranscript(transcriptPath: string): Transcript {
     if (error instanceof Error) console.error('Failed to parse Gemini transcript:', error.message);
     return { messages: [] };
   }
-}
-
-export function readdirSorted(dir: string): string[] {
-  if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith('.md'))
-    .sort()
-    .map((f) => path.join(dir, f));
 }

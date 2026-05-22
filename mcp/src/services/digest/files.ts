@@ -21,7 +21,7 @@ export function readConversationDigestInput(workspaceRoot: string, inputPath: st
   };
 }
 
-export function provisionalDigestPath(
+function provisionalDigestPath(
   outDir: string,
   input: Pick<ConversationDigestInput, 'sourcePath' | 'contentHash'>,
 ): string {

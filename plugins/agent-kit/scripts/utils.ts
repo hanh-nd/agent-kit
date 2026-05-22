@@ -1,20 +1,8 @@
-import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ENFORCEMENT_MODES, KIT_PATH } from './constants.js';
 import type { AgentKitSettings, SecurityConfig } from '@types';
-
-export function spawnBackground(scriptUrl: string | URL, args: string[] = []): void {
-  const scriptPath =
-    scriptUrl instanceof URL ? fileURLToPath(scriptUrl) : fileURLToPath(new URL(scriptUrl));
-
-  const child = spawn(process.execPath, [scriptPath, ...args], {
-    detached: true,
-    stdio: 'ignore',
-  });
-  child.unref();
-}
 
 export function runWhenInvoked(importMetaUrl: string, fn: () => void | Promise<void>): void {
   if (!process.argv[1]) return;
@@ -30,13 +18,26 @@ export function noOp(): never {
   process.exit(0);
 }
 
+export function readStdin(): Promise<string> {
+  return new Promise((resolve) => {
+    let data = '';
+    process.stdin.on('data', (chunk: Buffer) => (data += chunk.toString()));
+    process.stdin.on('end', () => resolve(data));
+  });
+}
+
 export function blockAction(reason: string): never {
   process.stderr.write(`Security Block: ${reason}\n`);
   process.exit(2);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+export function exitWithSuccess(systemMessage: string): never {
+  console.log(JSON.stringify({ systemMessage }));
+  process.exit(0);
 }
 
 export function loadSettings(): AgentKitSettings {

@@ -12,7 +12,7 @@ export function atomicWriteJsonFile(filePath: string, value: unknown): void {
   atomicWriteTextFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-export function tryWriteFileExclusive(filePath: string, content: string): boolean {
+function tryWriteFileExclusive(filePath: string, content: string): boolean {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   try {
     fs.writeFileSync(filePath, content, { flag: 'wx' });

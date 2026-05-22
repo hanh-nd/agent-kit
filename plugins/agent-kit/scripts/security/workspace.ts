@@ -7,7 +7,7 @@ type WorkspacePolicy = Pick<
   'projectDir' | 'caseInsensitive' | 'allowedOutsidePaths' | 'allowOutside'
 >;
 
-export function realpathSafe(p: string, policy: Pick<SecurityPolicy, 'projectDir'>): string {
+function realpathSafe(p: string, policy: Pick<SecurityPolicy, 'projectDir'>): string {
   try {
     const abs = path.resolve(policy.projectDir, p);
     try {
@@ -38,7 +38,7 @@ export function realpathSafe(p: string, policy: Pick<SecurityPolicy, 'projectDir
   }
 }
 
-export function isOutsideWorkspace(
+function isOutsideWorkspace(
   filePath: string,
   policy: Pick<SecurityPolicy, 'projectDir' | 'caseInsensitive'>
 ): boolean {
@@ -52,7 +52,7 @@ export function isOutsideWorkspace(
   return resolved !== projectDir && !resolved.startsWith(projectDir + path.sep);
 }
 
-export function isInAllowedOutsidePath(
+function isInAllowedOutsidePath(
   filePath: string,
   policy: Pick<SecurityPolicy, 'projectDir' | 'caseInsensitive' | 'allowedOutsidePaths'>
 ): boolean {

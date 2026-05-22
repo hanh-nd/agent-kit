@@ -1,16 +1,7 @@
-import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ENFORCEMENT_MODES, KIT_PATH } from './constants.js';
-export function spawnBackground(scriptUrl, args = []) {
-    const scriptPath = scriptUrl instanceof URL ? fileURLToPath(scriptUrl) : fileURLToPath(new URL(scriptUrl));
-    const child = spawn(process.execPath, [scriptPath, ...args], {
-        detached: true,
-        stdio: 'ignore',
-    });
-    child.unref();
-}
 export function runWhenInvoked(importMetaUrl, fn) {
     if (!process.argv[1])
         return;
@@ -24,12 +15,23 @@ export function noOp() {
     console.log(JSON.stringify({}));
     process.exit(0);
 }
+export function readStdin() {
+    return new Promise((resolve) => {
+        let data = '';
+        process.stdin.on('data', (chunk) => (data += chunk.toString()));
+        process.stdin.on('end', () => resolve(data));
+    });
+}
 export function blockAction(reason) {
     process.stderr.write(`Security Block: ${reason}\n`);
     process.exit(2);
 }
-function isRecord(value) {
+export function isRecord(value) {
     return typeof value === 'object' && value !== null;
+}
+export function exitWithSuccess(systemMessage) {
+    console.log(JSON.stringify({ systemMessage }));
+    process.exit(0);
 }
 export function loadSettings() {
     try {

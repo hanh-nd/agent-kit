@@ -1,6 +1,6 @@
 import * as assert from 'node:assert/strict';
 import { afterEach, describe, test } from 'node:test';
-import { createTempDirTracker } from '../../utils/temp-dir.js';
+import { createTempDirTracker } from '../../utils/temp-dir.test.js';
 import { runMemoryCli } from './memory.js';
 
 const tempDirs = createTempDirTracker();

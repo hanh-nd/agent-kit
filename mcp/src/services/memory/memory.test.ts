@@ -4,7 +4,7 @@ import type { MemoryIndexer } from './indexer.js';
 import type { MemoryStore } from './store.js';
 import type { MemoryChunk, MemoryConfig, SearchResult } from './types.js';
 import { resolveMemoryConfig } from '../../core/config/index.js';
-import { registerMemoryToolHandlers } from '../../mcp/memory.js';
+import { registerMemoryTools } from '../../mcp/memory.js';
 
 // Minimal McpServer stub that captures tool registrations
 function makeMockServer() {
@@ -74,7 +74,11 @@ describe('kit_memory_search', () => {
     const indexer = makeIndexerStub({ search: async () => [searchResult] });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryToolHandlers(server as never, indexer, store, BASE_CONFIG);
+    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+      indexer,
+      store,
+      config: BASE_CONFIG,
+    });
 
     const result = await tools.get('kit_memory_search')!({ query: 'test query' });
     const text = extractText(result);
@@ -89,7 +93,11 @@ describe('kit_memory_search', () => {
     const indexer = makeIndexerStub({ search: async () => [] });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryToolHandlers(server as never, indexer, store, BASE_CONFIG);
+    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+      indexer,
+      store,
+      config: BASE_CONFIG,
+    });
 
     const result = await tools.get('kit_memory_search')!({ query: 'nothing here' });
     const text = extractText(result);
@@ -104,7 +112,11 @@ describe('kit_memory_search', () => {
     const indexer = makeIndexerStub({ search: async () => [] });
     const store = makeStoreStub(false);
     const { server, tools } = makeMockServer();
-    registerMemoryToolHandlers(server as never, indexer, store, BASE_CONFIG);
+    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+      indexer,
+      store,
+      config: BASE_CONFIG,
+    });
 
     const result = await tools.get('kit_memory_search')!({ query: 'test' });
     const text = extractText(result);
@@ -127,7 +139,11 @@ describe('kit_memory_search', () => {
     const indexer = makeIndexerStub({ search: async () => [searchResult] });
     const store = makeStoreStub(false);
     const { server, tools } = makeMockServer();
-    registerMemoryToolHandlers(server as never, indexer, store, BASE_CONFIG);
+    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+      indexer,
+      store,
+      config: BASE_CONFIG,
+    });
 
     const result = await tools.get('kit_memory_search')!({ query: 'test' });
     const text = extractText(result);
@@ -151,7 +167,11 @@ describe('kit_memory_search', () => {
     const indexer = makeIndexerStub({ search: async () => [searchResult] });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryToolHandlers(server as never, indexer, store, BASE_CONFIG);
+    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+      indexer,
+      store,
+      config: BASE_CONFIG,
+    });
 
     const result = await tools.get('kit_memory_search')!({ query: 'test' });
     const text = extractText(result);
@@ -170,7 +190,11 @@ describe('kit_memory_search', () => {
     });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryToolHandlers(server as never, indexer, store, BASE_CONFIG);
+    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+      indexer,
+      store,
+      config: BASE_CONFIG,
+    });
 
     await tools.get('kit_memory_search')!({ query: 'test', top_k: 3 });
     assert.equal(capturedTopK, 3);
@@ -186,7 +210,11 @@ describe('kit_memory_search', () => {
     });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryToolHandlers(server as never, indexer, store, BASE_CONFIG);
+    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+      indexer,
+      store,
+      config: BASE_CONFIG,
+    });
 
     await tools.get('kit_memory_search')!({ query: 'test' });
     assert.equal(capturedTopK, BASE_CONFIG.topK);
@@ -200,7 +228,11 @@ describe('kit_memory_search', () => {
     });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryToolHandlers(server as never, indexer, store, BASE_CONFIG);
+    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+      indexer,
+      store,
+      config: BASE_CONFIG,
+    });
 
     const result = await tools.get('kit_memory_search')!({ query: 'test' });
     const text = extractText(result);
@@ -216,7 +248,11 @@ describe('kit_memory_save', () => {
     });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryToolHandlers(server as never, indexer, store, BASE_CONFIG);
+    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+      indexer,
+      store,
+      config: BASE_CONFIG,
+    });
 
     const result = await tools.get('kit_memory_save')!({ content: 'Some important note' });
     const text = extractText(result);
@@ -239,7 +275,11 @@ describe('kit_memory_save', () => {
     });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryToolHandlers(server as never, indexer, store, BASE_CONFIG);
+    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+      indexer,
+      store,
+      config: BASE_CONFIG,
+    });
 
     const result = await tools.get('kit_memory_save')!({ content: 'note' });
     const text = extractText(result);

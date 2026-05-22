@@ -10,9 +10,9 @@ export const HANDOFF_TYPES = [
   'investigation',
 ] as const;
 
-export type HandoffType = (typeof HANDOFF_TYPES)[number];
+type HandoffType = (typeof HANDOFF_TYPES)[number];
 
-export type CanonicalHandoffType =
+type CanonicalHandoffType =
   | 'brainstorm'
   | 'clarification'
   | 'plan'
@@ -21,7 +21,7 @@ export type CanonicalHandoffType =
   | 'scenario'
   | 'investigation';
 
-export interface SavedHandoffLocation {
+interface SavedHandoffLocation {
   featureSlug: string;
   canonicalType: CanonicalHandoffType;
   filePath: string;
@@ -34,7 +34,7 @@ function findTicketId(value: string): string | null {
   return value.match(TICKET_ID_PATTERN)?.[0].toLowerCase() ?? null;
 }
 
-export function sanitizeFeatureSlug(value: string): string {
+function sanitizeFeatureSlug(value: string): string {
   return value
     .replace(/[^a-zA-Z0-9-_]/g, '-')
     .replace(/-+/g, '-')
@@ -51,18 +51,14 @@ function contentSlugCandidate(content: string): string {
   return heading ?? content.replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
-export function normalizeHandoffType(type: HandoffType): CanonicalHandoffType {
+function normalizeHandoffType(type: HandoffType): CanonicalHandoffType {
   if (!HANDOFF_TYPES.includes(type)) {
     throw new Error(`Unsupported handoff type: ${type}`);
   }
   return type;
 }
 
-export function deriveFeatureSlug(input: {
-  requestedSlug: string;
-  content: string;
-  type: CanonicalHandoffType;
-}): string {
+function deriveFeatureSlug(input: { requestedSlug: string; content: string; type: CanonicalHandoffType }): string {
   const requestedTicketSlug = findTicketId(input.requestedSlug);
   if (requestedTicketSlug) return requestedTicketSlug;
 

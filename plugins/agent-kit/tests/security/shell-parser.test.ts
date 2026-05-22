@@ -1,11 +1,7 @@
 import * as assert from 'node:assert/strict';
 import * as os from 'node:os';
 import { test, describe } from 'node:test';
-import {
-  tokenizeCommand,
-  expandToken,
-  extractCandidates,
-} from '../../scripts/security/shell-parser.js';
+import { extractCandidates } from '../../scripts/security/shell-parser.js';
 
 const homeDir = os.homedir();
 const mockPolicy = {
@@ -13,71 +9,92 @@ const mockPolicy = {
   knownEnvVars: { HOME: homeDir, USER: 'testuser' },
 };
 
-describe('tokenizeCommand', () => {
+describe('tokenizeCommand (via extractCandidates)', () => {
   test('splits simple command into tokens', () => {
-    assert.deepEqual(tokenizeCommand('cat foo bar'), ['cat', 'foo', 'bar']);
+    // We can use a path separator to force them to be candidates
+    const candidates = extractCandidates('cat/x foo/y bar/z', mockPolicy);
+    assert.deepEqual(
+      candidates.map((c) => c.expanded),
+      ['cat/x', 'foo/y', 'bar/z']
+    );
   });
 
   test('handles double-quoted token with spaces', () => {
-    assert.deepEqual(tokenizeCommand('cat "foo bar"'), ['cat', 'foo bar']);
+    const candidates = extractCandidates('cat "foo bar/x"', mockPolicy);
+    assert.deepEqual(
+      candidates.map((c) => c.expanded),
+      ['foo bar/x']
+    );
   });
 
   test('handles single-quoted token with spaces', () => {
-    assert.deepEqual(tokenizeCommand("cat 'foo bar'"), ['cat', 'foo bar']);
+    const candidates = extractCandidates("cat 'foo bar/x'", mockPolicy);
+    assert.deepEqual(
+      candidates.map((c) => c.expanded),
+      ['foo bar/x']
+    );
   });
 
   test('empty string returns empty array', () => {
-    assert.deepEqual(tokenizeCommand(''), []);
+    assert.deepEqual(extractCandidates('', mockPolicy), []);
   });
 });
 
-describe('expandToken', () => {
+describe('expandToken (via extractCandidates)', () => {
   test('expands ~ to homeDir', () => {
-    const { expanded, unresolvedVars } = expandToken('~', mockPolicy);
-    assert.equal(expanded, homeDir);
-    assert.deepEqual(unresolvedVars, []);
+    const candidates = extractCandidates('~', mockPolicy);
+    assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].expanded, homeDir);
+    assert.deepEqual([...candidates[0].unresolvedVars], []);
   });
 
   test('expands ~/x to homeDir/x', () => {
-    const { expanded } = expandToken('~/x', mockPolicy);
-    assert.equal(expanded, homeDir + '/x');
+    const candidates = extractCandidates('~/x', mockPolicy);
+    assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].expanded, homeDir + '/x');
   });
 
   test('expands $HOME/x', () => {
-    const { expanded, unresolvedVars } = expandToken('$HOME/x', mockPolicy);
-    assert.equal(expanded, homeDir + '/x');
-    assert.deepEqual(unresolvedVars, []);
+    const candidates = extractCandidates('$HOME/x', mockPolicy);
+    assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].expanded, homeDir + '/x');
+    assert.deepEqual([...candidates[0].unresolvedVars], []);
   });
 
   test('expands ${HOME}/x', () => {
-    const { expanded } = expandToken('${HOME}/x', mockPolicy);
-    assert.equal(expanded, homeDir + '/x');
+    const candidates = extractCandidates('${HOME}/x', mockPolicy);
+    assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].expanded, homeDir + '/x');
   });
 
   test('records unresolved $UNSET variable', () => {
-    const { expanded, unresolvedVars } = expandToken('$UNSET/x', mockPolicy);
-    assert.equal(expanded, '$UNSET/x');
+    const candidates = extractCandidates('$UNSET/x', mockPolicy);
+    assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].expanded, '$UNSET/x');
     assert.ok(
-      unresolvedVars.includes('$UNSET'),
-      `Expected $UNSET in unresolvedVars, got ${JSON.stringify(unresolvedVars)}`
+      candidates[0].unresolvedVars.includes('$UNSET'),
+      `Expected $UNSET in unresolvedVars, got ${JSON.stringify(candidates[0].unresolvedVars)}`
     );
   });
 
   test('expands multiple vars in one token', () => {
-    const { expanded, unresolvedVars } = expandToken('$HOME/$USER', mockPolicy);
-    assert.equal(expanded, homeDir + '/testuser');
-    assert.deepEqual(unresolvedVars, []);
+    const candidates = extractCandidates('$HOME/$USER', mockPolicy);
+    assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].expanded, homeDir + '/testuser');
+    assert.deepEqual([...candidates[0].unresolvedVars], []);
   });
 
   test('tilde NOT at position 0 is unchanged', () => {
-    const { expanded } = expandToken('foo~bar', mockPolicy);
-    assert.equal(expanded, 'foo~bar');
+    const candidates = extractCandidates('foo~bar/x', mockPolicy);
+    assert.equal(candidates.length, 1);
+    assert.equal(candidates[0].expanded, 'foo~bar/x');
   });
 
-  test('does not expand ~user form', () => {
-    const { expanded } = expandToken('~root/file', mockPolicy);
+  test('does not expand ~root/file', () => {
+    const candidates = extractCandidates('~root/file', mockPolicy);
+    assert.equal(candidates.length, 1);
     // ~root does not start with ~/ so should remain unchanged
-    assert.equal(expanded, '~root/file');
+    assert.equal(candidates[0].expanded, '~root/file');
   });
 });
 

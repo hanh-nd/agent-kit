@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { PROJECT_DIR, WIKI_RAW_DIR } from './constants.js';
-import { acquireFileLock, releaseFileLock, runWhenInvoked } from './utils.js';
+import { acquireFileLock, noOp, readStdin, releaseFileLock, runWhenInvoked } from './utils.js';
 
 interface PostToolUsePayload {
   tool_name?: string;
@@ -65,24 +65,18 @@ function formatInboxEntry(entry: InboxEntry): string {
 }
 
 runWhenInvoked(import.meta.url, async () => {
-  let stdinData = '';
-  await new Promise<void>((resolve) => {
-    process.stdin.on('data', (chunk) => (stdinData += chunk));
-    process.stdin.on('end', () => resolve());
-  });
+  const stdinData = await readStdin();
 
   let payload: PostToolUsePayload;
   try {
     payload = JSON.parse(stdinData) as PostToolUsePayload;
   } catch {
-    console.log('{}');
-    process.exit(0);
+    noOp();
   }
 
   const absPath = extractSavedAbsPath(payload);
   if (!absPath) {
-    console.log('{}');
-    process.exit(0);
+    noOp();
   }
 
   const relPath = path.relative(PROJECT_DIR, absPath).split(path.sep).join('/');
@@ -116,6 +110,5 @@ runWhenInvoked(import.meta.url, async () => {
     }
   }
 
-  console.log('{}');
-  process.exit(0);
+  noOp();
 });

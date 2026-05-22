@@ -2,7 +2,7 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { afterEach, describe, test } from 'node:test';
-import { createTempDirTracker } from '../../utils/temp-dir.js';
+import { createTempDirTracker } from '../../utils/temp-dir.test.js';
 import {
   defaultProvisionalDigestDir,
   readConversationDigestInput,

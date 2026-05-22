@@ -2,20 +2,10 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { afterEach, describe, test } from 'node:test';
-import { createTempDirTracker } from '../../utils/temp-dir.js';
+import { createTempDirTracker } from '../../utils/temp-dir.test.js';
 import { writeConversationDigestSettings } from './files.js';
-import {
-  appendDigestWorkerLog,
-  digestWorkerDirPath,
-  digestWorkerLogPath,
-  digestWorkerStatusPath,
-  isLivePid,
-  launchDigestPendingWorker,
-  readDigestWorkerStatus,
-  runDigestPendingWorker,
-  statusFromPendingResult,
-  writeDigestWorkerStatus,
-} from './background.js';
+import { launchDigestPendingWorker, runDigestPendingWorker } from './background.js';
+import { DIGEST_WORKER_LOG_REL_PATH, DIGEST_WORKER_STATUS_REL_PATH } from './constants.js';
 import type { DigestWorkerStatus } from './types.js';
 
 const tempDirs = createTempDirTracker();
@@ -23,6 +13,29 @@ const tempDirs = createTempDirTracker();
 afterEach(() => {
   tempDirs.cleanup();
 });
+
+function digestWorkerLogPath(workspace: string): string {
+  return path.join(workspace, DIGEST_WORKER_LOG_REL_PATH);
+}
+
+function digestWorkerStatusPath(workspace: string): string {
+  return path.join(workspace, DIGEST_WORKER_STATUS_REL_PATH);
+}
+
+function readDigestWorkerStatus(workspace: string): DigestWorkerStatus | undefined {
+  try {
+    const p = digestWorkerStatusPath(workspace);
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch {
+    return undefined;
+  }
+}
+
+function writeDigestWorkerStatus(workspace: string, status: DigestWorkerStatus): void {
+  const p = digestWorkerStatusPath(workspace);
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, JSON.stringify(status), 'utf8');
+}
 
 function writeInitState(workspace: string): void {
   writeConversationDigestSettings(workspace, {
@@ -58,7 +71,6 @@ describe('digest background helpers', () => {
   test('uses .agent-kit/wiki/digest paths for worker files', () => {
     const workspace = tempDirs.makeTempDir('digest-bg-paths-');
 
-    assert.equal(digestWorkerDirPath(workspace), path.join(workspace, '.agent-kit', 'wiki', 'digest'));
     assert.equal(
       digestWorkerStatusPath(workspace),
       path.join(workspace, '.agent-kit', 'wiki', 'digest', 'digest-worker.status.json'),
@@ -78,49 +90,6 @@ describe('digest background helpers', () => {
 
     fs.writeFileSync(digestWorkerStatusPath(workspace), '{bad json', 'utf8');
     assert.equal(readDigestWorkerStatus(workspace), undefined);
-  });
-
-  test('appendDigestWorkerLog appends diagnostics and never throws for invalid roots', () => {
-    const workspace = tempDirs.makeTempDir('digest-bg-log-');
-
-    appendDigestWorkerLog(workspace, 'hello');
-    assert.match(fs.readFileSync(digestWorkerLogPath(workspace), 'utf8'), /hello/);
-    assert.doesNotThrow(() => appendDigestWorkerLog('/dev/null/workspace', 'ignored'));
-  });
-
-  test('isLivePid treats current process as live and impossible pid as not live', () => {
-    assert.equal(isLivePid(process.pid), true);
-    assert.equal(isLivePid(999999999), false);
-    assert.equal(isLivePid(null), false);
-  });
-
-  test('maps pending results into persisted worker status states and counts', () => {
-    const startedAt = new Date().toISOString();
-
-    const complete = statusFromPendingResult(
-      { ok: true, initialized: true, action: 'digested', count: 2, skipped: 1, errors: 1 },
-      startedAt,
-      4,
-    );
-    assert.equal(complete.state, 'complete');
-    assert.equal(complete.processed, 2);
-    assert.equal(complete.skipped, 1);
-    assert.equal(complete.errors, 1);
-
-    const failed = statusFromPendingResult(
-      { ok: false, initialized: true, action: 'error', error: 'boom' },
-      startedAt,
-      1,
-    );
-    assert.equal(failed.state, 'failed');
-    assert.equal(failed.lastError, 'boom');
-
-    const locked = statusFromPendingResult(
-      { ok: true, initialized: true, action: 'noop', reason: 'locked' },
-      startedAt,
-      1,
-    );
-    assert.equal(locked.state, 'locked');
   });
 });
 

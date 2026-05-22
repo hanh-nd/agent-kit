@@ -2,7 +2,7 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { afterEach, describe, test } from 'node:test';
-import { createTempDirTracker } from './temp-dir.js';
+import { createTempDirTracker } from './temp-dir.test.js';
 import { DIGEST_LOCKFILE_REL_PATH } from '../services/digest/constants.js';
 import { releaseLock, tryAcquireProcessLock } from './files.js';
 

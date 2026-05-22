@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { countTests } from '../scripts/count-tests.js';
 import { ENFORCEMENT_MODES, KIT_DIR, KIT_PATH, PROJECT_DIR } from './constants.js';
-import { runWhenInvoked } from './utils.js';
+import { exitWithSuccess, isRecord, noOp, readStdin, runWhenInvoked } from './utils.js';
 function ensureDirectories() {
     const dirs = ['handoffs', 'logs'];
     for (const dir of dirs) {
@@ -70,9 +70,6 @@ const DEFAULT_SETTINGS = {
         runTests: true,
     },
 };
-function isRecord(value) {
-    return typeof value === 'object' && value !== null;
-}
 function parseSettings(content) {
     const parsed = JSON.parse(content);
     return isRecord(parsed) ? parsed : {};
@@ -132,11 +129,7 @@ function ensureSettings() {
  * SessionStart Hook — Kit Initializer
  */
 runWhenInvoked(import.meta.url, async () => {
-    const raw = await new Promise((resolve) => {
-        let data = '';
-        process.stdin.on('data', (chunk) => (data += chunk.toString()));
-        process.stdin.on('end', () => resolve(data));
-    });
+    const raw = await readStdin();
     let input;
     try {
         const parsed = JSON.parse(raw);
@@ -145,12 +138,10 @@ runWhenInvoked(import.meta.url, async () => {
     catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.error('Agent-Kit failed to initialize', message);
-        process.exit(0);
+        noOp();
     }
     ensureDirectories();
     ensureGitExclusion();
     ensureSettings();
-    console.log(JSON.stringify({
-        systemMessage: `🛠️ Agent-Kit ready | Session #${input.session_id}`,
-    }));
+    exitWithSuccess(`🛠️ Agent-Kit ready | Session #${input.session_id}`);
 });

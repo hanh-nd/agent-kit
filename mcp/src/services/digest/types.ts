@@ -20,7 +20,7 @@ export interface ConversationDigestInput {
   contentHash: string;
 }
 
-export interface ConversationDigestOptions {
+interface ConversationDigestOptions {
   modelId: string;
   maxInputChars: number;
   timeoutMs: number;

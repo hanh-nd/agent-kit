@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-export function realpathSafe(p, policy) {
+function realpathSafe(p, policy) {
     try {
         const abs = path.resolve(policy.projectDir, p);
         try {
@@ -30,7 +30,7 @@ export function realpathSafe(p, policy) {
         return path.resolve(policy.projectDir, p);
     }
 }
-export function isOutsideWorkspace(filePath, policy) {
+function isOutsideWorkspace(filePath, policy) {
     const resolved = realpathSafe(filePath, policy);
     const projectDir = policy.projectDir;
     if (policy.caseInsensitive) {
@@ -40,7 +40,7 @@ export function isOutsideWorkspace(filePath, policy) {
     }
     return resolved !== projectDir && !resolved.startsWith(projectDir + path.sep);
 }
-export function isInAllowedOutsidePath(filePath, policy) {
+function isInAllowedOutsidePath(filePath, policy) {
     if (policy.allowedOutsidePaths.length === 0)
         return false;
     const resolved = realpathSafe(filePath, policy);

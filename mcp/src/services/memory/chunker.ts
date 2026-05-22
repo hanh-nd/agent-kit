@@ -1,11 +1,11 @@
 import type { MemoryChunk, MemoryConfig } from './types.js';
 import { sha256Hex } from '../../utils/hash.js';
 
-export function computeChunkId(content: string): string {
+function computeChunkId(content: string): string {
   return sha256Hex(content).slice(0, 16);
 }
 
-export function cleanContentForEmbedding(text: string): string {
+function cleanContentForEmbedding(text: string): string {
   return text.replace(/<!--[\s\S]*?-->/g, '');
 }
 

@@ -4,7 +4,15 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { WIKI_RAW_DIR } from './constants.js';
 import { normalizeTranscript } from './normalize.js';
-import { acquireFileLock, getProvider, parseTranscript, releaseFileLock, runWhenInvoked } from './utils.js';
+import {
+  acquireFileLock,
+  getProvider,
+  noOp,
+  parseTranscript,
+  readStdin,
+  releaseFileLock,
+  runWhenInvoked,
+} from './utils.js';
 
 function formatTurns(transcriptPath: string): string {
   const transcript = parseTranscript(transcriptPath);
@@ -29,11 +37,7 @@ function sanitizeSessionId(sessionId: string | number): string {
 }
 
 runWhenInvoked(import.meta.url, async () => {
-  let stdinData = '';
-  await new Promise<void>((resolve) => {
-    process.stdin.on('data', (chunk) => (stdinData += chunk));
-    process.stdin.on('end', () => resolve());
-  });
+  const stdinData = await readStdin();
 
   let transcriptPath: string | undefined;
   let sessionId: string | number | undefined;
@@ -49,21 +53,18 @@ runWhenInvoked(import.meta.url, async () => {
   }
 
   if (!transcriptPath) {
-    console.log(JSON.stringify({}));
-    process.exit(0);
+    noOp();
   }
 
   let content: string;
   try {
     content = formatTurns(transcriptPath);
   } catch {
-    console.log(JSON.stringify({}));
-    process.exit(0);
+    noOp();
   }
 
   if (!content) {
-    console.log(JSON.stringify({}));
-    process.exit(0);
+    noOp();
   }
 
   const provider = getProvider(transcriptPath);
@@ -90,6 +91,5 @@ runWhenInvoked(import.meta.url, async () => {
     if (acquired) releaseFileLock(lockPath);
   }
 
-  console.log(JSON.stringify({}));
-  process.exit(0);
+  noOp();
 });

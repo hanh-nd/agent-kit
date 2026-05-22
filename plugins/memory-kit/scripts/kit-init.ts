@@ -3,7 +3,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { KIT_PATH, WIKI_ARCHIVE_CONVERSATIONS_DIR, WIKI_COMPILED_DIR, WIKI_RAW_DIR } from './constants.js';
-import { runWhenInvoked } from './utils.js';
+import { exitWithSuccess, readStdin, runWhenInvoked } from './utils.js';
 
 function checkInboxNudge(): string {
   const inboxPath = path.join(WIKI_RAW_DIR, 'inbox.md');
@@ -52,20 +52,11 @@ function ensureMemoryEnabled(): void {
 }
 
 runWhenInvoked(import.meta.url, async () => {
-  await new Promise<void>((resolve) => {
-    let data = '';
-    process.stdin.on('data', (chunk) => (data += chunk));
-    process.stdin.on('end', () => resolve());
-  });
+  await readStdin();
 
   ensureMemoryEnabled();
   ensureWikiDirs();
   const nudge = checkInboxNudge();
 
-  console.log(
-    JSON.stringify({
-      systemMessage: '[memory-kit] Memory ready' + nudge,
-    }),
-  );
-  process.exit(0);
+  exitWithSuccess('[memory-kit] Memory ready' + nudge);
 });

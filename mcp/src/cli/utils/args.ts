@@ -1,4 +1,4 @@
-export interface ParsedArgs {
+interface ParsedArgs {
   flags: Map<string, string | boolean>;
   positionals: string[];
 }

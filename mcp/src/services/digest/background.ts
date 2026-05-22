@@ -19,15 +19,11 @@ import type {
 import { atomicWriteJsonFile } from '../../utils/files.js';
 import { isRecord } from '../../utils/json.js';
 
-export function digestWorkerDirPath(workspaceRoot: string): string {
-  return path.join(workspaceRoot, path.dirname(DIGEST_WORKER_STATUS_REL_PATH));
-}
-
-export function digestWorkerStatusPath(workspaceRoot: string): string {
+function digestWorkerStatusPath(workspaceRoot: string): string {
   return path.join(workspaceRoot, DIGEST_WORKER_STATUS_REL_PATH);
 }
 
-export function digestWorkerLogPath(workspaceRoot: string): string {
+function digestWorkerLogPath(workspaceRoot: string): string {
   return path.join(workspaceRoot, DIGEST_WORKER_LOG_REL_PATH);
 }
 
@@ -83,7 +79,7 @@ function isDigestWorkerStatus(value: unknown): value is DigestWorkerStatus {
   );
 }
 
-export function readDigestWorkerStatus(workspaceRoot: string): DigestWorkerStatus | undefined {
+function readDigestWorkerStatus(workspaceRoot: string): DigestWorkerStatus | undefined {
   try {
     const parsed = JSON.parse(fs.readFileSync(digestWorkerStatusPath(workspaceRoot), 'utf8')) as unknown;
     return isDigestWorkerStatus(parsed) ? parsed : undefined;
@@ -92,11 +88,11 @@ export function readDigestWorkerStatus(workspaceRoot: string): DigestWorkerStatu
   }
 }
 
-export function writeDigestWorkerStatus(workspaceRoot: string, status: DigestWorkerStatus): void {
+function writeDigestWorkerStatus(workspaceRoot: string, status: DigestWorkerStatus): void {
   atomicWriteJsonFile(digestWorkerStatusPath(workspaceRoot), status);
 }
 
-export function appendDigestWorkerLog(workspaceRoot: string, message: string): void {
+function appendDigestWorkerLog(workspaceRoot: string, message: string): void {
   try {
     const logPath = digestWorkerLogPath(workspaceRoot);
     fs.mkdirSync(path.dirname(logPath), { recursive: true });
@@ -106,7 +102,7 @@ export function appendDigestWorkerLog(workspaceRoot: string, message: string): v
   }
 }
 
-export function isLivePid(pid: number | null): boolean {
+function isLivePid(pid: number | null): boolean {
   if (pid === null || !Number.isInteger(pid) || pid <= 0) return false;
 
   try {
@@ -129,7 +125,7 @@ function readLockPid(workspaceRoot: string): number | null | undefined {
   }
 }
 
-export function statusFromPendingResult(
+function statusFromPendingResult(
   result: DigestPendingResult,
   startedAt: string,
   pendingAtStart: number,

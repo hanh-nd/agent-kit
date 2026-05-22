@@ -66,18 +66,6 @@ export function resolveMemoryConfig(settings: ProjectSettings, workspaceRoot: st
   };
 }
 
-/**
- * Get file extensions - from settings.json or defaults
- * Allows project-specific customization
- */
-export function getFileExtensions(projectDir: string): string[] {
-  const settings = loadProjectSettings(projectDir);
-  if (settings.fileExtensions && Array.isArray(settings.fileExtensions)) {
-    return settings.fileExtensions;
-  }
-  return DEFAULT_EXTENSIONS;
-}
-
 export function loadProjectSettings(projectDir: string): ProjectSettings {
   const settingsPath = path.join(projectDir, '.agent-kit', 'settings.json');
 

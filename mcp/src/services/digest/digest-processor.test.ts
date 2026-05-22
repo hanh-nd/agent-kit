@@ -2,9 +2,9 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { afterEach, describe, test } from 'node:test';
-import { createTempDirTracker } from '../../utils/temp-dir.js';
+import { createTempDirTracker } from '../../utils/temp-dir.test.js';
 import { DEFAULT_DIGEST_MODEL_ID } from './constants.js';
-import { defaultProvisionalDigestDir, provisionalDigestPath, readConversationDigestInput } from './files.js';
+import { defaultProvisionalDigestDir, writeProvisionalDigestFile, readConversationDigestInput } from './files.js';
 import { digestConversationFile } from './processor.js';
 
 const tempDirs = createTempDirTracker();
@@ -22,9 +22,7 @@ describe('digestConversationFile', () => {
 
     const input = readConversationDigestInput(workspace, inputPath);
     const outDir = defaultProvisionalDigestDir(workspace);
-    const markdownPath = provisionalDigestPath(outDir, input);
-    fs.mkdirSync(path.dirname(markdownPath), { recursive: true });
-    fs.writeFileSync(markdownPath, '# Conversation Digest: conv\n', 'utf8');
+    const markdownPath = writeProvisionalDigestFile(outDir, input, '# Conversation Digest: conv\n');
 
     const result = await digestConversationFile({
       workspaceRoot: workspace,

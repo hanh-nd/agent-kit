@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { WIKI_RAW_DIR } from './constants.js';
 import { normalizeTranscript } from './normalize.js';
-import { acquireFileLock, getProvider, parseTranscript, releaseFileLock, runWhenInvoked } from './utils.js';
+import { acquireFileLock, getProvider, noOp, parseTranscript, readStdin, releaseFileLock, runWhenInvoked, } from './utils.js';
 function formatTurns(transcriptPath) {
     const transcript = parseTranscript(transcriptPath);
     if (transcript.messages.length === 0)
@@ -24,11 +24,7 @@ function sanitizeSessionId(sessionId) {
     return String(sessionId).replace(/[^a-zA-Z0-9._-]/g, '');
 }
 runWhenInvoked(import.meta.url, async () => {
-    let stdinData = '';
-    await new Promise((resolve) => {
-        process.stdin.on('data', (chunk) => (stdinData += chunk));
-        process.stdin.on('end', () => resolve());
-    });
+    const stdinData = await readStdin();
     let transcriptPath;
     let sessionId;
     try {
@@ -43,20 +39,17 @@ runWhenInvoked(import.meta.url, async () => {
         // fall through
     }
     if (!transcriptPath) {
-        console.log(JSON.stringify({}));
-        process.exit(0);
+        noOp();
     }
     let content;
     try {
         content = formatTurns(transcriptPath);
     }
     catch {
-        console.log(JSON.stringify({}));
-        process.exit(0);
+        noOp();
     }
     if (!content) {
-        console.log(JSON.stringify({}));
-        process.exit(0);
+        noOp();
     }
     const provider = getProvider(transcriptPath);
     const now = new Date();
@@ -82,6 +75,5 @@ runWhenInvoked(import.meta.url, async () => {
         if (acquired)
             releaseFileLock(lockPath);
     }
-    console.log(JSON.stringify({}));
-    process.exit(0);
+    noOp();
 });

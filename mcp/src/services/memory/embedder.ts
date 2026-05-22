@@ -1,7 +1,5 @@
 import { FASTEMBED_CACHE_DIR } from '../../utils/paths.js';
 
-export { FASTEMBED_CACHE_DIR, MODEL_CACHE_DIR as DEFAULT_MODEL_CACHE_DIR } from '../../utils/paths.js';
-
 export class EmbedderError extends Error {
   constructor(message: string, cause?: unknown) {
     super(message);

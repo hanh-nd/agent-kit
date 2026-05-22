@@ -13,7 +13,7 @@ interface ChatMessage {
   content: string;
 }
 
-export class LlamaLocalDigestProviderError extends Error {
+class LlamaLocalDigestProviderError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'LlamaLocalDigestProviderError';
@@ -27,7 +27,7 @@ function titleFromSource(sourcePath: string): string {
     .replace(/[_-]+/g, ' ');
 }
 
-export function trimConversationExport(content: string, maxInputChars: number): string {
+function trimConversationExport(content: string, maxInputChars: number): string {
   const trimmed = content.trim();
   if (trimmed.length <= maxInputChars) return trimmed;
 
@@ -88,7 +88,7 @@ function stripCodeFence(text: string): string {
   return match ? match[1].trim() : trimmed;
 }
 
-export function sanitizeConversationDigestMarkdown(generatedText: string): string {
+function sanitizeConversationDigestMarkdown(generatedText: string): string {
   return stripCodeFence(generatedText).trim() + '\n';
 }
 

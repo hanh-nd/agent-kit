@@ -1,13 +1,9 @@
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
-import * as path from 'node:path';
+import * as path from 'path';
 import { test, describe, before, after } from 'node:test';
-import {
-  realpathSafe,
-  isOutsideWorkspace,
-  shouldBlockOutside,
-} from '../../scripts/security/workspace.js';
+import { shouldBlockOutside } from '../../scripts/security/workspace.js';
 import type { SecurityPolicy } from '@types';
 
 describe('workspace', () => {
@@ -46,7 +42,7 @@ describe('workspace', () => {
 
   test('path.sep boundary: workspace-suffix is outside', () => {
     const outside = policy.projectDir + '-suffix/file.txt';
-    assert.ok(isOutsideWorkspace(outside, policy));
+    assert.ok(shouldBlockOutside(outside, policy));
   });
 
   test('symlink inside workspace pointing to external target is blocked', () => {
@@ -105,7 +101,7 @@ describe('workspace', () => {
     assert.ok(shouldBlockOutside('/nonexistent/etc/x', policy));
   });
 
-  test('realpathSafe never throws', () => {
+  test('shouldBlockOutside/realpathSafe never throws', () => {
     const weirdPaths = [
       '/nonexistent/a/b/c',
       '',
@@ -114,14 +110,14 @@ describe('workspace', () => {
       path.join(tmpDir, 'not-here', 'file.txt'),
     ];
     for (const p of weirdPaths) {
-      assert.doesNotThrow(() => realpathSafe(p, policy));
+      assert.doesNotThrow(() => shouldBlockOutside(p, policy));
     }
   });
 
   test('casing: case-insensitive platform treats different cases as same', () => {
     if (!policy.caseInsensitive) return;
     const inside = path.join(policy.projectDir.toUpperCase(), 'file.txt');
-    // On darwin/win32, this should be inside workspace
-    assert.ok(!isOutsideWorkspace(inside, policy));
+    // On darwin/win32, this should be inside workspace (meaning not blocked)
+    assert.ok(!shouldBlockOutside(inside, policy));
   });
 });

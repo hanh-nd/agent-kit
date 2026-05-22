@@ -4,7 +4,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { PROJECT_DIR, WIKI_RAW_DIR } from './constants.js';
-import { acquireFileLock, releaseFileLock, runWhenInvoked } from './utils.js';
+import { acquireFileLock, noOp, readStdin, releaseFileLock, runWhenInvoked } from './utils.js';
 function extractSavedAbsPath(payload) {
     const blocks = payload.tool_response;
     if (!Array.isArray(blocks))
@@ -43,23 +43,17 @@ function formatInboxEntry(entry) {
         `- summary: ${entry.summary}\n`);
 }
 runWhenInvoked(import.meta.url, async () => {
-    let stdinData = '';
-    await new Promise((resolve) => {
-        process.stdin.on('data', (chunk) => (stdinData += chunk));
-        process.stdin.on('end', () => resolve());
-    });
+    const stdinData = await readStdin();
     let payload;
     try {
         payload = JSON.parse(stdinData);
     }
     catch {
-        console.log('{}');
-        process.exit(0);
+        noOp();
     }
     const absPath = extractSavedAbsPath(payload);
     if (!absPath) {
-        console.log('{}');
-        process.exit(0);
+        noOp();
     }
     const relPath = path.relative(PROJECT_DIR, absPath).split(path.sep).join('/');
     const { type, slug } = deriveTypeAndSlug(absPath, {
@@ -92,6 +86,5 @@ runWhenInvoked(import.meta.url, async () => {
             console.error('[memory-kit] inbox.md lock not acquired; relying on POSIX atomic append');
         }
     }
-    console.log('{}');
-    process.exit(0);
+    noOp();
 });

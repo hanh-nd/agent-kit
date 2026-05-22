@@ -1,13 +1,13 @@
 import type { DigestModelSpec } from './types.js';
 
-export class DigestModelRegistryError extends Error {
+class DigestModelRegistryError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'DigestModelRegistryError';
   }
 }
 
-export const DIGEST_MODEL_REGISTRY: Record<string, DigestModelSpec> = {
+const DIGEST_MODEL_REGISTRY: Record<string, DigestModelSpec> = {
   'qwen2.5-0.5b-instruct-q4': {
     id: 'qwen2.5-0.5b-instruct-q4',
     ggufUri: 'hf:bartowski/Qwen2.5-0.5B-Instruct-GGUF/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf',

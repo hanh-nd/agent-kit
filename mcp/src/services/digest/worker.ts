@@ -19,7 +19,7 @@ function isDigestWorkerResult(value: unknown): value is DigestWorkerResult {
   return typeof record.markdown === 'string' && record.status === 'provisional';
 }
 
-export function parseDigestWorkerSuccess(stdout: string): boolean {
+function parseDigestWorkerSuccess(stdout: string): boolean {
   const line = stdout
     .split(/\r?\n/)
     .reverse()

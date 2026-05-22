@@ -6,7 +6,7 @@ import type { IndexStats, MemoryConfig, SearchResult } from './types.js';
 import { LOCK_RETRY_MS, LOCK_TIMEOUT_MS, RRF_K } from './constants.js';
 import { acquireLock, releaseLock } from '../../utils/files.js';
 
-export interface TextEmbedder {
+interface TextEmbedder {
   embed(texts: string[]): Promise<Float32Array[]>;
   initialize(): Promise<void>;
 }

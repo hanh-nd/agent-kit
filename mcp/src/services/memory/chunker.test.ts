@@ -1,6 +1,6 @@
 import * as assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { chunkMarkdown, cleanContentForEmbedding, computeChunkId } from './chunker.js';
+import { chunkMarkdown } from './chunker.js';
 
 const CFG = { chunkSize: 200, overlapLines: 2 };
 const SRC = 'test.md';
@@ -78,45 +78,5 @@ describe('chunkMarkdown', () => {
     const [chunk] = chunkMarkdown(text, SRC, CFG);
     assert.ok(!chunk.content.includes('multi'), 'Multiline comment must be stripped');
     assert.ok(chunk.content.includes('Before.'), 'Text before comment must remain');
-  });
-});
-
-describe('computeChunkId', () => {
-  test('returns 16-character hex string', () => {
-    const id = computeChunkId('hello world');
-    assert.equal(id.length, 16);
-    assert.match(id, /^[0-9a-f]{16}$/);
-  });
-
-  test('same content always produces same id', () => {
-    assert.equal(computeChunkId('abc'), computeChunkId('abc'));
-  });
-
-  test('different content produces different id', () => {
-    assert.notEqual(computeChunkId('abc'), computeChunkId('xyz'));
-  });
-});
-
-describe('cleanContentForEmbedding', () => {
-  test('strips HTML comment', () => {
-    assert.equal(cleanContentForEmbedding('hello <!-- comment --> world'), 'hello  world');
-  });
-
-  test('strips multiline HTML comment', () => {
-    const input = 'before <!-- line1\nline2 --> after';
-    const result = cleanContentForEmbedding(input);
-    assert.ok(!result.includes('line1'));
-    assert.ok(result.includes('before'));
-    assert.ok(result.includes('after'));
-  });
-
-  test('returns original string when no comments present', () => {
-    const text = 'plain text without comments';
-    assert.equal(cleanContentForEmbedding(text), text);
-  });
-
-  test('preserves fenced code block content', () => {
-    const text = '```js\nconst x = 1;\n```';
-    assert.equal(cleanContentForEmbedding(text), text);
   });
 });

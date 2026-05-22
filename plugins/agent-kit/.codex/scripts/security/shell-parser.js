@@ -1,4 +1,4 @@
-export function tokenizeCommand(cmd) {
+function tokenizeCommand(cmd) {
     const tokenRegex = /"([^"]+)"|'([^']+)'|([^\s]+)/g;
     const tokens = [];
     let match;
@@ -9,7 +9,7 @@ export function tokenizeCommand(cmd) {
     }
     return tokens;
 }
-export function expandToken(token, policy) {
+function expandToken(token, policy) {
     let expanded = token;
     const unresolvedVars = [];
     // Tilde expansion — only at position 0, no ~user form

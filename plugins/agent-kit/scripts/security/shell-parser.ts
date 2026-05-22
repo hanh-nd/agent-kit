@@ -7,7 +7,7 @@
  */
 import type { ExpandedToken, SecurityPolicy, ShellCandidate } from '@types';
 
-export function tokenizeCommand(cmd: string): string[] {
+function tokenizeCommand(cmd: string): string[] {
   const tokenRegex = /"([^"]+)"|'([^']+)'|([^\s]+)/g;
   const tokens = [];
   let match: RegExpExecArray | null;
@@ -18,7 +18,7 @@ export function tokenizeCommand(cmd: string): string[] {
   return tokens;
 }
 
-export function expandToken(
+function expandToken(
   token: string,
   policy: Pick<SecurityPolicy, 'homeDir' | 'knownEnvVars'>
 ): ExpandedToken {

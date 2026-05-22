@@ -1,14 +1,6 @@
 #!/usr/bin/env node
 import { runSecurityPrivacyHook } from './security/hook-runner.js';
-import { noOp, runWhenInvoked } from './utils.js';
-
-function readStdin(): Promise<string> {
-  return new Promise((resolve) => {
-    let data = '';
-    process.stdin.on('data', (chunk: Buffer) => (data += chunk.toString()));
-    process.stdin.on('end', () => resolve(data));
-  });
-}
+import { noOp, readStdin, runWhenInvoked } from './utils.js';
 
 runWhenInvoked(import.meta.url, async () => {
   runSecurityPrivacyHook(await readStdin());

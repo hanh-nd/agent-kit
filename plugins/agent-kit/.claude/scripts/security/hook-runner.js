@@ -4,9 +4,7 @@ import { isBlockedFilename, isInForbiddenDir } from './file-checks.js';
 import { COMMAND_ARG_KEYS, loadPolicy, PATH_ARG_KEYS } from './policy.js';
 import { extractCandidates } from './shell-parser.js';
 import { shouldBlockOutside } from './workspace.js';
-function isRecord(value) {
-    return typeof value === 'object' && value !== null;
-}
+import { isRecord } from '../utils.js';
 function parsePayload(raw) {
     try {
         const parsed = JSON.parse(raw);

@@ -4,11 +4,8 @@ import { isBlockedFilename, isInForbiddenDir } from './file-checks.js';
 import { COMMAND_ARG_KEYS, loadPolicy, PATH_ARG_KEYS } from './policy.js';
 import { extractCandidates } from './shell-parser.js';
 import { shouldBlockOutside } from './workspace.js';
+import { isRecord } from '../utils.js';
 import type { SecurityHookPayload, SecurityPolicy } from '@types';
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 function parsePayload(raw: string): SecurityHookPayload | null {
   try {

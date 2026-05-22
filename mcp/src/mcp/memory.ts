@@ -17,9 +17,8 @@ import {
 
 /**
  * Registers tool handlers onto an already-constructed indexer/store pair.
- * Exported for unit testing with mocks.
  */
-export function registerMemoryToolHandlers(
+function registerMemoryToolHandlers(
   server: McpServer,
   indexer: MemoryIndexer,
   store: MemoryStore,
@@ -127,13 +126,22 @@ export function registerMemoryTools(
   server: McpServer,
   settings: ProjectSettings,
   workspaceRoot: string,
+  overrides?: {
+    indexer?: MemoryIndexer;
+    store?: MemoryStore;
+    config?: MemoryConfig;
+  },
 ): MemoryIndexer | null {
   if (settings.memory?.enabled !== true) return null;
 
-  const config = resolveMemoryConfig(settings, workspaceRoot);
-  const store = new MemoryStore(path.join(config.wikiDir, 'index.db'), config);
-  const embedder = new Embedder(config.embeddingModel);
-  const indexer = new MemoryIndexer(store, embedder, config);
+  const config = overrides?.config ?? resolveMemoryConfig(settings, workspaceRoot);
+  const store = overrides?.store ?? new MemoryStore(path.join(config.wikiDir, 'index.db'), config);
+  const indexer =
+    overrides?.indexer ??
+    (() => {
+      const embedder = new Embedder(config.embeddingModel);
+      return new MemoryIndexer(store, embedder, config);
+    })();
 
   registerMemoryToolHandlers(server, indexer, store, config, workspaceRoot);
 
