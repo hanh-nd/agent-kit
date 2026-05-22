@@ -45,23 +45,17 @@ export function runDigestFileInWorker(args: string[]): number | undefined {
   const entrypoint = process.argv[1];
   if (!entrypoint) return undefined;
 
-  const timeoutMs = numberFlag(
-    parsed.flags,
-    'timeout-ms',
-    DEFAULT_DIGEST_TIMEOUT_MS,
+  const timeoutMs = numberFlag(parsed.flags, 'timeout-ms', DEFAULT_DIGEST_TIMEOUT_MS);
+  const result = spawnSync(
+    process.execPath,
+    [entrypoint, 'memory', 'digest-file', ...args, `--${DIGEST_WORKER_FLAG}`],
+    {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      maxBuffer: 1024 * 1024 * 20,
+      timeout: timeoutMs + DIGEST_TIMEOUT_GRACE_MS,
+    },
   );
-  const result = spawnSync(process.execPath, [
-    entrypoint,
-    'memory',
-    'digest-file',
-    ...args,
-    `--${DIGEST_WORKER_FLAG}`,
-  ], {
-    cwd: process.cwd(),
-    encoding: 'utf8',
-    maxBuffer: 1024 * 1024 * 20,
-    timeout: timeoutMs + DIGEST_TIMEOUT_GRACE_MS,
-  });
 
   if (result.stdout) process.stdout.write(result.stdout);
 

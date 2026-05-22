@@ -8,7 +8,12 @@ import type { MemoryConfig } from '../memory/types.js';
 import { initializeConversationDigestModel } from '../memory/digest/processor.js';
 import { DEFAULT_DIGEST_MODEL_ID } from '../memory/digest/constants.js';
 import { mcpJson, mcpText } from '../utils/utils.js';
-import { loadProjectSettings, resolveConversationDigestConfig, resolveMemoryConfig, type ProjectSettings } from './config.js';
+import {
+  loadProjectSettings,
+  resolveConversationDigestConfig,
+  resolveMemoryConfig,
+  type ProjectSettings,
+} from './config.js';
 
 /**
  * Registers tool handlers onto an already-constructed indexer/store pair.

@@ -16,7 +16,10 @@ export class MemoryStore {
   private db: Database.Database;
   private _vecAvailable = false;
 
-  constructor(dbPath: string, private readonly config: MemoryConfig) {
+  constructor(
+    dbPath: string,
+    private readonly config: MemoryConfig,
+  ) {
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
     this.db = this.openDatabase(dbPath);
   }
@@ -156,30 +159,26 @@ export class MemoryStore {
   }
 
   hashesBySource(source: string): Set<string> {
-    const rows = this.db
-      .prepare(`SELECT id FROM memory_chunks WHERE source = ?`)
-      .all(source) as Array<{ id: string }>;
+    const rows = this.db.prepare(`SELECT id FROM memory_chunks WHERE source = ?`).all(source) as Array<{ id: string }>;
     return new Set(rows.map((r) => r.id));
   }
 
   indexedSources(): string[] {
-    const rows = this.db
-      .prepare(`SELECT DISTINCT source FROM memory_chunks`)
-      .all() as Array<{ source: string }>;
+    const rows = this.db.prepare(`SELECT DISTINCT source FROM memory_chunks`).all() as Array<{
+      source: string;
+    }>;
     return rows.map((r) => r.source);
   }
 
   deleteBySource(source: string): void {
-    const rows = this.db
-      .prepare(`SELECT rowid FROM memory_chunks WHERE source = ?`)
-      .all(source) as Array<{ rowid: number }>;
+    const rows = this.db.prepare(`SELECT rowid FROM memory_chunks WHERE source = ?`).all(source) as Array<{
+      rowid: number;
+    }>;
 
     const deleteAll = this.db.transaction(() => {
       if (this._vecAvailable && rows.length > 0) {
         const placeholders = rows.map(() => '?').join(', ');
-        this.db
-          .prepare(`DELETE FROM memory_vec WHERE rowid IN (${placeholders})`)
-          .run(...rows.map((r) => r.rowid));
+        this.db.prepare(`DELETE FROM memory_vec WHERE rowid IN (${placeholders})`).run(...rows.map((r) => r.rowid));
       }
       this.db.prepare(`DELETE FROM memory_chunks WHERE source = ?`).run(source);
     });
@@ -191,16 +190,14 @@ export class MemoryStore {
     if (ids.length === 0) return;
 
     const placeholders = ids.map(() => '?').join(', ');
-    const rows = this.db
-      .prepare(`SELECT rowid FROM memory_chunks WHERE id IN (${placeholders})`)
-      .all(...ids) as Array<{ rowid: number }>;
+    const rows = this.db.prepare(`SELECT rowid FROM memory_chunks WHERE id IN (${placeholders})`).all(...ids) as Array<{
+      rowid: number;
+    }>;
 
     const deleteAll = this.db.transaction(() => {
       if (this._vecAvailable && rows.length > 0) {
         const rPlaceholders = rows.map(() => '?').join(', ');
-        this.db
-          .prepare(`DELETE FROM memory_vec WHERE rowid IN (${rPlaceholders})`)
-          .run(...rows.map((r) => r.rowid));
+        this.db.prepare(`DELETE FROM memory_vec WHERE rowid IN (${rPlaceholders})`).run(...rows.map((r) => r.rowid));
       }
       this.db.prepare(`DELETE FROM memory_chunks WHERE id IN (${placeholders})`).run(...ids);
     });
@@ -287,14 +284,14 @@ export class MemoryStore {
          FROM memory_chunks WHERE id IN (${placeholders})`,
       )
       .all(...ids) as Array<{
-        id: string;
-        source: string;
-        heading: string;
-        heading_level: number;
-        content: string;
-        line_start: number;
-        line_end: number;
-      }>;
+      id: string;
+      source: string;
+      heading: string;
+      heading_level: number;
+      content: string;
+      line_start: number;
+      line_end: number;
+    }>;
 
     return rows.map((r) => ({
       id: r.id,

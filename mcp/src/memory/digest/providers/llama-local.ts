@@ -1,11 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getLlama, LlamaChatSession, createModelDownloader } from 'node-llama-cpp';
-import {
-  LLAMA_CONTEXT_SIZE,
-  LLAMA_MAX_GENERATED_TOKENS,
-  LLAMA_TEMPERATURE,
-} from '../constants.js';
+import { LLAMA_CONTEXT_SIZE, LLAMA_MAX_GENERATED_TOKENS, LLAMA_TEMPERATURE } from '../constants.js';
 import { getDigestModelSpec } from '../model-registry.js';
 import type { ConversationDigestProvider } from '../types.js';
 import type { ConversationDigestInput } from '../types.js';
@@ -50,57 +46,33 @@ function buildPrompt(input: ConversationDigestInput, maxInputChars: number): Cha
       role: 'system',
       content: [
         '# ROLE',
-        'You write temporary project-memory wiki pages from developer/agent transcripts.',
-        'Your output is provisional recall used by subsequent sessions to prevent blind steps.',
+        'You write short project-memory wiki pages from developer transcripts.',
+        'Your output is temporary recall to prevent blind steps.',
         '',
-        '# CRITICAL CHRONOLOGY RULES',
-        '1. Conversations often evolve. Read the end of the export FIRST to discover the ultimate resolution.',
-        '2. The latest explicit user decision ALWAYS overrides any earlier assistant proposals or intermediate agreements.',
-        '3. If a user rejects a feature, aborts a turn, or simplifies a design mid-conversation, treat all preceding over-engineered steps as REJECTED.',
-        '4. Capture actual engineering conclusions, not conversational pleasantries.',
-        '',
-        '# EXTRACTION FOCUS',
-        '- Extract concrete outcomes: decisions made, decisions rejected, project constraints, user preferences, and file-level implementation context.',
-        '- Do not summarize turn-by-turn. Extract conclusions only.',
-        '- Return Markdown only. Do not wrap your response in an outer markdown code block (```markdown ... ```).',
+        '# RULES',
+        '1. Read the end of the export FIRST to discover the ultimate resolution.',
+        '2. What the user says LAST ALWAYS overrides earlier agreements.',
+        '3. Capture absolute engineering conclusions, never conversational pleasantries.',
+        '4. Return Markdown only. Do not wrap output in code blocks (```markdown ... ```).',
       ].join('\n'),
     },
     {
       role: 'user',
       content: [
-        'Generate a concise project memory page adhering STRICTLY to this structural layout:',
+        'Generate a high-level project memory page. STRICTLY adhere to this architectural layout:',
         '',
-        '# Conversation Digest: ' + titleFromSource(input.sourcePath),
+        '<layout>',
+        '# Digest: ' + titleFromSource(input.sourcePath),
+        '- **Ultimate Core Resolution**: [Describe the final working state of the feature and what problem it solves in 1-2 sentences. No conversational filler.]',
+        '- **Architectural Changes**: [List 3-4 high-level engineering decisions made (e.g., shifts in hook timing, data isolation, atomic locks). Focus on systemic changes, NOT individual files.]',
+        '- **Component State**: [Briefly state how the Plugin side and the MCP/CLI side now interact based on the final decision.]',
+        '- **Considered & Rejected**: [List concepts proposed but discarded (e.g., initial hooks location, mocking strategies). Omit if empty.]',
+        '</layout>',
         '',
-        '> Source: [[' + sourceName + ']] | Status: provisional | Purpose: temporary recall until /wiki compile',
-        '',
-        '## Summary',
-        '[Provide a single, short paragraph capturing the ultimate resolution and technical pivot of the session.]',
-        '',
-        '## Key Decisions',
-        '[List bullets of what was explicitly changed, simplified, or finalized. Omit section if empty.]',
-        '',
-        '## Constraints',
-        '[List project boundaries, language limits, or tool requirements. Omit section if empty.]',
-        '',
-        '## Preferences',
-        '[List explicit workflow choices or styling constraints stated by the user. Omit section if empty.]',
-        '',
-        '## Implementation Context',
-        '[List exact modified files, script locations, or runtime changes mentioned. Omit section if empty.]',
-        '',
-        '## Considered & Rejected',
-        '[List bullets of options, paths, or code logic that were initially proposed but discarded or overridden by the user.]',
-        '',
-        '## Related',
-        '- [[' + sourceName + ']]',
-        '- [[memory-kit]]',
-        '',
-        '# CONTEXT PROCESSING RULES:',
-        '- Do not emit empty sections or default labels like "None found". If a section has no items, omit its heading entirely.',
-        '- Write absolute conclusions (e.g., "Removed workspace boundary checks completely"), never vague labels.',
-        '- Do not invent files, code blocks, or decisions that did not occur in the source text.',
-        '- Pay extreme attention to user corrections or turn interruptions; what the user says LAST dictates the final state.',
+        '# CRITICAL RULES:',
+        '- DO NOT list individual file paths, line numbers, or specific test cases (EXCLUDE lists of files).',
+        '- Focus entirely on the SYSTEM DESIGN and ARCHITECTURE that the next engineer needs to know.',
+        '- Keep output under 300 tokens. Stop immediately after the last valid section.',
         '',
         'Source path: ' + input.sourcePath,
         '<conversation_export format="memory-kit">',
@@ -121,9 +93,7 @@ export function sanitizeConversationDigestMarkdown(generatedText: string): strin
   return stripCodeFence(generatedText).trim() + '\n';
 }
 
-export async function createLlamaLocalDigestProvider(
-  modelId: string,
-): Promise<ConversationDigestProvider> {
+export async function createLlamaLocalDigestProvider(modelId: string): Promise<ConversationDigestProvider> {
   const spec = getDigestModelSpec(modelId);
 
   const modelCacheDir = path.join(MODEL_CACHE_DIR, 'llama');

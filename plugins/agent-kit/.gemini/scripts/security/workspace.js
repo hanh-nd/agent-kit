@@ -7,7 +7,9 @@ export function realpathSafe(p, policy) {
             return fs.realpathSync(abs);
         }
         catch (err) {
-            if (!(err instanceof Error) || !('code' in err) || (err.code !== 'ENOENT' && err.code !== 'ENOTDIR'))
+            if (!(err instanceof Error) ||
+                !('code' in err) ||
+                (err.code !== 'ENOENT' && err.code !== 'ENOTDIR'))
                 return abs;
             // Walk up to find deepest existing ancestor
             const segments = abs.split(path.sep);

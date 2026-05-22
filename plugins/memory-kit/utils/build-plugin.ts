@@ -2,11 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type {
-  Provider,
-  ProviderSkillConfig,
-  SplitFrontmatterResult,
-} from '@types';
+import type { Provider, ProviderSkillConfig, SplitFrontmatterResult } from '@types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -190,7 +186,12 @@ function buildProviderConfig(yaml: string, providerName: string): string | null 
   return providerConfig.length ? `${providerConfig.join('\n')}\n` : null;
 }
 
-function buildProviderSkills(source: string, destination: string, providerName: string, providerConfig: Provider): void {
+function buildProviderSkills(
+  source: string,
+  destination: string,
+  providerName: string,
+  providerConfig: Provider,
+): void {
   const { skillKeys, configPath } = providerConfig;
   fs.rmSync(destination, { recursive: true, force: true });
   fs.mkdirSync(destination, { recursive: true });
@@ -258,10 +259,7 @@ function buildSkills(): void {
 function buildSharedBundles(): void {
   for (const [providerName, provider] of Object.entries(providers)) {
     for (const dirName of sharedBundleDirs) {
-      materializeTree(
-        path.join(pluginRoot, 'dist', dirName),
-        path.join(provider.root, dirName),
-      );
+      materializeTree(path.join(pluginRoot, 'dist', dirName), path.join(provider.root, dirName));
     }
   }
 

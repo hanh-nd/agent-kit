@@ -11,13 +11,16 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "publish:mcp": "npm publish --workspace @hanhnd/agent-kit",
-    "prepare": "husky"
+    "prepare": "husky",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hanh-nd/agent-kit.git"
   },
   "devDependencies": {
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "prettier": "^3.8.3"
   }
 }

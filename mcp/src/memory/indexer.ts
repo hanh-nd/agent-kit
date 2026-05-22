@@ -4,30 +4,11 @@ import { chunkMarkdown } from './chunker.js';
 import type { MemoryStore } from './store.js';
 import type { IndexStats, MemoryConfig, SearchResult } from './types.js';
 import { LOCK_RETRY_MS, LOCK_TIMEOUT_MS, RRF_K } from './constants.js';
+import { acquireLock, releaseLock } from '../utils/files.js';
 
 export interface TextEmbedder {
   embed(texts: string[]): Promise<Float32Array[]>;
-}
-
-async function acquireLock(lockPath: string): Promise<boolean> {
-  const deadline = Date.now() + LOCK_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    try {
-      fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx' });
-      return true;
-    } catch {
-      await new Promise((r) => setTimeout(r, LOCK_RETRY_MS));
-    }
-  }
-  return false;
-}
-
-function releaseLock(lockPath: string): void {
-  try {
-    fs.unlinkSync(lockPath);
-  } catch {
-    // ignore
-  }
+  initialize(): Promise<void>;
 }
 
 export class MemoryIndexer {
@@ -120,9 +101,7 @@ export class MemoryIndexer {
 
     walk(rootDir);
 
-    const currentSources = new Set(
-      files.map((file) => path.relative(relativeBase, file)),
-    );
+    const currentSources = new Set(files.map((file) => path.relative(relativeBase, file)));
 
     // Remove stale sources (deleted files or pre-migration daily-file sources)
     for (const stale of this.store.indexedSources()) {
@@ -202,8 +181,7 @@ export class MemoryIndexer {
       seenSources.add(chunk.source);
 
       const normalizedScore = maxScore > 0 ? r.totalScore / maxScore : 0;
-      const retriever: 'dense' | 'bm25' | 'both' =
-        r.hasDense && r.hasBm25 ? 'both' : r.hasDense ? 'dense' : 'bm25';
+      const retriever: 'dense' | 'bm25' | 'both' = r.hasDense && r.hasBm25 ? 'both' : r.hasDense ? 'dense' : 'bm25';
 
       let contentSource: 'file' | 'fallback' = 'file';
       try {
@@ -226,7 +204,7 @@ export class MemoryIndexer {
 
     fs.mkdirSync(rawDir, { recursive: true });
 
-    const acquired = await acquireLock(lockPath);
+    const acquired = await acquireLock(lockPath, LOCK_TIMEOUT_MS, LOCK_RETRY_MS);
     if (!acquired) {
       console.warn('[memory-indexer] Could not acquire write lock, writing anyway (fail-open)');
     }
@@ -234,7 +212,7 @@ export class MemoryIndexer {
     try {
       fs.appendFileSync(savePath, `\n${content}\n`, 'utf8');
     } finally {
-      if (acquired) releaseLock(lockPath);
+      if (acquired) releaseLock(lockPath, { ignoreErrors: true });
     }
 
     return { indexed: 0, deleted: 0, skipped: 0 };
@@ -242,6 +220,7 @@ export class MemoryIndexer {
 
   async startupIndex(): Promise<void> {
     try {
+      await this.embedder.initialize();
       await this.indexDirectory(path.join(this.config.wikiDir, 'compiled'), {
         relativeBase: this.config.wikiDir,
         excludeFiles: ['index.md', 'log.md'],

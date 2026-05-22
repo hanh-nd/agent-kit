@@ -148,11 +148,4 @@ export const FORBIDDEN_PATTERNS: RegExp[] = [
 /**
  * Directory name segments that are always blocked.
  */
-export const FORBIDDEN_DIRS: string[] = [
-  '.git',
-  '.ssh',
-  '.aws',
-  '.kube',
-  '.gnupg',
-  '.docker',
-];
+export const FORBIDDEN_DIRS: string[] = ['.git', '.ssh', '.aws', '.kube', '.gnupg', '.docker'];

@@ -36,8 +36,7 @@ runWhenInvoked(import.meta.url, async () => {
     const parsed: unknown = JSON.parse(stdinData);
     if (typeof parsed === 'object' && parsed !== null) {
       const p = parsed as Record<string, unknown>;
-      transcriptPath =
-        typeof p.transcript_path === 'string' ? p.transcript_path : undefined;
+      transcriptPath = typeof p.transcript_path === 'string' ? p.transcript_path : undefined;
     }
   } catch {
     // fall through

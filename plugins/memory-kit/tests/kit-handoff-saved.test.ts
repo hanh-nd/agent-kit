@@ -142,16 +142,12 @@ describe('kit-handoff-saved', () => {
   test('exits 0 without creating inbox on malformed stdin (F7)', () => {
     const projectDir = makeTempDir();
 
-    const result = spawnSync(
-      process.execPath,
-      [path.resolve('dist/scripts/kit-handoff-saved.js')],
-      {
-        cwd: path.resolve('.'),
-        env: { ...process.env, CODEX_PROJECT_DIR: projectDir },
-        input: 'not json',
-        encoding: 'utf8',
-      },
-    );
+    const result = spawnSync(process.execPath, [path.resolve('dist/scripts/kit-handoff-saved.js')], {
+      cwd: path.resolve('.'),
+      env: { ...process.env, CODEX_PROJECT_DIR: projectDir },
+      input: 'not json',
+      encoding: 'utf8',
+    });
 
     assert.equal(result.status, 0, result.stderr);
     assert.ok(!fs.existsSync(inboxPath(projectDir)));

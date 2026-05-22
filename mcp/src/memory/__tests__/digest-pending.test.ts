@@ -30,7 +30,9 @@ function writeConvFile(workspace: string, name: string, content: string): string
   return filePath;
 }
 
-function stubDigest(result: Partial<ProvisionalDigestResult> = {}): (opts: unknown) => Promise<ProvisionalDigestResult> {
+function stubDigest(
+  result: Partial<ProvisionalDigestResult> = {},
+): (opts: unknown) => Promise<ProvisionalDigestResult> {
   return async () => ({
     markdown: 'out.md',
     status: 'provisional' as const,
@@ -88,7 +90,10 @@ describe('digestPendingConversations', () => {
     writeInitState(workspace);
     writeConvFile(workspace, 'conv_2026-01-01T00-00-00-001Z.md', '**User:** hello\n\n**Assistant:** hi\n');
 
-    const result = await digestPendingConversations({ workspaceRoot: workspace, digestFn: stubDigest() });
+    const result = await digestPendingConversations({
+      workspaceRoot: workspace,
+      digestFn: stubDigest(),
+    });
 
     assert.equal(result.ok, true);
     assert.equal(result.action, 'digested');
@@ -104,8 +109,13 @@ describe('digestPendingConversations', () => {
     writeInitState(workspace);
     writeConvFile(workspace, 'conv_2026-01-01T00-00-00-001Z.md', '**User:** hello\n\n**Assistant:** hi\n');
 
-    const throwingFn = async () => { throw new Error('model error'); };
-    const result = await digestPendingConversations({ workspaceRoot: workspace, digestFn: throwingFn });
+    const throwingFn = async () => {
+      throw new Error('model error');
+    };
+    const result = await digestPendingConversations({
+      workspaceRoot: workspace,
+      digestFn: throwingFn,
+    });
 
     assert.equal(result.ok, true);
     assert.equal(result.action, 'digested');
@@ -139,10 +149,19 @@ describe('digestPendingConversations', () => {
     let callCount = 0;
     const countingFn = async () => {
       callCount++;
-      return { markdown: 'out.md', status: 'provisional' as const, contentHash: 'abc', skipped: false, indexed: false };
+      return {
+        markdown: 'out.md',
+        status: 'provisional' as const,
+        contentHash: 'abc',
+        skipped: false,
+        indexed: false,
+      };
     };
 
-    const result = await digestPendingConversations({ workspaceRoot: workspace, digestFn: countingFn });
+    const result = await digestPendingConversations({
+      workspaceRoot: workspace,
+      digestFn: countingFn,
+    });
     assert.equal(callCount, 3);
     assert.equal(result.action, 'digested');
     if (result.action === 'digested') {

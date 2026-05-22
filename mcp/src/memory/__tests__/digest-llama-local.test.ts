@@ -32,10 +32,11 @@ describe('createLlamaLocalDigestProvider', () => {
   test('runs an opt-in smoke test against a real model', { skip: !process.env.AGENT_KIT_DIGEST_MODEL_ID }, async () => {
     const modelId = process.env.AGENT_KIT_DIGEST_MODEL_ID as string;
     const provider = await createLlamaLocalDigestProvider(modelId);
-    const output = await provider.generateDigestMarkdown(
-      INPUT,
-      { modelId, maxInputChars: 1000, timeoutMs: 120_000 },
-    );
+    const output = await provider.generateDigestMarkdown(INPUT, {
+      modelId,
+      maxInputChars: 1000,
+      timeoutMs: 120_000,
+    });
     assert.match(output, /^# Conversation Digest:/);
     assert.match(output, /Status: provisional/);
   });

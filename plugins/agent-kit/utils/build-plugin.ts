@@ -2,11 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type {
-  Provider,
-  ProviderSkillConfig,
-  SplitFrontmatterResult,
-} from '@types';
+import type { Provider, ProviderSkillConfig, SplitFrontmatterResult } from '@types';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -116,7 +112,9 @@ function stripProviderIndent(lines: string[]): string[] {
   return lines.map((line) => (line.startsWith('    ') ? line.slice(4) : line));
 }
 
-function parseProviderChunks(providerLines: string[] | undefined): Record<string, Record<string, string[]>> {
+function parseProviderChunks(
+  providerLines: string[] | undefined
+): Record<string, Record<string, string[]>> {
   const providerChunks: Record<string, Record<string, string[]>> = {};
   if (!providerLines) return providerChunks;
 
@@ -191,7 +189,12 @@ function buildProviderConfig(yaml: string, providerName: string): string | null 
   return providerConfig.length ? `${providerConfig.join('\n')}\n` : null;
 }
 
-function buildProviderSkills(source: string, destination: string, providerName: string, providerConfig: Provider): void {
+function buildProviderSkills(
+  source: string,
+  destination: string,
+  providerName: string,
+  providerConfig: Provider
+): void {
   const { skillKeys, configPath } = providerConfig;
   fs.rmSync(destination, { recursive: true, force: true });
   fs.mkdirSync(destination, { recursive: true });
@@ -230,12 +233,20 @@ function buildProviderSkills(source: string, destination: string, providerName: 
   }
 }
 
-function validateProviderSkills(providerName: string, targetRoot: string, skillKeys: string[]): void {
-  for (const filePath of walkFiles(targetRoot).filter((file) => path.basename(file) === 'SKILL.md')) {
+function validateProviderSkills(
+  providerName: string,
+  targetRoot: string,
+  skillKeys: string[]
+): void {
+  for (const filePath of walkFiles(targetRoot).filter(
+    (file) => path.basename(file) === 'SKILL.md'
+  )) {
     const { yaml } = splitFrontmatter(fs.readFileSync(filePath, 'utf8'), filePath);
     for (const key of parseTopLevelChunks(yaml).keys()) {
       if (!skillKeys.includes(key)) {
-        throw new Error(`${path.relative(pluginRoot, filePath)} contains unsupported ${providerName} key: ${key}`);
+        throw new Error(
+          `${path.relative(pluginRoot, filePath)} contains unsupported ${providerName} key: ${key}`
+        );
       }
     }
   }
@@ -259,22 +270,16 @@ function buildSkills(): void {
 function buildSharedBundles(): void {
   for (const [providerName, provider] of Object.entries(providers)) {
     for (const dirName of sourceBundleDirs) {
-      materializeTree(
-        path.join(pluginRoot, dirName),
-        path.join(provider.root, dirName),
-      );
+      materializeTree(path.join(pluginRoot, dirName), path.join(provider.root, dirName));
     }
     for (const dirName of compiledBundleDirs) {
-      materializeTree(
-        path.join(pluginRoot, 'dist', dirName),
-        path.join(provider.root, dirName),
-      );
+      materializeTree(path.join(pluginRoot, 'dist', dirName), path.join(provider.root, dirName));
     }
   }
 
   const sharedBundleDirs = [...sourceBundleDirs, ...compiledBundleDirs];
   console.log(
-    `Built shared provider directories for ${Object.keys(providers).join(', ')}: ${sharedBundleDirs.join(', ')}`,
+    `Built shared provider directories for ${Object.keys(providers).join(', ')}: ${sharedBundleDirs.join(', ')}`
   );
 }
 

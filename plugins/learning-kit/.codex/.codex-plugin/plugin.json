@@ -8,13 +8,7 @@
   },
   "homepage": "https://github.com/hanh-nd/agent-kit/tree/main/plugins/learning-kit",
   "repository": "https://github.com/hanh-nd/agent-kit",
-  "keywords": [
-    "learning",
-    "notebooklm",
-    "obsidian",
-    "feynman",
-    "roadmap"
-  ],
+  "keywords": ["learning", "notebooklm", "obsidian", "feynman", "roadmap"],
   "skills": "./skills/",
   "mcpServers": "./.codex-plugin/mcp.json",
   "interface": {
@@ -23,11 +17,7 @@
     "longDescription": "Reusable learning workflows for topic discovery, NotebookLM-assisted research, knowledge mapping, and roadmap synthesis.",
     "developerName": "hanhnd",
     "category": "Education",
-    "capabilities": [
-      "Read",
-      "Write",
-      "MCP"
-    ],
+    "capabilities": ["Read", "Write", "MCP"],
     "websiteURL": "https://github.com/hanh-nd/agent-kit",
     "defaultPrompt": [
       "Use Learning Kit to list my topics.",

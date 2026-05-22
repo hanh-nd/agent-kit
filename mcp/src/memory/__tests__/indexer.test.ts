@@ -13,6 +13,9 @@ class StubEmbedder {
   async embed(texts: string[]): Promise<Float32Array[]> {
     return texts.map(() => new Float32Array(384).fill(0.05));
   }
+  initialize(): Promise<void> {
+    return Promise.resolve();
+  }
 }
 
 function makeConfig(wikiDir: string): MemoryConfig {
@@ -107,7 +110,10 @@ describe('MemoryIndexer', () => {
     assert.ok(results.length > 0, 'Expected at least one search result');
     const expectedSource = path.relative(config.wikiDir, filePath);
     const match = results.find((r) => r.chunk.source === expectedSource);
-    assert.ok(match, `Expected result with source=${expectedSource}, got: ${results.map((r) => r.chunk.source).join(', ')}`);
+    assert.ok(
+      match,
+      `Expected result with source=${expectedSource}, got: ${results.map((r) => r.chunk.source).join(', ')}`,
+    );
     assert.equal(match.chunk.content, fileContent);
     assert.equal(match.contentSource, 'file');
   });
@@ -160,15 +166,17 @@ describe('MemoryIndexer', () => {
     try {
       fs.mkdirSync(compiledDir, { recursive: true });
       testStore.upsert(
-        [{
-          id: 'stale-daily-file-0001',
-          source: '2026-05-18.md',
-          heading: 'Stale',
-          headingLevel: 1,
-          content: 'pre migration content',
-          lineStart: 1,
-          lineEnd: 2,
-        }],
+        [
+          {
+            id: 'stale-daily-file-0001',
+            source: '2026-05-18.md',
+            heading: 'Stale',
+            headingLevel: 1,
+            content: 'pre migration content',
+            lineStart: 1,
+            lineEnd: 2,
+          },
+        ],
         [new Float32Array(384)],
       );
       assert.ok(testStore.hashesBySource('2026-05-18.md').size > 0);
@@ -212,7 +220,10 @@ describe('MemoryIndexer', () => {
       });
 
       const expectedPath = path.join(testCfg.wikiDir, 'compiled/entities/dedup.md');
-      fsDefault.readFileSync = ((targetPath: fs.PathOrFileDescriptor, options?: BufferEncoding | { encoding?: BufferEncoding | null; flag?: string } | null) => {
+      fsDefault.readFileSync = ((
+        targetPath: fs.PathOrFileDescriptor,
+        options?: BufferEncoding | { encoding?: BufferEncoding | null; flag?: string } | null,
+      ) => {
         if (targetPath === expectedPath) readCount += 1;
         return originalReadFileSync(targetPath, options as never);
       }) as typeof fsDefault.readFileSync;
@@ -288,10 +299,10 @@ describe('MemoryIndexer', () => {
       const results = await testIndexer.search('duplicate source query', 2);
 
       assert.equal(results.length, 2);
-      assert.deepEqual(results.map((result) => result.chunk.source), [
-        'compiled/entities/first.md',
-        'compiled/entities/second.md',
-      ]);
+      assert.deepEqual(
+        results.map((result) => result.chunk.source),
+        ['compiled/entities/first.md', 'compiled/entities/second.md'],
+      );
       assert.equal(results[0].chunk.content, firstContent);
       assert.equal(results[1].chunk.content, secondContent);
     } finally {
@@ -334,7 +345,10 @@ describe('MemoryIndexer', () => {
 
     const results = await testIndexer.search('personal likes and preferences of the user', 5);
 
-    assert.deepEqual(results.map((result) => result.chunk.id), ['preference-1']);
+    assert.deepEqual(
+      results.map((result) => result.chunk.id),
+      ['preference-1'],
+    );
     assert.equal(results[0].retriever, 'both');
   });
 
@@ -361,7 +375,10 @@ describe('MemoryIndexer', () => {
 
     const results = await testIndexer.search('favorite dish', 5);
 
-    assert.deepEqual(results.map((result) => result.chunk.id), ['semantic-1']);
+    assert.deepEqual(
+      results.map((result) => result.chunk.id),
+      ['semantic-1'],
+    );
     assert.equal(results[0].retriever, 'dense');
   });
 

@@ -22,3 +22,56 @@ export function tryWriteFileExclusive(filePath: string, content: string): boolea
     throw err;
   }
 }
+
+export async function acquireLock(lockPath: string, timeoutMs: number, retryMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      if (tryWriteFileExclusive(lockPath, String(process.pid))) return true;
+    } catch {
+      // Preserve fail-open retry behavior for transient lock-file write errors.
+    }
+    await new Promise((r) => setTimeout(r, retryMs));
+  }
+  return false;
+}
+
+export function releaseLock(lockPath: string, opts: { ignoreErrors?: boolean } = {}): void {
+  try {
+    fs.unlinkSync(lockPath);
+  } catch (err) {
+    if (opts.ignoreErrors || (err as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw err;
+  }
+}
+
+export function tryAcquireProcessLock(lockPath: string): boolean {
+  const lockContent = JSON.stringify({ pid: process.pid });
+
+  if (tryWriteFileExclusive(lockPath, lockContent)) return true;
+
+  let pid: number | undefined;
+  try {
+    const raw = fs.readFileSync(lockPath, 'utf8');
+    pid = (JSON.parse(raw) as { pid: number }).pid;
+  } catch {
+    // Unparseable lockfiles are treated as stale.
+  }
+
+  if (pid !== undefined) {
+    try {
+      process.kill(pid, 0);
+      return false;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ESRCH') return false;
+    }
+  }
+
+  try {
+    fs.unlinkSync(lockPath);
+  } catch {
+    // Ignore if another process already removed the stale lock.
+  }
+
+  return tryWriteFileExclusive(lockPath, lockContent);
+}

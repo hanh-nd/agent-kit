@@ -61,9 +61,7 @@ describe('kit-session-end', () => {
 
     fs.writeFileSync(
       transcriptPath,
-      [skillInvocationMessage, actualUserMessage, assistantMessage]
-        .map((m) => JSON.stringify(m))
-        .join('\n'),
+      [skillInvocationMessage, actualUserMessage, assistantMessage].map((m) => JSON.stringify(m)).join('\n'),
       'utf8',
     );
 

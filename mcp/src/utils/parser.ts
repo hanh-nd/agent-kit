@@ -17,8 +17,7 @@ export function adfToMarkdown(adf: Record<string, unknown> | null | undefined): 
         }
         case 'heading': {
           const level = node.attrs?.level || 1;
-          result +=
-            '#'.repeat(level) + ' ' + renderNodes(node.content, listDepth, node.type) + '\n\n';
+          result += '#'.repeat(level) + ' ' + renderNodes(node.content, listDepth, node.type) + '\n\n';
           break;
         }
         case 'text': {
@@ -60,10 +59,7 @@ export function adfToMarkdown(adf: Record<string, unknown> | null | undefined): 
           break;
         }
         case 'blockquote':
-          result +=
-            '> ' +
-            renderNodes(node.content, listDepth, node.type).trim().replace(/\n/g, '\n> ') +
-            '\n\n';
+          result += '> ' + renderNodes(node.content, listDepth, node.type).trim().replace(/\n/g, '\n> ') + '\n\n';
           break;
         case 'codeBlock':
           result += `\`\`\`${node.attrs?.language || ''}\n${renderNodes(node.content, listDepth, node.type).trim()}\n\`\`\`\n\n`;
@@ -111,9 +107,7 @@ export function adfToMarkdown(adf: Record<string, unknown> | null | undefined): 
     for (const row of rows) {
       if (row.type !== 'tableRow') continue;
       const cells = row.content || [];
-      const rendered = cells.map((c: any) =>
-        renderNodes(c.content).trim().replace(/\n+/g, ' ').replace(/\|/g, '\\|')
-      );
+      const rendered = cells.map((c: any) => renderNodes(c.content).trim().replace(/\n+/g, ' ').replace(/\|/g, '\\|'));
       result += '| ' + rendered.join(' | ') + ' |\n';
       if (isFirstRow) {
         result += '| ' + cells.map(() => '---').join(' | ') + ' |\n';

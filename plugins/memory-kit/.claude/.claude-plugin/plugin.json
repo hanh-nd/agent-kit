@@ -5,11 +5,6 @@
   "author": {
     "name": "hanhnd"
   },
-  "keywords": [
-    "memory",
-    "context",
-    "knowledge",
-    "persistence"
-  ],
+  "keywords": ["memory", "context", "knowledge", "persistence"],
   "mcpServers": "./.claude-plugin/mcp.json"
 }

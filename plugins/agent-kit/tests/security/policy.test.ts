@@ -22,7 +22,11 @@ describe('policy', () => {
     for (const k of Object.keys(process.env)) {
       if (!(k in origEnv)) delete process.env[k];
     }
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
   });
 
   test('loadPolicy returns frozen object', async () => {
@@ -57,7 +61,16 @@ describe('policy', () => {
   test('knownEnvVars only contains known names', async () => {
     const { loadPolicy } = await import(`../../scripts/security/policy.js?t=${Date.now()}`);
     const policy = loadPolicy();
-    const allowed = new Set(['HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'USER', 'LOGNAME', 'TMPDIR', 'TMP', 'TEMP']);
+    const allowed = new Set([
+      'HOME',
+      'XDG_CONFIG_HOME',
+      'XDG_DATA_HOME',
+      'USER',
+      'LOGNAME',
+      'TMPDIR',
+      'TMP',
+      'TEMP',
+    ]);
     for (const k of Object.keys(policy.knownEnvVars)) {
       assert.ok(allowed.has(k), `Unexpected key in knownEnvVars: ${k}`);
     }
@@ -82,7 +95,9 @@ describe('policy', () => {
   });
 
   test('PATH_ARG_KEYS and COMMAND_ARG_KEYS are sets', async () => {
-    const { PATH_ARG_KEYS, COMMAND_ARG_KEYS } = await import(`../../scripts/security/policy.js?t=${Date.now()}`);
+    const { PATH_ARG_KEYS, COMMAND_ARG_KEYS } = await import(
+      `../../scripts/security/policy.js?t=${Date.now()}`
+    );
     assert.ok(PATH_ARG_KEYS instanceof Set);
     assert.ok(COMMAND_ARG_KEYS instanceof Set);
     assert.ok(PATH_ARG_KEYS.has('file_path'));

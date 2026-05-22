@@ -65,8 +65,16 @@ describe('MemoryStore', () => {
   });
 
   test('deleteBySource removes all chunks for that source', () => {
-    const c1 = makeChunk({ id: 'del-src-0001', source: 'deleteme.md', content: 'delete source chunk 1' });
-    const c2 = makeChunk({ id: 'del-src-0002', source: 'deleteme.md', content: 'delete source chunk 2' });
+    const c1 = makeChunk({
+      id: 'del-src-0001',
+      source: 'deleteme.md',
+      content: 'delete source chunk 1',
+    });
+    const c2 = makeChunk({
+      id: 'del-src-0002',
+      source: 'deleteme.md',
+      content: 'delete source chunk 2',
+    });
     store.upsert([c1, c2], [new Float32Array(384), new Float32Array(384)]);
 
     store.deleteBySource('deleteme.md');
@@ -151,7 +159,11 @@ describe('MemoryStore', () => {
   });
 
   test('indexedSources includes source after upsert', () => {
-    const chunk = makeChunk({ id: 'indexed-src-0001', source: 'indexed-source.md', content: 'indexed' });
+    const chunk = makeChunk({
+      id: 'indexed-src-0001',
+      source: 'indexed-source.md',
+      content: 'indexed',
+    });
     store.upsert([chunk], [new Float32Array(384)]);
 
     const sources = store.indexedSources();

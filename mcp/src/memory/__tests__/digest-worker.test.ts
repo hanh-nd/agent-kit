@@ -50,10 +50,7 @@ describe('parseDigestWorkerSuccess', () => {
   });
 
   test('rejects malformed digest worker lines', () => {
-    const stdout = [
-      '[memory-kit] model-load: 612ms',
-      DIGEST_WORKER_RESULT_PREFIX + '{"markdown":',
-    ].join('\n');
+    const stdout = ['[memory-kit] model-load: 612ms', DIGEST_WORKER_RESULT_PREFIX + '{"markdown":'].join('\n');
 
     assert.equal(parseDigestWorkerSuccess(stdout), false);
   });

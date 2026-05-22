@@ -1,0 +1,12 @@
+dist/
+node_modules/
+local_cache/
+output/
+.agent-kit/
+package-lock.json
+*.jsonld
+*.md
+*.txt
+.claude/
+.gemini/
+.codex/

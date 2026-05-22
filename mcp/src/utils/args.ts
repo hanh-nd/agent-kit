@@ -33,11 +33,7 @@ export function stringFlag(flags: Map<string, string | boolean>, key: string): s
   return typeof value === 'string' ? value : undefined;
 }
 
-export function numberFlag(
-  flags: Map<string, string | boolean>,
-  key: string,
-  defaultValue: number | string,
-): number {
+export function numberFlag(flags: Map<string, string | boolean>, key: string, defaultValue: number | string): number {
   const value = Number(stringFlag(flags, key) ?? defaultValue);
   if (!Number.isFinite(value)) {
     throw new Error(`--${key} must be a finite number`);

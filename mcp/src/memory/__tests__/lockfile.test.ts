@@ -3,7 +3,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { afterEach, describe, test } from 'node:test';
 import { createTempDirTracker } from '../../__tests__/temp-dir.js';
-import { acquireDigestLock, releaseDigestLock } from '../digest/lockfile.js';
+import { DIGEST_LOCKFILE_REL_PATH } from '../digest/constants.js';
+import { releaseLock, tryAcquireProcessLock } from '../../utils/files.js';
 
 const tempDirs = createTempDirTracker();
 
@@ -11,10 +12,14 @@ afterEach(() => {
   tempDirs.cleanup();
 });
 
-describe('acquireDigestLock', () => {
+function lockPath(workspace: string): string {
+  return path.join(workspace, DIGEST_LOCKFILE_REL_PATH);
+}
+
+describe('tryAcquireProcessLock', () => {
   test('C1: no lockfile → creates it with current PID and returns true', () => {
     const workspace = tempDirs.makeTempDir('lockfile-c1-');
-    const acquired = acquireDigestLock(workspace);
+    const acquired = tryAcquireProcessLock(lockPath(workspace));
     assert.equal(acquired, true);
     const lockFile = path.join(workspace, '.agent-kit', 'digest-worker.lock');
     const content = JSON.parse(fs.readFileSync(lockFile, 'utf8')) as { pid: number };
@@ -31,7 +36,7 @@ describe('acquireDigestLock', () => {
     fs.writeFileSync(lockFile, JSON.stringify({ pid: livePid }), 'utf8');
     const originalContent = fs.readFileSync(lockFile, 'utf8');
 
-    const acquired = acquireDigestLock(workspace);
+    const acquired = tryAcquireProcessLock(lockPath(workspace));
     assert.equal(acquired, false);
     // File must be unchanged
     assert.equal(fs.readFileSync(lockFile, 'utf8'), originalContent);
@@ -45,7 +50,7 @@ describe('acquireDigestLock', () => {
     // PID 999999999 is virtually guaranteed to be dead
     fs.writeFileSync(lockFile, JSON.stringify({ pid: 999999999 }), 'utf8');
 
-    const acquired = acquireDigestLock(workspace);
+    const acquired = tryAcquireProcessLock(lockPath(workspace));
     assert.equal(acquired, true);
     const content = JSON.parse(fs.readFileSync(lockFile, 'utf8')) as { pid: number };
     assert.equal(content.pid, process.pid);
@@ -53,9 +58,9 @@ describe('acquireDigestLock', () => {
 
   test('C4: concurrent callers — only one returns true (wx atomicity)', async () => {
     const workspace = tempDirs.makeTempDir('lockfile-c4-');
-    // Call acquireDigestLock twice in the same tick; first wins, second sees EEXIST with live PID
-    const r1 = acquireDigestLock(workspace);
-    const r2 = acquireDigestLock(workspace);
+    // Call twice in the same tick; first wins, second sees EEXIST with live PID.
+    const r1 = tryAcquireProcessLock(lockPath(workspace));
+    const r2 = tryAcquireProcessLock(lockPath(workspace));
     assert.equal(r1, true);
     assert.equal(r2, false);
   });
@@ -67,23 +72,23 @@ describe('acquireDigestLock', () => {
     fs.mkdirSync(lockDir, { recursive: true });
     fs.writeFileSync(lockFile, 'not-json', 'utf8');
 
-    const acquired = acquireDigestLock(workspace);
+    const acquired = tryAcquireProcessLock(lockPath(workspace));
     assert.equal(acquired, true);
   });
 });
 
-describe('releaseDigestLock', () => {
+describe('releaseLock', () => {
   test('C5: lockfile exists → deletes it', () => {
     const workspace = tempDirs.makeTempDir('lockfile-c5-');
-    assert.equal(acquireDigestLock(workspace), true);
+    assert.equal(tryAcquireProcessLock(lockPath(workspace)), true);
     const lockFile = path.join(workspace, '.agent-kit', 'digest-worker.lock');
     assert.equal(fs.existsSync(lockFile), true);
-    releaseDigestLock(workspace);
+    releaseLock(lockPath(workspace));
     assert.equal(fs.existsSync(lockFile), false);
   });
 
   test('C6: no lockfile → does not throw', () => {
     const workspace = tempDirs.makeTempDir('lockfile-c6-');
-    assert.doesNotThrow(() => releaseDigestLock(workspace));
+    assert.doesNotThrow(() => releaseLock(lockPath(workspace)));
   });
 });

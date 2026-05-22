@@ -10,7 +10,11 @@ import type { EnforcementMode } from '@types';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // We test enforce() via a child-process helper since it calls process.exit
-function runEnforce(reason: string, mode: EnforcementMode, kitPath?: string): ReturnType<typeof spawnSync> {
+function runEnforce(
+  reason: string,
+  mode: EnforcementMode,
+  kitPath?: string
+): ReturnType<typeof spawnSync> {
   const helperCode = `
 import { enforce } from '${path.resolve(__dirname, '../../scripts/security/enforcement.js')}';
 const policy = { enforcementMode: '${mode}' };
@@ -25,7 +29,11 @@ enforce(${JSON.stringify(reason)}, policy);
       encoding: 'utf8',
     });
   } finally {
-    try { fs.unlinkSync(tmpFile); } catch { /* best effort */ }
+    try {
+      fs.unlinkSync(tmpFile);
+    } catch {
+      /* best effort */
+    }
   }
 }
 
@@ -38,13 +46,20 @@ describe('enforcement', () => {
   });
 
   after(() => {
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
   });
 
   test('block mode exits with code 2 and writes reason to stderr', () => {
     const result = runEnforce('test blocked reason', 'block', tmpDir);
     assert.equal(result.status, 2, `Expected exit 2, got ${result.status}`);
-    assert.ok(result.stderr.includes('test blocked reason'), `stderr should contain reason, got: ${result.stderr}`);
+    assert.ok(
+      result.stderr.includes('test blocked reason'),
+      `stderr should contain reason, got: ${result.stderr}`
+    );
   });
 
   test('audit mode exits with code 0', () => {
@@ -64,8 +79,16 @@ enforce('audit test reason', policy);
       encoding: 'utf8',
       env: { ...process.env, CLAUDE_PROJECT_DIR: path.resolve(__dirname, '../..') },
     });
-    try { fs.unlinkSync(tmpFile); } catch { /* best effort */ }
-    assert.equal(result.status, 0, `Expected exit 0 for audit mode, got ${result.status}\nstderr: ${result.stderr}`);
+    try {
+      fs.unlinkSync(tmpFile);
+    } catch {
+      /* best effort */
+    }
+    assert.equal(
+      result.status,
+      0,
+      `Expected exit 0 for audit mode, got ${result.status}\nstderr: ${result.stderr}`
+    );
   });
 
   test('audit mode: log write failure does not crash — exits 0', () => {
@@ -84,7 +107,11 @@ enforce('audit log fail test', policy);
         CLAUDE_PROJECT_DIR: '/nonexistent/path/that/does/not/exist/ever',
       },
     });
-    try { fs.unlinkSync(tmpFile); } catch { /* best effort */ }
+    try {
+      fs.unlinkSync(tmpFile);
+    } catch {
+      /* best effort */
+    }
     assert.equal(result.status, 0, `Expected exit 0 even on log failure, got ${result.status}`);
   });
 

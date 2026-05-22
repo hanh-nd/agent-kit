@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import {
   DEFAULT_DIGEST_TIMEOUT_MS,
   DEFAULT_DIGEST_MAX_INPUT_CHARS,
+  DIGEST_LOCKFILE_REL_PATH,
   WIKI_RAW_DIR,
 } from './constants.js';
 import {
@@ -12,7 +13,6 @@ import {
   writeProvisionalDigestFile,
   writeConversationDigestSettings,
 } from './files.js';
-import { acquireDigestLock, releaseDigestLock } from './lockfile.js';
 import { getDigestModelSpec } from './model-registry.js';
 import { createLlamaLocalDigestProvider } from './providers/llama-local.js';
 import type {
@@ -25,6 +25,11 @@ import type {
 import { loadProjectSettings, resolveConversationDigestConfig, resolveMemoryConfig } from '../../tools/config.js';
 import { MemoryStore } from '../store.js';
 import { MemoryIndexer } from '../indexer.js';
+import { releaseLock, tryAcquireProcessLock } from '../../utils/files.js';
+
+function digestLockPath(workspaceRoot: string): string {
+  return path.join(workspaceRoot, DIGEST_LOCKFILE_REL_PATH);
+}
 
 async function indexProvisionalDigestFile(
   workspaceRoot: string,
@@ -34,7 +39,7 @@ async function indexProvisionalDigestFile(
     const settings = loadProjectSettings(workspaceRoot);
     const config = resolveMemoryConfig(settings, workspaceRoot);
     const store = new MemoryStore(path.join(config.wikiDir, 'index.db'), config);
-    const embedder = { embed: async (_texts: string[]) => [] };
+    const embedder = { embed: async (_texts: string[]) => [], initialize: async () => {} };
     const indexer = new MemoryIndexer(store, embedder, config);
     await indexer.indexFile(markdownPath);
     return { indexed: true };
@@ -44,9 +49,7 @@ async function indexProvisionalDigestFile(
   }
 }
 
-export async function digestConversationFile(
-  options: DigestFileOptions,
-): Promise<ProvisionalDigestResult> {
+export async function digestConversationFile(options: DigestFileOptions): Promise<ProvisionalDigestResult> {
   const outDir = options.outDir
     ? path.resolve(options.workspaceRoot, options.outDir)
     : defaultProvisionalDigestDir(options.workspaceRoot);
@@ -99,7 +102,8 @@ export async function digestPendingConversations({
     return { ok: true, initialized: false, action: 'noop', reason: 'not-initialized' };
   }
 
-  if (!acquireDigestLock(workspaceRoot)) {
+  const lockPath = digestLockPath(workspaceRoot);
+  if (!tryAcquireProcessLock(lockPath)) {
     return { ok: true, initialized: true, action: 'noop', reason: 'locked' };
   }
 
@@ -160,7 +164,7 @@ export async function digestPendingConversations({
     const message = err instanceof Error ? err.message : String(err);
     return { ok: false, initialized: true, action: 'error', error: message };
   } finally {
-    releaseDigestLock(workspaceRoot);
+    releaseLock(lockPath);
   }
 }
 

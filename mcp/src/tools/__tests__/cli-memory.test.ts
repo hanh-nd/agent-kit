@@ -23,5 +23,4 @@ describe('memory CLI', () => {
     const code = await runMemoryCli(['unknown'], process.env);
     assert.equal(code, 1);
   });
-
 });

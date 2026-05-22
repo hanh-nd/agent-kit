@@ -18,7 +18,11 @@ before(() => {
 });
 
 after(() => {
-  try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best effort */ }
+  try {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  } catch {
+    /* best effort */
+  }
 });
 
 function run(payload: unknown, env: NodeJS.ProcessEnv = {}): ChildRunResult {
@@ -34,65 +38,109 @@ describe('AC1: symlink to external target is blocked', () => {
   test('symlink inside workspace pointing to /etc/passwd is blocked', () => {
     if (!fs.existsSync('/etc/passwd')) return;
     const linkPath = path.join(tmpDir, 'symlink-to-etc-passwd');
-    try { fs.symlinkSync('/etc/passwd', linkPath); } catch { /* exists or no perms */ }
+    try {
+      fs.symlinkSync('/etc/passwd', linkPath);
+    } catch {
+      /* exists or no perms */
+    }
     if (!fs.existsSync(linkPath)) return; // can't create symlink, skip
     const result = run({ tool_name: 'Read', tool_input: { file_path: linkPath } });
-    assert.equal(result.exitCode, 2, `Expected blocked (exit 2), got ${result.exitCode}\nstderr: ${result.stderr}`);
+    assert.equal(
+      result.exitCode,
+      2,
+      `Expected blocked (exit 2), got ${result.exitCode}\nstderr: ${result.stderr}`
+    );
   });
 });
 
 describe('AC2: tilde expansion blocks ~/.ssh/id_rsa', () => {
   test('cat ~/.ssh/id_rsa is blocked', () => {
     const result = run({ tool_name: 'Bash', tool_input: { command: 'cat ~/.ssh/id_rsa' } });
-    assert.equal(result.exitCode, 2, `Expected blocked, got ${result.exitCode}\nstderr: ${result.stderr}`);
+    assert.equal(
+      result.exitCode,
+      2,
+      `Expected blocked, got ${result.exitCode}\nstderr: ${result.stderr}`
+    );
   });
 });
 
 describe('AC3: env-var expansion blocks $HOME/.ssh/id_rsa', () => {
   test('$HOME form is blocked', () => {
     const result = run({ tool_name: 'Bash', tool_input: { command: 'cat $HOME/.ssh/id_rsa' } });
-    assert.equal(result.exitCode, 2, `Expected blocked, got ${result.exitCode}\nstderr: ${result.stderr}`);
+    assert.equal(
+      result.exitCode,
+      2,
+      `Expected blocked, got ${result.exitCode}\nstderr: ${result.stderr}`
+    );
   });
 
   test('${HOME} form is blocked', () => {
     const result = run({ tool_name: 'Bash', tool_input: { command: 'cat ${HOME}/.ssh/id_rsa' } });
-    assert.equal(result.exitCode, 2, `Expected blocked, got ${result.exitCode}\nstderr: ${result.stderr}`);
+    assert.equal(
+      result.exitCode,
+      2,
+      `Expected blocked, got ${result.exitCode}\nstderr: ${result.stderr}`
+    );
   });
 });
 
 describe('AC4: /etc/passwd is blocked', () => {
   test('Read /etc/passwd is blocked', () => {
     const result = run({ tool_name: 'Read', tool_input: { file_path: '/etc/passwd' } });
-    assert.equal(result.exitCode, 2, `Expected blocked, got ${result.exitCode}\nstderr: ${result.stderr}`);
+    assert.equal(
+      result.exitCode,
+      2,
+      `Expected blocked, got ${result.exitCode}\nstderr: ${result.stderr}`
+    );
   });
 });
 
 describe('AC5: path traversal ../../../etc/passwd is blocked', () => {
   test('Bash cat ../../../etc/passwd is blocked', () => {
     const result = run({ tool_name: 'Bash', tool_input: { command: 'cat ../../../etc/passwd' } });
-    assert.equal(result.exitCode, 2, `Expected blocked, got ${result.exitCode}\nstderr: ${result.stderr}`);
+    assert.equal(
+      result.exitCode,
+      2,
+      `Expected blocked, got ${result.exitCode}\nstderr: ${result.stderr}`
+    );
   });
 });
 
 describe('AC6: legitimate commands pass', () => {
   test('Read src/foo.ts passes', () => {
     const result = run({ tool_name: 'Read', tool_input: { file_path: 'src/foo.ts' } });
-    assert.equal(result.exitCode, 0, `Expected pass, got ${result.exitCode}\nstderr: ${result.stderr}`);
+    assert.equal(
+      result.exitCode,
+      0,
+      `Expected pass, got ${result.exitCode}\nstderr: ${result.stderr}`
+    );
   });
 
   test('npm test passes', () => {
     const result = run({ tool_name: 'Bash', tool_input: { command: 'npm test' } });
-    assert.equal(result.exitCode, 0, `Expected pass, got ${result.exitCode}\nstderr: ${result.stderr}`);
+    assert.equal(
+      result.exitCode,
+      0,
+      `Expected pass, got ${result.exitCode}\nstderr: ${result.stderr}`
+    );
   });
 
   test('ls -la passes', () => {
     const result = run({ tool_name: 'Bash', tool_input: { command: 'ls -la' } });
-    assert.equal(result.exitCode, 0, `Expected pass, got ${result.exitCode}\nstderr: ${result.stderr}`);
+    assert.equal(
+      result.exitCode,
+      0,
+      `Expected pass, got ${result.exitCode}\nstderr: ${result.stderr}`
+    );
   });
 
   test('git status passes', () => {
     const result = run({ tool_name: 'Bash', tool_input: { command: 'git status' } });
-    assert.equal(result.exitCode, 0, `Expected pass, got ${result.exitCode}\nstderr: ${result.stderr}`);
+    assert.equal(
+      result.exitCode,
+      0,
+      `Expected pass, got ${result.exitCode}\nstderr: ${result.stderr}`
+    );
   });
 });
 

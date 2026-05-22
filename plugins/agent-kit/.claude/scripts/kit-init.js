@@ -5,10 +5,7 @@ import { countTests } from '../scripts/count-tests.js';
 import { ENFORCEMENT_MODES, KIT_DIR, KIT_PATH, PROJECT_DIR } from './constants.js';
 import { runWhenInvoked } from './utils.js';
 function ensureDirectories() {
-    const dirs = [
-        'handoffs',
-        'logs',
-    ];
+    const dirs = ['handoffs', 'logs'];
     for (const dir of dirs) {
         const dirPath = path.join(KIT_PATH, dir);
         if (!fs.existsSync(dirPath)) {

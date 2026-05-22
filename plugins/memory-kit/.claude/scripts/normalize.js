@@ -9,6 +9,7 @@ const STRIP_TAGS = [
     'command-name',
     'command-message',
     'command-args',
+    'local-command-caveat',
 ];
 export function normalizeTranscript(raw) {
     let result = raw;

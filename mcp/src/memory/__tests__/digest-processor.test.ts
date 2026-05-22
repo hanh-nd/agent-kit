@@ -4,11 +4,7 @@ import * as path from 'node:path';
 import { afterEach, describe, test } from 'node:test';
 import { createTempDirTracker } from '../../__tests__/temp-dir.js';
 import { DEFAULT_DIGEST_MODEL_ID } from '../digest/constants.js';
-import {
-  defaultProvisionalDigestDir,
-  provisionalDigestPath,
-  readConversationDigestInput,
-} from '../digest/files.js';
+import { defaultProvisionalDigestDir, provisionalDigestPath, readConversationDigestInput } from '../digest/files.js';
 import { digestConversationFile } from '../digest/processor.js';
 
 const tempDirs = createTempDirTracker();

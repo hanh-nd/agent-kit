@@ -89,15 +89,9 @@ export function registerIntegrationTools(server: McpServer): void {
       workspace: z
         .string()
         .optional()
-        .describe(
-          'Bitbucket workspace slug (required for numeric ID if BITBUCKET_DEFAULT_WORKSPACE not set)'
-        ),
+        .describe('Bitbucket workspace slug (required for numeric ID if BITBUCKET_DEFAULT_WORKSPACE not set)'),
       repoSlug: z.string().optional().describe('Bitbucket repo slug (required for numeric ID)'),
-      includeDiff: z
-        .boolean()
-        .optional()
-        .default(true)
-        .describe('Include unified diff in response'),
+      includeDiff: z.boolean().optional().default(true).describe('Include unified diff in response'),
     },
     async ({ input, workspace, repoSlug, includeDiff }) => {
       try {
@@ -118,13 +112,11 @@ export function registerIntegrationTools(server: McpServer): void {
 
         if (!ws) {
           return mcpText(
-            `❌ workspace is required. Pass it as a parameter or set BITBUCKET_DEFAULT_WORKSPACE in your MCP env config.`
+            `❌ workspace is required. Pass it as a parameter or set BITBUCKET_DEFAULT_WORKSPACE in your MCP env config.`,
           );
         }
         if (!repo || !prId) {
-          return mcpText(
-            `❌ Could not parse PR URL. Expected: bitbucket.org/{ws}/{repo}/pull-requests/{id}`
-          );
+          return mcpText(`❌ Could not parse PR URL. Expected: bitbucket.org/{ws}/{repo}/pull-requests/{id}`);
         }
 
         const safeWs = sanitize(ws);
@@ -169,7 +161,7 @@ ${pr.description || 'No description'}`;
       } catch (error) {
         return mcpText(error instanceof Error ? error.message : String(error));
       }
-    }
+    },
   );
 
   // TOOL: JIRA GET TICKET
@@ -212,11 +204,7 @@ ${pr.description || 'No description'}`;
 **Type:** ${ticket.fields.issuetype?.name || 'Unknown'}
 
 ### Description
-${
-  typeof ticket.fields.description === 'string'
-    ? ticket.fields.description
-    : adfToMarkdown(ticket.fields.description)
-}
+${typeof ticket.fields.description === 'string' ? ticket.fields.description : adfToMarkdown(ticket.fields.description)}
 
 ### Labels
 ${ticket.fields.labels?.join(', ') || 'None'}`;
@@ -225,6 +213,6 @@ ${ticket.fields.labels?.join(', ') || 'None'}`;
       } catch (error) {
         return mcpText(`Error: ${error instanceof Error ? error.message : String(error)}`);
       }
-    }
+    },
   );
 }

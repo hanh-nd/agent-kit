@@ -40,7 +40,9 @@ const BASE_CONFIG: MemoryConfig = {
   vectorDimension: 384,
 };
 
-function makeIndexerStub(overrides: Partial<{ search: MemoryIndexer['search']; save: MemoryIndexer['save'] }> = {}): MemoryIndexer {
+function makeIndexerStub(
+  overrides: Partial<{ search: MemoryIndexer['search']; save: MemoryIndexer['save'] }> = {},
+): MemoryIndexer {
   return {
     search: overrides.search ?? (async () => []),
     save: overrides.save ?? (async () => ({ indexed: 1, deleted: 0, skipped: 0 })),
@@ -58,8 +60,16 @@ function extractText(result: unknown): string {
 
 describe('kit_memory_search', () => {
   test('returns formatted full content and display source when results exist', async () => {
-    const chunk = makeChunk({ content: 'Important memory content', source: 'compiled/entities/foo.md' });
-    const searchResult: SearchResult = { chunk, score: 0.85, retriever: 'bm25', contentSource: 'file' };
+    const chunk = makeChunk({
+      content: 'Important memory content',
+      source: 'compiled/entities/foo.md',
+    });
+    const searchResult: SearchResult = {
+      chunk,
+      score: 0.85,
+      retriever: 'bm25',
+      contentSource: 'file',
+    };
 
     const indexer = makeIndexerStub({ search: async () => [searchResult] });
     const store = makeStoreStub(true);
@@ -84,8 +94,10 @@ describe('kit_memory_search', () => {
     const result = await tools.get('kit_memory_search')!({ query: 'nothing here' });
     const text = extractText(result);
 
-    assert.ok(text.toLowerCase().includes('no memories') || text.includes('No memories'),
-      `Expected "no memories" message, got: ${text.slice(0, 100)}`);
+    assert.ok(
+      text.toLowerCase().includes('no memories') || text.includes('No memories'),
+      `Expected "no memories" message, got: ${text.slice(0, 100)}`,
+    );
   });
 
   test('prepends degraded warning when vecAvailable is false and no results', async () => {
@@ -97,13 +109,20 @@ describe('kit_memory_search', () => {
     const result = await tools.get('kit_memory_search')!({ query: 'test' });
     const text = extractText(result);
 
-    assert.ok(text.includes('Vector search unavailable') || text.includes('keyword-only'),
-      `Expected degraded warning in: ${text.slice(0, 200)}`);
+    assert.ok(
+      text.includes('Vector search unavailable') || text.includes('keyword-only'),
+      `Expected degraded warning in: ${text.slice(0, 200)}`,
+    );
   });
 
   test('prepends degraded warning when vecAvailable is false with results', async () => {
     const chunk = makeChunk({ content: 'Found content', source: 'test.md' });
-    const searchResult: SearchResult = { chunk, score: 0.5, retriever: 'bm25', contentSource: 'file' };
+    const searchResult: SearchResult = {
+      chunk,
+      score: 0.5,
+      retriever: 'bm25',
+      contentSource: 'file',
+    };
 
     const indexer = makeIndexerStub({ search: async () => [searchResult] });
     const store = makeStoreStub(false);
@@ -113,14 +132,21 @@ describe('kit_memory_search', () => {
     const result = await tools.get('kit_memory_search')!({ query: 'test' });
     const text = extractText(result);
 
-    assert.ok(text.includes('Vector search unavailable') || text.includes('keyword-only'),
-      `Expected degraded warning with results in: ${text.slice(0, 200)}`);
+    assert.ok(
+      text.includes('Vector search unavailable') || text.includes('keyword-only'),
+      `Expected degraded warning with results in: ${text.slice(0, 200)}`,
+    );
     assert.ok(text.includes('Found content'), 'Result must still contain chunk content');
   });
 
   test('prepends source-unavailable warning for fallback results', async () => {
     const chunk = makeChunk({ content: 'Stored chunk only', source: 'compiled/entities/foo.md' });
-    const searchResult: SearchResult = { chunk, score: 0.5, retriever: 'bm25', contentSource: 'fallback' };
+    const searchResult: SearchResult = {
+      chunk,
+      score: 0.5,
+      retriever: 'bm25',
+      contentSource: 'fallback',
+    };
 
     const indexer = makeIndexerStub({ search: async () => [searchResult] });
     const store = makeStoreStub(true);
@@ -168,7 +194,9 @@ describe('kit_memory_search', () => {
 
   test('returns error message when indexer.search throws', async () => {
     const indexer = makeIndexerStub({
-      search: async () => { throw new Error('search exploded'); },
+      search: async () => {
+        throw new Error('search exploded');
+      },
     });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
@@ -192,7 +220,11 @@ describe('kit_memory_save', () => {
 
     const result = await tools.get('kit_memory_save')!({ content: 'Some important note' });
     const text = extractText(result);
-    const parsed = JSON.parse(text) as { saved: boolean; queued_for_compile: boolean; message: string };
+    const parsed = JSON.parse(text) as {
+      saved: boolean;
+      queued_for_compile: boolean;
+      message: string;
+    };
 
     assert.equal(parsed.saved, true);
     assert.equal(parsed.queued_for_compile, true);
@@ -201,7 +233,9 @@ describe('kit_memory_save', () => {
 
   test('returns saved:false and error message when indexer.save throws', async () => {
     const indexer = makeIndexerStub({
-      save: async () => { throw new Error('disk full'); },
+      save: async () => {
+        throw new Error('disk full');
+      },
     });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();

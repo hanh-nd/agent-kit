@@ -16,7 +16,16 @@ import type { SecurityPolicy } from '@types';
 export const PATH_ARG_KEYS = new Set(['file_path', 'path', 'notebook_path']);
 export const COMMAND_ARG_KEYS = new Set(['command']);
 
-const KNOWN_ENV_VAR_NAMES = ['HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'USER', 'LOGNAME', 'TMPDIR', 'TMP', 'TEMP'];
+const KNOWN_ENV_VAR_NAMES = [
+  'HOME',
+  'XDG_CONFIG_HOME',
+  'XDG_DATA_HOME',
+  'USER',
+  'LOGNAME',
+  'TMPDIR',
+  'TMP',
+  'TEMP',
+];
 
 function realpathBestEffort(p: string): string {
   try {
@@ -60,12 +69,7 @@ export function loadPolicy(): Readonly<SecurityPolicy> {
     })
     .map((p) => realpathBestEffort(p));
 
-  const systemBinPaths = [
-    '/usr/bin/',
-    '/bin/',
-    '/usr/local/bin/',
-    ...cfg.additionalSystemBinPaths,
-  ];
+  const systemBinPaths = ['/usr/bin/', '/bin/', '/usr/local/bin/', ...cfg.additionalSystemBinPaths];
 
   const knownEnvVars: Record<string, string> = {};
   for (const name of KNOWN_ENV_VAR_NAMES) {

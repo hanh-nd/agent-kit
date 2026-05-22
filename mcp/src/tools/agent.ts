@@ -42,16 +42,7 @@ function agentArgs(agent: AgentName, prompt: string, workspaceRoot: string): str
     case 'claude':
       return ['--dangerously-skip-permissions', '-p', prompt];
     case 'codex':
-      return [
-        '--ask-for-approval',
-        'never',
-        '--sandbox',
-        'workspace-write',
-        '--cd',
-        workspaceRoot,
-        'exec',
-        prompt,
-      ];
+      return ['--ask-for-approval', 'never', '--sandbox', 'workspace-write', '--cd', workspaceRoot, 'exec', prompt];
   }
 }
 
@@ -69,7 +60,7 @@ function taskSlug(task: string): string {
 function initAgentLog(
   workspaceRoot: string,
   slug: string,
-  agent: string
+  agent: string,
 ): { logPath: string; logStream: fs.WriteStream } {
   const logsDir = path.join(workspaceRoot, '.agent-kit', 'logs', 'agents');
   fs.mkdirSync(logsDir, { recursive: true });
@@ -87,14 +78,10 @@ export function registerAgentTools(server: McpServer): void {
     'kit_trigger_agent',
     '!Important: Trigger only when user explicitly asks to delegate a task to an external agent CLI (gemini, claude, or codex). The task can be a direct message or a path to a handoff file (.agent-kit/handoffs/feature-slug/plan.md).',
     {
-      agent: z
-        .enum(['gemini', 'claude', 'codex'])
-        .describe('The agent CLI to invoke: "gemini", "claude", or "codex"'),
+      agent: z.enum(['gemini', 'claude', 'codex']).describe('The agent CLI to invoke: "gemini", "claude", or "codex"'),
       task: z
         .string()
-        .describe(
-          'Task message or path to a handoff file (e.g., ".agent-kit/handoffs/feature-slug/plan.md")'
-        ),
+        .describe('Task message or path to a handoff file (e.g., ".agent-kit/handoffs/feature-slug/plan.md")'),
     },
     async ({ agent, task }, extra) => {
       const workspaceRoot = getWorkspaceRoot();
@@ -187,10 +174,7 @@ export function registerAgentTools(server: McpServer): void {
           });
           child.on('close', (code, signal) => {
             if (code === 0) resolve();
-            else
-              reject(
-                new Error(`Process exited with code ${code}${signal ? ` (signal: ${signal})` : ''}`)
-              );
+            else reject(new Error(`Process exited with code ${code}${signal ? ` (signal: ${signal})` : ''}`));
           });
           child.on('error', reject);
         });
@@ -217,6 +201,6 @@ export function registerAgentTools(server: McpServer): void {
         job?.logStream.end();
         if (job) clearTimeout(job.timeoutHandle);
       }
-    }
+    },
   );
 }

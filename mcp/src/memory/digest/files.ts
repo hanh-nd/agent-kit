@@ -10,13 +10,8 @@ export function defaultProvisionalDigestDir(workspaceRoot: string): string {
   return path.join(workspaceRoot, PROVISIONAL_DIGEST_DIR);
 }
 
-export function readConversationDigestInput(
-  workspaceRoot: string,
-  inputPath: string,
-): ConversationDigestInput {
-  const absoluteInput = path.isAbsolute(inputPath)
-    ? inputPath
-    : path.resolve(workspaceRoot, inputPath);
+export function readConversationDigestInput(workspaceRoot: string, inputPath: string): ConversationDigestInput {
+  const absoluteInput = path.isAbsolute(inputPath) ? inputPath : path.resolve(workspaceRoot, inputPath);
   const content = fs.readFileSync(absoluteInput, 'utf8');
 
   return {
@@ -37,28 +32,18 @@ export function provisionalDigestPath(
   return path.join(outDir, `${input.contentHash.slice(0, 16)}-${safeName}.md`);
 }
 
-export function findExistingProvisionalDigest(
-  outDir: string,
-  input: ConversationDigestInput,
-): string | undefined {
+export function findExistingProvisionalDigest(outDir: string, input: ConversationDigestInput): string | undefined {
   const markdownPath = provisionalDigestPath(outDir, input);
   return fs.existsSync(markdownPath) ? markdownPath : undefined;
 }
 
-export function writeProvisionalDigestFile(
-  outDir: string,
-  input: ConversationDigestInput,
-  markdown: string,
-): string {
+export function writeProvisionalDigestFile(outDir: string, input: ConversationDigestInput, markdown: string): string {
   const markdownPath = provisionalDigestPath(outDir, input);
   atomicWriteTextFile(markdownPath, markdown);
   return markdownPath;
 }
 
-export function writeConversationDigestSettings(
-  workspaceRoot: string,
-  digest: ConversationDigestSettings,
-): void {
+export function writeConversationDigestSettings(workspaceRoot: string, digest: ConversationDigestSettings): void {
   const current = loadProjectSettings(workspaceRoot);
   const memory = current.memory ?? {};
   writeProjectSettings(workspaceRoot, {

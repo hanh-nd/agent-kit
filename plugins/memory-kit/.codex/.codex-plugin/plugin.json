@@ -8,12 +8,7 @@
   },
   "homepage": "https://github.com/hanh-nd/agent-kit/tree/main/plugins/memory-kit",
   "repository": "https://github.com/hanh-nd/agent-kit",
-  "keywords": [
-    "memory",
-    "context",
-    "knowledge",
-    "persistence"
-  ],
+  "keywords": ["memory", "context", "knowledge", "persistence"],
   "skills": "./skills/",
   "mcpServers": "./.codex-plugin/mcp.json",
   "hooks": "./hooks/hooks.json",
@@ -23,11 +18,7 @@
     "longDescription": "Memory Kit is a memory management system for AI agents that allows them to store and retrieve information from past conversations and experiences. It uses a combination of vector embeddings and semantic search to find relevant information and provides a simple API for agents to interact with their memory.",
     "developerName": "hanhnd",
     "category": "Productivity",
-    "capabilities": [
-      "Read",
-      "Write",
-      "MCP"
-    ],
+    "capabilities": ["Read", "Write", "MCP"],
     "websiteURL": "https://github.com/hanh-nd/agent-kit",
     "defaultPrompt": [
       "Use Memory Kit to retrieve relevant context from past conversations.",

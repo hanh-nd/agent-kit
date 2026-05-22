@@ -21,7 +21,7 @@
     ],
     "SessionEnd": [
       {
-        "matcher": "exit|clear",
+        "matcher": "",
         "hooks": [
           {
             "name": "memory-kit-session-end",

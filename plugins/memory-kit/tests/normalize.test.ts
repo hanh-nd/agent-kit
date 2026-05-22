@@ -56,7 +56,8 @@ describe('normalizeTranscript', () => {
   });
 
   test('strips <command-message> and <command-args>', () => {
-    const input = '<command-message>ak:investigate</command-message>\n<command-args>some args</command-args>\nactual content';
+    const input =
+      '<command-message>ak:investigate</command-message>\n<command-args>some args</command-args>\nactual content';
     const result = normalizeTranscript(input);
     assert.ok(!result.includes('<command-message>'));
     assert.ok(!result.includes('<command-args>'));

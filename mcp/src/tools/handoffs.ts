@@ -72,10 +72,7 @@ export function deriveFeatureSlug(input: {
   const contentTicketSlug = findTicketId(input.content);
   if (contentTicketSlug) return contentTicketSlug;
 
-  return (
-    sanitizeFeatureSlug(contentSlugCandidate(input.content)) ||
-    'untitled-handoff'
-  );
+  return sanitizeFeatureSlug(contentSlugCandidate(input.content)) || 'untitled-handoff';
 }
 
 export function resolveHandoffPath(input: {
