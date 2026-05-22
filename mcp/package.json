@@ -3,10 +3,10 @@
   "version": "1.0.32",
   "description": "Agent Kit MCP server for software development agent workflows",
   "type": "module",
-  "main": "dist/kit-server.js",
+  "main": "dist/server.js",
   "bin": {
-    "agent-kit": "dist/kit-server.js",
-    "agent-kit-cli": "dist/kit-cli.js"
+    "agent-kit": "dist/server.js",
+    "agent-kit-cli": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -22,10 +22,10 @@
   },
   "scripts": {
     "build": "rm -rf dist && tsc && npm run bundle",
-    "bundle": "esbuild src/kit-server.ts src/kit-cli.ts --bundle --platform=node --format=esm --outdir=dist --external:node:* --external:better-sqlite3 --external:sqlite-vec --external:fastembed --external:node-llama-cpp --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
+    "bundle": "esbuild src/entrypoints/server.ts src/entrypoints/cli.ts --bundle --platform=node --format=esm --outdir=dist --external:node:* --external:better-sqlite3 --external:sqlite-vec --external:fastembed --external:node-llama-cpp --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build",
-    "test": "tsc && node --test $(find src/memory/__tests__ src/tools/__tests__ -name '*.test.ts' | sed 's#^src/#dist/#; s#\\.ts$#.js#' | tr '\\n' ' ')"
+    "test": "tsc && node --test $(find dist -name '*.test.js' | tr '\\n' ' ')"
   },
   "dependencies": {
     "node-llama-cpp": "^3.0.0",

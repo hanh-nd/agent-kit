@@ -36,7 +36,7 @@ describe('kit-init', () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory available');
+    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory ready');
 
     const settingsPath = path.join(projectDir, '.agent-kit', 'settings.json');
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) as {
@@ -62,7 +62,7 @@ describe('kit-init', () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory available');
+    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory ready');
   });
 
   test('no nudge when inbox has exactly 3 unique slugs (C7 — boundary)', () => {
@@ -80,7 +80,7 @@ describe('kit-init', () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory available');
+    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory ready');
   });
 
   test('nudge fires when inbox has 4 unique slugs (C8)', () => {
@@ -103,7 +103,7 @@ describe('kit-init', () => {
 
     assert.equal(result.status, 0, result.stderr);
     const msg = JSON.parse(result.stdout).systemMessage as string;
-    assert.ok(msg.startsWith('[memory-kit] Memory available\n[memory-kit] 4 uncompiled handoffs ('));
+    assert.ok(msg.startsWith('[memory-kit] Memory ready\n[memory-kit] 4 uncompiled handoffs ('));
     assert.ok(msg.includes('alpha'));
     assert.ok(msg.includes('beta'));
     assert.ok(msg.includes('gamma'));
@@ -130,7 +130,7 @@ describe('kit-init', () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory available');
+    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory ready');
   });
 
   test('falls back to baseline systemMessage when inbox is unreadable (C9)', () => {
@@ -149,6 +149,6 @@ describe('kit-init', () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory available');
+    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory ready');
   });
 });

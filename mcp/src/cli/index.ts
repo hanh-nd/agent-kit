@@ -1,4 +1,4 @@
-import { runMemoryCli } from './memory.js';
+import { runMemoryCli } from './commands/memory.js';
 
 export async function runAgentKitCli(argv: string[], env: NodeJS.ProcessEnv): Promise<number> {
   const [command, ...rest] = argv;

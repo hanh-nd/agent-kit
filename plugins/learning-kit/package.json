@@ -7,7 +7,5 @@
   "author": "",
   "license": "ISC",
   "description": "",
-  "devDependencies": {
-    "jest": "^30.3.0"
-  }
+  "devDependencies": {}
 }
