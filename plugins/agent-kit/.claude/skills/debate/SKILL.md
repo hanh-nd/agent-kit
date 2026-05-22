@@ -1,6 +1,7 @@
 ---
 name: debate
 description: Stress-test a prior skill output via adversarial Gilfoyle/Dinesh/Judge debate.
+disable-model-invocation: true
 ---
 
 # Debate Mode — Adversarial Validation Layer

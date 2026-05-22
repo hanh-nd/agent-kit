@@ -1,6 +1,7 @@
 ---
 name: wiki
 description: Persistent project wiki. Commands — compile (default), query {question}, lint.
+disable-model-invocation: true
 ---
 
 # 📖 Wiki

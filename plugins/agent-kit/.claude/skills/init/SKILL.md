@@ -1,6 +1,7 @@
 ---
 name: init
 description: Extract a codebase DNA Profile — stack, conventions, patterns — for downstream agents.
+disable-model-invocation: true
 ---
 
 # Codebase DNA Extractor

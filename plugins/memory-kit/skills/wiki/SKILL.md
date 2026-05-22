@@ -2,6 +2,9 @@
 name: wiki
 description: Persistent project wiki. Commands — compile (default), query {question}, lint.
 version: 1.0.0
+providers:
+  claude:
+    disable-model-invocation: true
 ---
 
 # 📖 Wiki
