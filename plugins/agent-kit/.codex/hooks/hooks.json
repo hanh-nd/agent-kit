@@ -6,13 +6,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/kit-init.js",
+            "command": "node ${PLUGIN_ROOT}/scripts/kit-init.js",
             "statusMessage": "Initializing Agent Kit",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/inject-agent-instructions.js",
+            "command": "node ${PLUGIN_ROOT}/scripts/inject-agent-instructions.js",
             "statusMessage": "Loading Agent Kit instructions",
             "timeout": 5
           }
@@ -23,7 +23,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/inject-agent-instructions.js",
+            "command": "node ${PLUGIN_ROOT}/scripts/inject-agent-instructions.js",
             "statusMessage": "Loading Agent Kit instructions",
             "timeout": 5
           }
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/security-privacy.js",
+            "command": "node ${PLUGIN_ROOT}/scripts/security-privacy.js",
             "statusMessage": "Checking prompt for sensitive paths",
             "timeout": 5
           }
@@ -48,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/security-privacy.js",
+            "command": "node ${PLUGIN_ROOT}/scripts/security-privacy.js",
             "statusMessage": "Checking tool input for sensitive paths",
             "timeout": 5
           }

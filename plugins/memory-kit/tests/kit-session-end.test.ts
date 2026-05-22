@@ -80,6 +80,7 @@ describe('kit-session-end', () => {
     const rawDir = path.join(projectDir, '.agent-kit', 'wiki', 'raw');
     const rawFiles = fs.readdirSync(rawDir).filter((name) => /^conv_.*\.md$/.test(name));
     assert.equal(rawFiles.length, 1);
+    assert.ok(rawFiles[0].startsWith('conv_claude_'), `Expected file to start with 'conv_claude_', got ${rawFiles[0]}`);
     const rawContent = fs.readFileSync(path.join(rawDir, rawFiles[0]), 'utf8');
 
     // Actual conversation content must be present
@@ -143,9 +144,116 @@ describe('kit-session-end', () => {
     const rawFiles = fs.readdirSync(rawDir).filter((name) => /^conv_.*\.md$/.test(name));
 
     assert.equal(rawFiles.length, 1);
+    assert.ok(rawFiles[0].startsWith('conv_codex_'), `Expected file to start with 'conv_codex_', got ${rawFiles[0]}`);
     const rawContent = fs.readFileSync(path.join(rawDir, rawFiles[0]), 'utf8');
     assert.match(rawContent, /Remember the wiki compile rule\./);
     assert.match(rawContent, /Use conv markdown files\./);
     assert.ok(!fs.existsSync(legacyMemoryDir), 'session end must not write to legacy memory dir');
+  });
+
+  test('uses sanitized session_id in the output filename when provided', () => {
+    const projectDir = makeTempDir();
+    const codexDir = path.join(projectDir, '.codex');
+    const transcriptPath = path.join(codexDir, 'session.jsonl');
+    const scriptPath = path.resolve('dist/scripts/kit-session-end.js');
+
+    fs.mkdirSync(codexDir, { recursive: true });
+    fs.writeFileSync(
+      transcriptPath,
+      JSON.stringify({
+        type: 'response_item',
+        payload: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', input_text: 'Hello from session ID test.' }],
+        },
+      }),
+      'utf8',
+    );
+
+    const result = spawnSync(process.execPath, [scriptPath], {
+      cwd: path.resolve('.'),
+      env: {
+        ...process.env,
+        CODEX_PROJECT_DIR: projectDir,
+      },
+      input: JSON.stringify({ transcript_path: transcriptPath, session_id: 'my-custom/session-123' }),
+      encoding: 'utf8',
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    const rawDir = path.join(projectDir, '.agent-kit', 'wiki', 'raw');
+
+    // The session_id "my-custom/session-123" should be sanitized to "my-customsession-123"
+    const expectedFile = 'conv_codex_my-customsession-123.md';
+    assert.ok(fs.existsSync(path.join(rawDir, expectedFile)), `Expected ${expectedFile} to exist`);
+  });
+
+  test('overwrites the target file instead of appending on subsequent emits', () => {
+    const projectDir = makeTempDir();
+    const codexDir = path.join(projectDir, '.codex');
+    const transcriptPath = path.join(codexDir, 'session.jsonl');
+    const scriptPath = path.resolve('dist/scripts/kit-session-end.js');
+
+    fs.mkdirSync(codexDir, { recursive: true });
+
+    // First run with one user message
+    const msg1 = JSON.stringify({
+      type: 'response_item',
+      payload: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', input_text: 'First turn' }],
+      },
+    });
+    fs.writeFileSync(transcriptPath, msg1, 'utf8');
+
+    let result = spawnSync(process.execPath, [scriptPath], {
+      cwd: path.resolve('.'),
+      env: {
+        ...process.env,
+        CODEX_PROJECT_DIR: projectDir,
+      },
+      input: JSON.stringify({ transcript_path: transcriptPath, session_id: 'overwrite-test-session' }),
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+
+    const rawDir = path.join(projectDir, '.agent-kit', 'wiki', 'raw');
+    const targetFile = path.join(rawDir, 'conv_codex_overwrite-test-session.md');
+
+    const contentFirstRun = fs.readFileSync(targetFile, 'utf8');
+    assert.match(contentFirstRun, /First turn/);
+
+    // Second run with two messages in the transcript (full conversation)
+    const msg2 = JSON.stringify({
+      type: 'response_item',
+      payload: {
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'output_text', output_text: 'Second turn' }],
+      },
+    });
+    fs.writeFileSync(transcriptPath, [msg1, msg2].join('\n'), 'utf8');
+
+    result = spawnSync(process.execPath, [scriptPath], {
+      cwd: path.resolve('.'),
+      env: {
+        ...process.env,
+        CODEX_PROJECT_DIR: projectDir,
+      },
+      input: JSON.stringify({ transcript_path: transcriptPath, session_id: 'overwrite-test-session' }),
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+
+    const contentSecondRun = fs.readFileSync(targetFile, 'utf8');
+    assert.match(contentSecondRun, /First turn/);
+    assert.match(contentSecondRun, /Second turn/);
+
+    // Crucially, it should not have duplicated the first turn (which would happen if we appended)
+    // There should be only one occurrence of '**User:** First turn' in the output.
+    const occurrences = (contentSecondRun.match(/\*\*User:\*\* First turn/g) || []).length;
+    assert.equal(occurrences, 1, 'Expected First turn to appear exactly once, but it was appended or duplicated');
   });
 });

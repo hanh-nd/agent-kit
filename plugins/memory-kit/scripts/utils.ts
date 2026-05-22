@@ -49,11 +49,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-export function parseTranscript(transcriptPath: string): Transcript {
+export function getProvider(transcriptPath: string): 'claude' | 'codex' | 'gemini' {
   if (transcriptPath.includes('.codex')) {
-    return parseCodexTranscript(transcriptPath);
+    return 'codex';
   }
   if (transcriptPath.includes('.gemini')) {
+    return 'gemini';
+  }
+  return 'claude';
+}
+
+export function parseTranscript(transcriptPath: string): Transcript {
+  const provider = getProvider(transcriptPath);
+  if (provider === 'codex') {
+    return parseCodexTranscript(transcriptPath);
+  }
+  if (provider === 'gemini') {
     return parseGeminiTranscript(transcriptPath);
   }
   return parseClaudeTranscript(transcriptPath);

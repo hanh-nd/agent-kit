@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/kit-init.js",
+            "command": "node ${PLUGIN_ROOT}/scripts/kit-init.js",
             "statusMessage": "Initializing Memory Kit",
             "timeout": 10
           },
@@ -19,13 +19,13 @@
         ]
       }
     ],
-    "SessionEnd": [
+    "Stop": [
       {
         "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/kit-session-end.js",
+            "command": "node ${PLUGIN_ROOT}/scripts/kit-session-end.js",
             "statusMessage": "Saving session summary to memory",
             "timeout": 30
           }
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/kit-handoff-saved.js",
+            "command": "node ${PLUGIN_ROOT}/scripts/kit-handoff-saved.js",
             "statusMessage": "Logging handoff to wiki inbox",
             "timeout": 10
           }
