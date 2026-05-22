@@ -3,7 +3,12 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { afterEach, describe, test } from 'node:test';
 import { createTempDirTracker } from '../../utils/temp-dir.js';
-import { defaultProvisionalDigestDir, readConversationDigestInput, writeConversationDigestSettings, writeProvisionalDigestFile } from './files.js';
+import {
+  defaultProvisionalDigestDir,
+  readConversationDigestInput,
+  writeConversationDigestSettings,
+  writeProvisionalDigestFile,
+} from './files.js';
 import type { ProvisionalDigestResult } from './types.js';
 import { digestPendingConversations, summarizePendingConversations } from './processor.js';
 
@@ -209,7 +214,11 @@ describe('summarizePendingConversations', () => {
     writeInitState(workspace);
     const first = writeConvFile(workspace, 'conv_2026-01-01T00-00-00-001Z.md', '**User:** a\n');
     writeConvFile(workspace, 'conv_2026-01-01T00-00-00-002Z.md', '**User:** b\n');
-    writeProvisionalDigestFile(defaultProvisionalDigestDir(workspace), readConversationDigestInput(workspace, first), '# Existing\n');
+    writeProvisionalDigestFile(
+      defaultProvisionalDigestDir(workspace),
+      readConversationDigestInput(workspace, first),
+      '# Existing\n',
+    );
 
     const result = summarizePendingConversations(workspace);
 

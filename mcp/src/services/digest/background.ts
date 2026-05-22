@@ -280,11 +280,15 @@ export function launchDigestPendingWorker(input: {
       };
     }
 
-    const child = spawn(process.execPath, [input.entrypoint, 'memory', 'digest-pending', ...input.args, `--${DIGEST_WORKER_FLAG}`], {
-      cwd: input.workspaceRoot,
-      detached: true,
-      stdio: 'ignore',
-    });
+    const child = spawn(
+      process.execPath,
+      [input.entrypoint, 'memory', 'digest-pending', ...input.args, `--${DIGEST_WORKER_FLAG}`],
+      {
+        cwd: input.workspaceRoot,
+        detached: true,
+        stdio: 'ignore',
+      },
+    );
     child.unref();
 
     if (!child.pid) {

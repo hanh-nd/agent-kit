@@ -11,7 +11,7 @@ const STRIP_TAGS = [
   'command-args',
   'local-command-caveat',
   'environment_context',
-  'skill'
+  'skill',
 ];
 
 export function normalizeTranscript(raw: string): string {

@@ -107,7 +107,11 @@ describe('digest background helpers', () => {
     assert.equal(complete.skipped, 1);
     assert.equal(complete.errors, 1);
 
-    const failed = statusFromPendingResult({ ok: false, initialized: true, action: 'error', error: 'boom' }, startedAt, 1);
+    const failed = statusFromPendingResult(
+      { ok: false, initialized: true, action: 'error', error: 'boom' },
+      startedAt,
+      1,
+    );
     assert.equal(failed.state, 'failed');
     assert.equal(failed.lastError, 'boom');
 
@@ -123,7 +127,11 @@ describe('digest background helpers', () => {
 describe('launchDigestPendingWorker', () => {
   test('writes not-initialized and does not spawn before digest init', () => {
     const workspace = tempDirs.makeTempDir('digest-bg-not-init-');
-    const result = launchDigestPendingWorker({ workspaceRoot: workspace, args: ['--background'], entrypoint: 'cli.js' });
+    const result = launchDigestPendingWorker({
+      workspaceRoot: workspace,
+      args: ['--background'],
+      entrypoint: 'cli.js',
+    });
 
     assert.equal(result.ok, true);
     assert.equal(result.spawned, false);
@@ -134,7 +142,11 @@ describe('launchDigestPendingWorker', () => {
   test('writes no-pending and does not spawn when initialized with no candidates', () => {
     const workspace = tempDirs.makeTempDir('digest-bg-no-pending-');
     writeInitState(workspace);
-    const result = launchDigestPendingWorker({ workspaceRoot: workspace, args: ['--background'], entrypoint: 'cli.js' });
+    const result = launchDigestPendingWorker({
+      workspaceRoot: workspace,
+      args: ['--background'],
+      entrypoint: 'cli.js',
+    });
 
     assert.equal(result.ok, true);
     assert.equal(result.spawned, false);
@@ -145,7 +157,11 @@ describe('launchDigestPendingWorker', () => {
     const workspace = tempDirs.makeTempDir('digest-bg-locked-status-');
     writeDigestWorkerStatus(workspace, status());
 
-    const result = launchDigestPendingWorker({ workspaceRoot: workspace, args: ['--background'], entrypoint: 'cli.js' });
+    const result = launchDigestPendingWorker({
+      workspaceRoot: workspace,
+      args: ['--background'],
+      entrypoint: 'cli.js',
+    });
 
     assert.equal(result.spawned, false);
     assert.equal(result.status.state, 'locked');
@@ -156,7 +172,11 @@ describe('launchDigestPendingWorker', () => {
     writeInitState(workspace);
     writeDigestWorkerStatus(workspace, status({ pid: 999999999 }));
 
-    const result = launchDigestPendingWorker({ workspaceRoot: workspace, args: ['--background'], entrypoint: 'cli.js' });
+    const result = launchDigestPendingWorker({
+      workspaceRoot: workspace,
+      args: ['--background'],
+      entrypoint: 'cli.js',
+    });
 
     assert.equal(result.spawned, false);
     assert.equal(result.status.state, 'no-pending');
@@ -169,7 +189,11 @@ describe('launchDigestPendingWorker', () => {
     fs.mkdirSync(lockDir, { recursive: true });
     fs.writeFileSync(path.join(lockDir, 'digest-worker.lock'), 'not-json', 'utf8');
 
-    const result = launchDigestPendingWorker({ workspaceRoot: workspace, args: ['--background'], entrypoint: 'cli.js' });
+    const result = launchDigestPendingWorker({
+      workspaceRoot: workspace,
+      args: ['--background'],
+      entrypoint: 'cli.js',
+    });
 
     assert.equal(result.spawned, false);
     assert.equal(result.status.state, 'no-pending');
@@ -180,7 +204,11 @@ describe('launchDigestPendingWorker', () => {
     writeInitState(workspace);
     writeConvFile(workspace);
 
-    const result = launchDigestPendingWorker({ workspaceRoot: workspace, args: ['--background'], entrypoint: undefined });
+    const result = launchDigestPendingWorker({
+      workspaceRoot: workspace,
+      args: ['--background'],
+      entrypoint: undefined,
+    });
 
     assert.equal(result.ok, false);
     assert.equal(result.spawned, false);

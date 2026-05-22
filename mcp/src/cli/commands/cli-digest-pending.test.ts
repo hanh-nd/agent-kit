@@ -103,7 +103,10 @@ describe('cmdDigestPending CLI', () => {
     assert.equal(code, 0);
     const parsed = JSON.parse(output.trim()) as Record<string, unknown>;
     assert.equal(parsed.state, 'no-pending');
-    assert.equal(fs.existsSync(path.join(workspace, '.agent-kit', 'wiki', 'digest', 'digest-worker.status.json')), true);
+    assert.equal(
+      fs.existsSync(path.join(workspace, '.agent-kit', 'wiki', 'digest', 'digest-worker.status.json')),
+      true,
+    );
   });
 
   test('--background emits failed launcher JSON quickly when spawn preflight cannot find entrypoint', async () => {

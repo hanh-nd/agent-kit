@@ -42,10 +42,7 @@ runWhenInvoked(import.meta.url, async () => {
     if (typeof parsed === 'object' && parsed !== null) {
       const p = parsed as Record<string, unknown>;
       transcriptPath = typeof p.transcript_path === 'string' ? p.transcript_path : undefined;
-      sessionId =
-        typeof p.session_id === 'string' || typeof p.session_id === 'number'
-          ? p.session_id
-          : undefined;
+      sessionId = typeof p.session_id === 'string' || typeof p.session_id === 'number' ? p.session_id : undefined;
     }
   } catch {
     // fall through
