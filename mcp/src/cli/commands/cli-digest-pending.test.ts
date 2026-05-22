@@ -5,6 +5,7 @@ import { afterEach, describe, test } from 'node:test';
 import { createTempDirTracker } from '../../utils/temp-dir.test.js';
 import { runMemoryCli } from './memory.js';
 import { writeConversationDigestSettings } from '../../services/digest/files.js';
+import { DigestModelId } from '../../services/digest/types.js';
 
 const tempDirs = createTempDirTracker();
 
@@ -16,7 +17,7 @@ function writeInitState(workspace: string): void {
   writeConversationDigestSettings(workspace, {
     enabled: true,
     initialized: true,
-    modelId: 'qwen2.5-1.5b-instruct-q4',
+    modelId: DigestModelId.DEFAULT,
     initializedAt: new Date().toISOString(),
   });
 }

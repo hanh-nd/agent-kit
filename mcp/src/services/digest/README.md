@@ -12,11 +12,11 @@ Digest pages are written under `wiki/compiled/provisional/conversation-digests` 
 Initialize the local model explicitly:
 
 ```sh
-cli memory digest-init --model qwen2.5-0.5b-instruct-q4
+cli memory digest-init --model tiny
 ```
 
 Generate a page-shaped digest for one archived conversation:
 
 ```sh
-cli memory digest-file --input .agent-kit/wiki/archive/conversations/conv_2026-05-19T00-52-23-727Z.md --model qwen2.5-1.5b-instruct-q4
+cli memory digest-file --input .agent-kit/wiki/archive/conversations/conv_2026-05-19T00-52-23-727Z.md --model default
 ```

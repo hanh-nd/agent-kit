@@ -6,7 +6,7 @@ import { createTempDirTracker } from '../../utils/temp-dir.test.js';
 import { writeConversationDigestSettings } from './files.js';
 import { launchDigestPendingWorker, runDigestPendingWorker } from './background.js';
 import { DIGEST_WORKER_LOG_REL_PATH, DIGEST_WORKER_STATUS_REL_PATH } from './constants.js';
-import type { DigestWorkerStatus } from './types.js';
+import { DigestModelId, type DigestWorkerStatus } from './types.js';
 
 const tempDirs = createTempDirTracker();
 
@@ -41,7 +41,7 @@ function writeInitState(workspace: string): void {
   writeConversationDigestSettings(workspace, {
     enabled: true,
     initialized: true,
-    modelId: 'qwen2.5-1.5b-instruct-q4',
+    modelId: DigestModelId.DEFAULT,
     initializedAt: new Date().toISOString(),
   });
 }

@@ -7,7 +7,7 @@ import * as path from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { MemoryIndexer } from './indexer.js';
 import { MemoryStore } from './store.js';
-import type { MemoryConfig } from './types.js';
+import { type MemoryConfig, EmbeddingModelName } from './types.js';
 
 class StubEmbedder {
   async embed(texts: string[]): Promise<Float32Array[]> {
@@ -25,7 +25,7 @@ function makeConfig(wikiDir: string): MemoryConfig {
     topK: 5,
     chunkSize: 1500,
     overlapLines: 2,
-    embeddingModel: 'Xenova/bge-small-en-v1.5',
+    embeddingModel: EmbeddingModelName.SMALL,
     vectorDimension: 384,
   };
 }

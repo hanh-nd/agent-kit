@@ -1,3 +1,9 @@
+export enum DigestModelId {
+  TINY = 'tiny',
+  DEFAULT = 'default',
+  LARGE = 'large',
+}
+
 export interface ConversationDigestSettings {
   enabled?: boolean;
   initialized: boolean;
@@ -6,7 +12,7 @@ export interface ConversationDigestSettings {
 }
 
 export interface DigestModelSpec {
-  id: string;
+  id: DigestModelId;
   ggufUri: string;
   approxSizeBytes: number;
   license: string;

@@ -1,4 +1,4 @@
-import type { MemoryConfig } from './types.js';
+import { type MemoryConfig, EmbeddingModelName } from './types.js';
 
 export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
   enabled: false,
@@ -6,7 +6,7 @@ export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
   topK: 5,
   chunkSize: 1500,
   overlapLines: 2,
-  embeddingModel: 'Xenova/bge-small-en-v1.5',
+  embeddingModel: EmbeddingModelName.SMALL,
   vectorDimension: 384,
 };
 

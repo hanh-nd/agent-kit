@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { afterEach, describe, test } from 'node:test';
 import { createTempDirTracker } from '../../utils/temp-dir.test.js';
 import { initializeConversationDigestModel } from './processor.js';
+import { DigestModelId } from './types.js';
 
 const tempDirs = createTempDirTracker();
 
@@ -28,7 +29,7 @@ describe('initializeConversationDigestModel', () => {
     const workspace = tempDirs.makeTempDir('digest-init-');
     const result = await initializeConversationDigestModel({
       workspaceRoot: workspace,
-      modelId: 'qwen2.5-1.5b-instruct-q4',
+      modelId: DigestModelId.DEFAULT,
       allowDownload: false,
     });
 

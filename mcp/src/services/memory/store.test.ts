@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { MemoryStore } from './store.js';
-import type { MemoryChunk } from './types.js';
+import { type MemoryChunk, EmbeddingModelName } from './types.js';
 
 const TEST_CONFIG = {
   enabled: true,
@@ -12,7 +12,7 @@ const TEST_CONFIG = {
   topK: 5,
   chunkSize: 1500,
   overlapLines: 2,
-  embeddingModel: 'Xenova/bge-small-en-v1.5',
+  embeddingModel: EmbeddingModelName.SMALL,
   vectorDimension: 384,
 };
 

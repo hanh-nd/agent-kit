@@ -9,7 +9,7 @@ import {
   writeConversationDigestSettings,
   writeProvisionalDigestFile,
 } from './files.js';
-import type { ProvisionalDigestResult } from './types.js';
+import { DigestModelId, type ProvisionalDigestResult } from './types.js';
 import { digestPendingConversations, summarizePendingConversations } from './processor.js';
 
 const tempDirs = createTempDirTracker();
@@ -18,7 +18,7 @@ afterEach(() => {
   tempDirs.cleanup();
 });
 
-function writeInitState(workspace: string, modelId = 'qwen2.5-1.5b-instruct-q4'): void {
+function writeInitState(workspace: string, modelId: string = DigestModelId.DEFAULT): void {
   writeConversationDigestSettings(workspace, {
     enabled: true,
     initialized: true,

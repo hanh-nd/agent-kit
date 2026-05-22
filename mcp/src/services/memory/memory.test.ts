@@ -2,7 +2,7 @@ import * as assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import type { MemoryIndexer } from './indexer.js';
 import type { MemoryStore } from './store.js';
-import type { MemoryChunk, MemoryConfig, SearchResult } from './types.js';
+import { EmbeddingModelName, type MemoryChunk, type MemoryConfig, type SearchResult } from './types.js';
 import { resolveMemoryConfig } from '../../core/config/index.js';
 import { registerMemoryTools } from '../../mcp/memory.js';
 
@@ -36,7 +36,7 @@ const BASE_CONFIG: MemoryConfig = {
   topK: 5,
   chunkSize: 1500,
   overlapLines: 2,
-  embeddingModel: 'Xenova/bge-small-en-v1.5',
+  embeddingModel: EmbeddingModelName.SMALL,
   vectorDimension: 384,
 };
 

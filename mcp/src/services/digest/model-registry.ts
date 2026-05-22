@@ -1,4 +1,4 @@
-import type { DigestModelSpec } from './types.js';
+import { DigestModelId, type DigestModelSpec } from './types.js';
 
 class DigestModelRegistryError extends Error {
   constructor(message: string) {
@@ -8,8 +8,8 @@ class DigestModelRegistryError extends Error {
 }
 
 const DIGEST_MODEL_REGISTRY: Record<string, DigestModelSpec> = {
-  'qwen2.5-0.5b-instruct-q4': {
-    id: 'qwen2.5-0.5b-instruct-q4',
+  [DigestModelId.TINY]: {
+    id: DigestModelId.TINY,
     ggufUri: 'hf:bartowski/Qwen2.5-0.5B-Instruct-GGUF/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf',
 
     approxSizeBytes: 400_000_000,
@@ -17,8 +17,8 @@ const DIGEST_MODEL_REGISTRY: Record<string, DigestModelSpec> = {
     sourceUrl: 'https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF',
     enabled: true,
   },
-  'qwen2.5-1.5b-instruct-q4': {
-    id: 'qwen2.5-1.5b-instruct-q4',
+  [DigestModelId.DEFAULT]: {
+    id: DigestModelId.DEFAULT,
     ggufUri: 'hf:bartowski/Qwen2.5-1.5B-Instruct-GGUF/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
 
     approxSizeBytes: 1_000_000_000,
@@ -26,8 +26,8 @@ const DIGEST_MODEL_REGISTRY: Record<string, DigestModelSpec> = {
     sourceUrl: 'https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF',
     enabled: true,
   },
-  'qwen2.5-3b-instruct-q4': {
-    id: 'qwen2.5-3b-instruct-q4',
+  [DigestModelId.LARGE]: {
+    id: DigestModelId.LARGE,
     ggufUri: 'hf:bartowski/Qwen2.5-3B-Instruct-GGUF/Qwen2.5-3B-Instruct-Q4_K_M.gguf',
 
     approxSizeBytes: 1_900_000_000,

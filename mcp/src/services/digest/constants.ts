@@ -1,6 +1,7 @@
 import * as path from 'node:path';
+import { DigestModelId } from './types.js';
 
-export const DEFAULT_DIGEST_MODEL_ID = 'qwen2.5-1.5b-instruct-q4';
+export const DEFAULT_DIGEST_MODEL_ID = DigestModelId.DEFAULT;
 export const DEFAULT_DIGEST_MAX_INPUT_CHARS = 3000;
 export const DEFAULT_DIGEST_TIMEOUT_MS = 120_000;
 export const DIGEST_TIMEOUT_GRACE_MS = 5_000;

@@ -1,4 +1,5 @@
 import { FASTEMBED_CACHE_DIR } from '../../utils/paths.js';
+import { EmbeddingModelName } from './types.js';
 
 export class EmbedderError extends Error {
   constructor(message: string, cause?: unknown) {
@@ -9,11 +10,11 @@ export class EmbedderError extends Error {
 }
 
 export class Embedder {
-  private readonly modelName: string;
+  private readonly modelName: EmbeddingModelName;
   private pipeline: ((texts: string[]) => Promise<number[][]>) | null = null;
   private _dimension: number | undefined;
 
-  constructor(modelName: string) {
+  constructor(modelName: EmbeddingModelName) {
     this.modelName = modelName;
   }
 
@@ -55,9 +56,9 @@ export class Embedder {
       const { EmbeddingModel, FlagEmbedding } = await import('fastembed');
 
       const modelMap: Record<string, unknown> = {
-        'Xenova/bge-small-en-v1.5': EmbeddingModel.BGESmallENV15,
-        'Xenova/bge-base-en-v1.5': EmbeddingModel.BGEBaseENV15,
-        'Xenova/all-MiniLM-L6-v2': EmbeddingModel.AllMiniLML6V2,
+        [EmbeddingModelName.TINY]: EmbeddingModel.AllMiniLML6V2,
+        [EmbeddingModelName.SMALL]: EmbeddingModel.BGESmallENV15,
+        [EmbeddingModelName.LARGE]: EmbeddingModel.BGEBaseENV15,
       };
 
       const model = modelMap[this.modelName] ?? EmbeddingModel.BGESmallENV15;

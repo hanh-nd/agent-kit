@@ -1,5 +1,11 @@
 import type { ConversationDigestSettings } from '../digest/types.js';
 
+export enum EmbeddingModelName {
+  TINY = 'tiny',
+  SMALL = 'small',
+  LARGE = 'large',
+}
+
 export interface MemoryChunk {
   id: string;
   source: string;
@@ -23,7 +29,7 @@ export interface MemoryConfig {
   topK: number;
   chunkSize: number;
   overlapLines: number;
-  embeddingModel: string;
+  embeddingModel: EmbeddingModelName;
   vectorDimension: number;
   conversationDigest?: ConversationDigestSettings;
 }
