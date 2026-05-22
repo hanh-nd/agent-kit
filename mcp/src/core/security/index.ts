@@ -91,7 +91,7 @@ export function safeGit(args: string[], options?: { timeout?: number; cwd?: stri
   } catch (error) {
     const stderr = extractStderr(error);
     const baseMsg = error instanceof Error ? error.message : String(error);
-    throw new Error(`Git command failed: ${baseMsg}${stderr ? `\nDetails: ${stderr}` : ''}`);
+    throw new Error(`Git command failed: ${baseMsg}${stderr ? `\nDetails: ${stderr}` : ''}`, { cause: error });
   }
 }
 
@@ -168,7 +168,7 @@ export function sanitizeOutput(text: string): string {
     /SK-[A-Za-z0-9]{40,}/g, // OpenAI keys
     /AKIA[0-9A-Z]{16}/g, // AWS access keys
     /xox[baprs]-[A-Za-z0-9-]{10,}/g, // Slack tokens
-    /[Aa]tlassian[_\-]?[Aa][Pp][Ii][_\-]?[Tt]oken[^\s]*\s*[:=]\s*\S+/g, // Atlassian token patterns
+    /[Aa]tlassian[_-]?[Aa][Pp][Ii][_-]?[Tt]oken[^\s]*\s*[:=]\s*\S+/g, // Atlassian token patterns
   ];
 
   let sanitized = text;

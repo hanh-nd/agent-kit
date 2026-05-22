@@ -128,7 +128,7 @@ function parseProviderChunks(providerLines: string[] | undefined): Record<string
   }
 
   for (const line of providerLines.slice(1)) {
-    const providerMatch = line.match(/^  ([A-Za-z0-9_-]+):\s*$/);
+    const providerMatch = line.match(/^ {2}([A-Za-z0-9_-]+):\s*$/);
     if (providerMatch) {
       flushKey();
       currentProvider = providerMatch[1];
@@ -136,7 +136,7 @@ function parseProviderChunks(providerLines: string[] | undefined): Record<string
       continue;
     }
 
-    const fieldMatch = line.match(/^    ([A-Za-z0-9_-]+):(?:\s.*)?$/);
+    const fieldMatch = line.match(/^ {4}([A-Za-z0-9_-]+):(?:\s.*)?$/);
     if (fieldMatch && currentProvider) {
       flushKey();
       currentKey = fieldMatch[1];
@@ -257,7 +257,7 @@ function buildSkills(): void {
 }
 
 function buildSharedBundles(): void {
-  for (const [providerName, provider] of Object.entries(providers)) {
+  for (const [, provider] of Object.entries(providers)) {
     for (const dirName of sharedBundleDirs) {
       materializeTree(path.join(pluginRoot, 'dist', dirName), path.join(provider.root, dirName));
     }

@@ -69,7 +69,6 @@ const policy = { enforcementMode: 'audit' };
 enforce('audit test reason', policy);
 `;
     const tmpFile = path.join(os.tmpdir(), `enf-audit-${Date.now()}.mjs`);
-    const logDir = path.join(tmpDir, 'logs');
     fs.writeFileSync(tmpFile, helperCode);
     // We need KIT_PATH to point to our tmpDir so the log writes there
     // But KIT_PATH comes from constants.js which is fixed... we need to check what KIT_PATH is

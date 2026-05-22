@@ -1,4 +1,3 @@
-import * as path from 'path';
 import type { SecurityPolicy } from '@types';
 
 export function isBlockedFilename(

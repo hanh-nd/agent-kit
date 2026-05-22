@@ -4,4 +4,4 @@ export interface InitHookInput {
   session_id?: string | number;
 }
 
-export interface DefaultSettings extends Required<AgentKitSettings> {}
+export type DefaultSettings = Required<AgentKitSettings>;

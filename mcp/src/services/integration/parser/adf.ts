@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export function adfToMarkdown(adf: Record<string, unknown> | null | undefined): string {
   if (!adf || typeof adf !== 'object') return 'No description';
 

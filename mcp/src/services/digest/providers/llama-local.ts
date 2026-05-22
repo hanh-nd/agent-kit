@@ -39,7 +39,6 @@ export function trimConversationExport(content: string, maxInputChars: number): 
 
 function buildPrompt(input: ConversationDigestInput, maxInputChars: number): ChatMessage[] {
   const conversationExport = trimConversationExport(input.content, maxInputChars);
-  const sourceName = path.basename(input.sourcePath);
 
   return [
     {
