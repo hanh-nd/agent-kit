@@ -12,7 +12,7 @@
           {
             "name": "memory-kit-digest-pending",
             "type": "command",
-            "command": "npx -y -p @hanhnd/agent-kit@latest cli memory digest-pending --hook",
+            "command": "npx -y -p @hanhnd/agent-kit@latest cli memory digest-pending --background",
             "timeout": 180000
           }
         ]

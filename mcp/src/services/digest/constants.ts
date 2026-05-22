@@ -11,7 +11,10 @@ export const KIT_DIR = '.agent-kit';
 export const WIKI_DIR = path.join(KIT_DIR, 'wiki');
 export const WIKI_RAW_DIR = path.join(WIKI_DIR, 'raw');
 export const PROVISIONAL_DIGEST_DIR = path.join(WIKI_DIR, 'compiled', 'provisional', 'conversation-digests');
-export const DIGEST_LOCKFILE_REL_PATH = path.join(KIT_DIR, 'digest-worker.lock');
+export const DIGEST_WORKER_DIR = path.join(WIKI_DIR, 'digest');
+export const DIGEST_LOCKFILE_REL_PATH = path.join(DIGEST_WORKER_DIR, 'digest-worker.lock');
+export const DIGEST_WORKER_STATUS_REL_PATH = path.join(DIGEST_WORKER_DIR, 'digest-worker.status.json');
+export const DIGEST_WORKER_LOG_REL_PATH = path.join(DIGEST_WORKER_DIR, 'digest-worker.log');
 
 export const LLAMA_CONTEXT_SIZE = 4096;
 export const LLAMA_MAX_GENERATED_TOKENS = 512;

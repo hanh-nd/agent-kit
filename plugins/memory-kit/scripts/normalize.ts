@@ -10,6 +10,8 @@ const STRIP_TAGS = [
   'command-message',
   'command-args',
   'local-command-caveat',
+  'environment_context',
+  'skill'
 ];
 
 export function normalizeTranscript(raw: string): string {

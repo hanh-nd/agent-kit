@@ -3,11 +3,13 @@ import {
   digestConversationFile,
   digestPendingConversations,
 } from '../../services/digest/processor.js';
+import { launchDigestPendingWorker, runDigestPendingWorker } from '../../services/digest/background.js';
 import { isDigestWorkerInvocation, runDigestFileInWorker } from '../../services/digest/worker.js';
 import {
   DEFAULT_DIGEST_MAX_INPUT_CHARS,
   DEFAULT_DIGEST_MODEL_ID,
   DEFAULT_DIGEST_TIMEOUT_MS,
+  DIGEST_WORKER_FLAG,
   DIGEST_WORKER_RESULT_PREFIX,
 } from '../../services/digest/constants.js';
 import { loadProjectSettings, resolveConversationDigestConfig } from '../../core/config/index.js';
@@ -66,12 +68,26 @@ async function cmdDigestFile(args: string[]): Promise<number> {
 
 async function cmdDigestPending(args: string[]): Promise<number> {
   const parsed = parseArgs(args);
-  if (parsed.flags.get('hook') !== true) {
-    process.stderr.write('Usage: cli memory digest-pending --hook\n');
-    return 1;
+  const workspaceRoot = getWorkspaceRoot();
+  const isBackground = parsed.flags.get('background') === true;
+
+  if (isBackground && parsed.flags.get(DIGEST_WORKER_FLAG) === true) {
+    const result = await runDigestPendingWorker({ workspaceRoot });
+    process.stdout.write(JSON.stringify(result) + '\n');
+    return 0;
   }
 
-  const result = await digestPendingConversations({ workspaceRoot: getWorkspaceRoot() });
+  if (isBackground) {
+    const result = launchDigestPendingWorker({
+      workspaceRoot,
+      args,
+      entrypoint: process.argv[1],
+    });
+    process.stdout.write(JSON.stringify(result) + '\n');
+    return 0;
+  }
+
+  const result = await digestPendingConversations({ workspaceRoot });
   process.stdout.write(JSON.stringify(result) + '\n');
   return 0;
 }

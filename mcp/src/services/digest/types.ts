@@ -77,3 +77,40 @@ export type DigestPendingResult =
       errors: number;
     }
   | { ok: false; initialized: true; action: 'error'; error: string };
+
+export type DigestWorkerState =
+  | 'running'
+  | 'complete'
+  | 'failed'
+  | 'not-initialized'
+  | 'no-pending'
+  | 'locked'
+  | 'stale';
+
+export interface DigestWorkerStatus {
+  state: DigestWorkerState;
+  pid: number | null;
+  startedAt: string;
+  updatedAt: string;
+  pendingAtStart: number;
+  processed: number;
+  skipped: number;
+  errors: number;
+  lastError?: string;
+}
+
+export interface DigestPendingCandidateSummary {
+  initialized: boolean;
+  pending: number;
+  reason?: 'not-initialized' | 'no-pending';
+}
+
+export interface DigestPendingLauncherResult {
+  ok: boolean;
+  mode: 'background-launcher';
+  status: DigestWorkerStatus;
+  spawned: boolean;
+  pid?: number;
+  reason?: string;
+  error?: string;
+}

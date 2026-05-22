@@ -17,6 +17,7 @@ import { getDigestModelSpec } from './model-registry.js';
 import { createLlamaLocalDigestProvider } from './providers/llama-local.js';
 import type {
   DigestFileOptions,
+  DigestPendingCandidateSummary,
   DigestPendingResult,
   ProvisionalDigestResult,
   ConversationDigestInitResult,
@@ -29,6 +30,34 @@ import { releaseLock, tryAcquireProcessLock } from '../../utils/files.js';
 
 function digestLockPath(workspaceRoot: string): string {
   return path.join(workspaceRoot, DIGEST_LOCKFILE_REL_PATH);
+}
+
+function discoverPendingConversationFiles(workspaceRoot: string): string[] {
+  const rawDir = path.join(workspaceRoot, WIKI_RAW_DIR);
+  let files: string[];
+  try {
+    files = fs
+      .readdirSync(rawDir)
+      .filter((f) => f.startsWith('conv_') && f.endsWith('.md'))
+      .map((f) => path.join(rawDir, f))
+      .sort((a, b) => fs.statSync(a).mtimeMs - fs.statSync(b).mtimeMs);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      files = [];
+    } else {
+      throw err;
+    }
+  }
+
+  const outDir = defaultProvisionalDigestDir(workspaceRoot);
+  return files.filter((f) => {
+    try {
+      const input = readConversationDigestInput(workspaceRoot, f);
+      return !findExistingProvisionalDigest(outDir, input);
+    } catch {
+      return false;
+    }
+  });
 }
 
 async function indexProvisionalDigestFile(
@@ -90,12 +119,28 @@ export async function digestConversationFile(options: DigestFileOptions): Promis
   }
 }
 
+export function summarizePendingConversations(workspaceRoot: string): DigestPendingCandidateSummary {
+  const digestConfig = resolveConversationDigestConfig(loadProjectSettings(workspaceRoot));
+  if (!digestConfig || digestConfig.enabled === false) {
+    return { initialized: false, pending: 0, reason: 'not-initialized' };
+  }
+
+  const candidates = discoverPendingConversationFiles(workspaceRoot);
+  if (candidates.length === 0) {
+    return { initialized: true, pending: 0, reason: 'no-pending' };
+  }
+
+  return { initialized: true, pending: candidates.length };
+}
+
 export async function digestPendingConversations({
   workspaceRoot,
   digestFn = digestConversationFile,
+  onProgress,
 }: {
   workspaceRoot: string;
   digestFn?: (opts: DigestFileOptions) => Promise<ProvisionalDigestResult>;
+  onProgress?: (progress: { processed: number; skipped: number; errors: number }) => void | Promise<void>;
 }): Promise<DigestPendingResult> {
   const digestConfig = resolveConversationDigestConfig(loadProjectSettings(workspaceRoot));
   if (!digestConfig || digestConfig.enabled === false) {
@@ -108,31 +153,7 @@ export async function digestPendingConversations({
   }
 
   try {
-    const rawDir = path.join(workspaceRoot, WIKI_RAW_DIR);
-    let files: string[];
-    try {
-      files = fs
-        .readdirSync(rawDir)
-        .filter((f) => f.startsWith('conv_') && f.endsWith('.md'))
-        .map((f) => path.join(rawDir, f))
-        .sort((a, b) => fs.statSync(a).mtimeMs - fs.statSync(b).mtimeMs);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        files = [];
-      } else {
-        throw err;
-      }
-    }
-
-    const outDir = defaultProvisionalDigestDir(workspaceRoot);
-    const candidates = files.filter((f) => {
-      try {
-        const input = readConversationDigestInput(workspaceRoot, f);
-        return !findExistingProvisionalDigest(outDir, input);
-      } catch {
-        return false;
-      }
-    });
+    const candidates = discoverPendingConversationFiles(workspaceRoot);
 
     if (candidates.length === 0) {
       return { ok: true, initialized: true, action: 'noop', reason: 'no-pending' };
@@ -156,6 +177,10 @@ export async function digestPendingConversations({
         }
       } catch {
         errors++;
+      }
+
+      if (onProgress) {
+        await onProgress({ processed: count, skipped, errors });
       }
     }
 

@@ -3,9 +3,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { afterEach, describe, test } from 'node:test';
 import { createTempDirTracker } from '../../utils/temp-dir.js';
-import { writeConversationDigestSettings } from './files.js';
+import { defaultProvisionalDigestDir, readConversationDigestInput, writeConversationDigestSettings, writeProvisionalDigestFile } from './files.js';
 import type { ProvisionalDigestResult } from './types.js';
-import { digestPendingConversations } from './processor.js';
+import { digestPendingConversations, summarizePendingConversations } from './processor.js';
 
 const tempDirs = createTempDirTracker();
 
@@ -56,7 +56,7 @@ describe('digestPendingConversations', () => {
   test('C14: init state, live lockfile → noop locked', async () => {
     const workspace = tempDirs.makeTempDir('pending-c14-');
     writeInitState(workspace);
-    const lockDir = path.join(workspace, '.agent-kit');
+    const lockDir = path.join(workspace, '.agent-kit', 'wiki', 'digest');
     fs.mkdirSync(lockDir, { recursive: true });
     fs.writeFileSync(path.join(lockDir, 'digest-worker.lock'), JSON.stringify({ pid: process.pid }));
 
@@ -74,7 +74,7 @@ describe('digestPendingConversations', () => {
     assert.equal(result.ok, true);
     assert.equal(result.action, 'noop');
     if (result.action === 'noop') assert.equal(result.reason, 'no-pending');
-    assert.equal(fs.existsSync(path.join(workspace, '.agent-kit', 'digest-worker.lock')), false);
+    assert.equal(fs.existsSync(path.join(workspace, '.agent-kit', 'wiki', 'digest', 'digest-worker.lock')), false);
   });
 
   test('C19: wiki/raw dir does not exist → noop no-pending', async () => {
@@ -101,7 +101,7 @@ describe('digestPendingConversations', () => {
       assert.equal(result.count, 1);
       assert.equal(result.errors, 0);
     }
-    assert.equal(fs.existsSync(path.join(workspace, '.agent-kit', 'digest-worker.lock')), false);
+    assert.equal(fs.existsSync(path.join(workspace, '.agent-kit', 'wiki', 'digest', 'digest-worker.lock')), false);
   });
 
   test('C17: digestFn throws for one file → errors:1, lock released', async () => {
@@ -123,20 +123,20 @@ describe('digestPendingConversations', () => {
       assert.equal(result.errors, 1);
       assert.equal(result.count, 0);
     }
-    assert.equal(fs.existsSync(path.join(workspace, '.agent-kit', 'digest-worker.lock')), false);
+    assert.equal(fs.existsSync(path.join(workspace, '.agent-kit', 'wiki', 'digest', 'digest-worker.lock')), false);
   });
 
   test('C18: stale lockfile (dead PID) → reclaims lock and returns (no-pending since no conv files)', async () => {
     const workspace = tempDirs.makeTempDir('pending-c18-');
     writeInitState(workspace);
-    const lockDir = path.join(workspace, '.agent-kit');
+    const lockDir = path.join(workspace, '.agent-kit', 'wiki', 'digest');
     fs.mkdirSync(lockDir, { recursive: true });
     fs.writeFileSync(path.join(lockDir, 'digest-worker.lock'), JSON.stringify({ pid: 999999999 }));
 
     const result = await digestPendingConversations({ workspaceRoot: workspace });
     assert.ok(result.ok);
     if (result.action === 'noop') assert.notEqual(result.reason, 'locked');
-    assert.equal(fs.existsSync(path.join(workspace, '.agent-kit', 'digest-worker.lock')), false);
+    assert.equal(fs.existsSync(path.join(workspace, '.agent-kit', 'wiki', 'digest', 'digest-worker.lock')), false);
   });
 
   test('C20: 3 undigested conv files → digestFn called 3 times, count+skipped+errors=3', async () => {
@@ -180,6 +180,40 @@ describe('digestPendingConversations', () => {
     const result = await digestPendingConversations({ workspaceRoot: workspace });
     assert.equal(result.ok, false);
     assert.equal(result.action, 'error');
-    assert.equal(fs.existsSync(path.join(workspace, '.agent-kit', 'digest-worker.lock')), false);
+    assert.equal(fs.existsSync(path.join(workspace, '.agent-kit', 'wiki', 'digest', 'digest-worker.lock')), false);
+  });
+});
+
+describe('summarizePendingConversations', () => {
+  test('returns not-initialized without raw discovery side effects', () => {
+    const workspace = tempDirs.makeTempDir('pending-summary-init-');
+    const result = summarizePendingConversations(workspace);
+
+    assert.equal(result.initialized, false);
+    assert.equal(result.pending, 0);
+    assert.equal(result.reason, 'not-initialized');
+  });
+
+  test('returns no-pending when initialized workspace has no raw conversations', () => {
+    const workspace = tempDirs.makeTempDir('pending-summary-empty-');
+    writeInitState(workspace);
+    const result = summarizePendingConversations(workspace);
+
+    assert.equal(result.initialized, true);
+    assert.equal(result.pending, 0);
+    assert.equal(result.reason, 'no-pending');
+  });
+
+  test('counts only conversations without existing provisional digests', () => {
+    const workspace = tempDirs.makeTempDir('pending-summary-count-');
+    writeInitState(workspace);
+    const first = writeConvFile(workspace, 'conv_2026-01-01T00-00-00-001Z.md', '**User:** a\n');
+    writeConvFile(workspace, 'conv_2026-01-01T00-00-00-002Z.md', '**User:** b\n');
+    writeProvisionalDigestFile(defaultProvisionalDigestDir(workspace), readConversationDigestInput(workspace, first), '# Existing\n');
+
+    const result = summarizePendingConversations(workspace);
+
+    assert.equal(result.initialized, true);
+    assert.equal(result.pending, 1);
   });
 });

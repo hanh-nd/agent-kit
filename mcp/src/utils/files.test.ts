@@ -16,21 +16,24 @@ function lockPath(workspace: string): string {
   return path.join(workspace, DIGEST_LOCKFILE_REL_PATH);
 }
 
+function lockDir(workspace: string): string {
+  return path.dirname(lockPath(workspace));
+}
+
 describe('tryAcquireProcessLock', () => {
   test('C1: no lockfile → creates it with current PID and returns true', () => {
     const workspace = tempDirs.makeTempDir('lockfile-c1-');
     const acquired = tryAcquireProcessLock(lockPath(workspace));
     assert.equal(acquired, true);
-    const lockFile = path.join(workspace, '.agent-kit', 'digest-worker.lock');
+    const lockFile = lockPath(workspace);
     const content = JSON.parse(fs.readFileSync(lockFile, 'utf8')) as { pid: number };
     assert.equal(content.pid, process.pid);
   });
 
   test('C2: lockfile with live foreign PID → returns false without modifying file', () => {
     const workspace = tempDirs.makeTempDir('lockfile-c2-');
-    const lockDir = path.join(workspace, '.agent-kit');
-    const lockFile = path.join(lockDir, 'digest-worker.lock');
-    fs.mkdirSync(lockDir, { recursive: true });
+    const lockFile = lockPath(workspace);
+    fs.mkdirSync(lockDir(workspace), { recursive: true });
     // Use process.pid as "live" pid (current process is definitely alive)
     const livePid = process.pid;
     fs.writeFileSync(lockFile, JSON.stringify({ pid: livePid }), 'utf8');
@@ -44,9 +47,8 @@ describe('tryAcquireProcessLock', () => {
 
   test('C3: lockfile with dead PID (ESRCH) → deletes stale lock, creates new one, returns true', () => {
     const workspace = tempDirs.makeTempDir('lockfile-c3-');
-    const lockDir = path.join(workspace, '.agent-kit');
-    const lockFile = path.join(lockDir, 'digest-worker.lock');
-    fs.mkdirSync(lockDir, { recursive: true });
+    const lockFile = lockPath(workspace);
+    fs.mkdirSync(lockDir(workspace), { recursive: true });
     // PID 999999999 is virtually guaranteed to be dead
     fs.writeFileSync(lockFile, JSON.stringify({ pid: 999999999 }), 'utf8');
 
@@ -67,9 +69,8 @@ describe('tryAcquireProcessLock', () => {
 
   test('stale unparseable lockfile → treated as stale, returns true', () => {
     const workspace = tempDirs.makeTempDir('lockfile-stale-');
-    const lockDir = path.join(workspace, '.agent-kit');
-    const lockFile = path.join(lockDir, 'digest-worker.lock');
-    fs.mkdirSync(lockDir, { recursive: true });
+    const lockFile = lockPath(workspace);
+    fs.mkdirSync(lockDir(workspace), { recursive: true });
     fs.writeFileSync(lockFile, 'not-json', 'utf8');
 
     const acquired = tryAcquireProcessLock(lockPath(workspace));
@@ -81,7 +82,7 @@ describe('releaseLock', () => {
   test('C5: lockfile exists → deletes it', () => {
     const workspace = tempDirs.makeTempDir('lockfile-c5-');
     assert.equal(tryAcquireProcessLock(lockPath(workspace)), true);
-    const lockFile = path.join(workspace, '.agent-kit', 'digest-worker.lock');
+    const lockFile = lockPath(workspace);
     assert.equal(fs.existsSync(lockFile), true);
     releaseLock(lockPath(workspace));
     assert.equal(fs.existsSync(lockFile), false);

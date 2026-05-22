@@ -10,13 +10,23 @@ afterEach(() => {
 });
 
 describe('memory CLI', () => {
-  test('digest-pending --hook returns 0 when settings are missing', async () => {
+  test('digest-pending returns 0 when settings are missing', async () => {
     const workspace = tempDirs.makeTempDir('digest-pending-');
-    const code = await runMemoryCli(['digest-pending', '--hook'], {
-      ...process.env,
-      WORKSPACE_DIR: workspace,
-    });
-    assert.equal(code, 0);
+    const previous = process.env.WORKSPACE_DIR;
+    process.env.WORKSPACE_DIR = workspace;
+    try {
+      const code = await runMemoryCli(['digest-pending'], {
+        ...process.env,
+        WORKSPACE_DIR: workspace,
+      });
+      assert.equal(code, 0);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.WORKSPACE_DIR;
+      } else {
+        process.env.WORKSPACE_DIR = previous;
+      }
+    }
   });
 
   test('unknown command returns 1', async () => {
