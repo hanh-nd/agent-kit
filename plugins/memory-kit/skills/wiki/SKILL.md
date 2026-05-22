@@ -56,6 +56,8 @@ Default (empty or unrecognized): run **Compile**.
   compiled/
     index.md                 # category-organized catalog
     log.md                   # chronological compile/query record
+    provisional/
+      conversation-digests/   # temporary recall pages, deleted after compile
     preferences.md           # universal preference rules in one file
     concepts/
       {slug}.md              # patterns, architectural decisions, rules
@@ -272,6 +274,7 @@ Log F-routine and F-exploration separately because lint treats them differently:
 - Append processed inbox entries verbatim to `wiki/archive/{YYYY-MM}.md`.
 - Move `conv_*.md` files to `wiki/archive/conversations/` via `mv`.
 - Overwrite `wiki/raw/inbox.md` with an empty file.
+- Delete `wiki/compiled/provisional/conversation-digests/` after the raw conversations have been compiled. These pages are temporary recall only; durable memory must live in the normal compiled wiki pages.
 
 ### Step 10 — Report
 

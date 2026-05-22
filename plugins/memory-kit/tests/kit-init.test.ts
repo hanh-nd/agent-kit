@@ -36,10 +36,7 @@ describe('kit-init', () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(
-      JSON.parse(result.stdout).systemMessage,
-      '[memory-kit] Memory available',
-    );
+    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory available');
 
     const settingsPath = path.join(projectDir, '.agent-kit', 'settings.json');
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) as {
@@ -65,10 +62,7 @@ describe('kit-init', () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(
-      JSON.parse(result.stdout).systemMessage,
-      '[memory-kit] Memory available',
-    );
+    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory available');
   });
 
   test('no nudge when inbox has exactly 3 unique slugs (C7 — boundary)', () => {
@@ -76,11 +70,7 @@ describe('kit-init', () => {
     const scriptPath = path.resolve('dist/scripts/kit-init.js');
     const rawDir = path.join(projectDir, '.agent-kit', 'wiki', 'raw');
     fs.mkdirSync(rawDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(rawDir, 'inbox.md'),
-      '- slug: alpha\n- slug: beta\n- slug: gamma\n',
-      'utf8',
-    );
+    fs.writeFileSync(path.join(rawDir, 'inbox.md'), '- slug: alpha\n- slug: beta\n- slug: gamma\n', 'utf8');
 
     const result = spawnSync(process.execPath, [scriptPath], {
       cwd: path.resolve('.'),
@@ -90,10 +80,7 @@ describe('kit-init', () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(
-      JSON.parse(result.stdout).systemMessage,
-      '[memory-kit] Memory available',
-    );
+    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory available');
   });
 
   test('nudge fires when inbox has 4 unique slugs (C8)', () => {
@@ -143,10 +130,7 @@ describe('kit-init', () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(
-      JSON.parse(result.stdout).systemMessage,
-      '[memory-kit] Memory available',
-    );
+    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory available');
   });
 
   test('falls back to baseline systemMessage when inbox is unreadable (C9)', () => {
@@ -165,9 +149,6 @@ describe('kit-init', () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(
-      JSON.parse(result.stdout).systemMessage,
-      '[memory-kit] Memory available',
-    );
+    assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory available');
   });
 });

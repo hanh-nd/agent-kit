@@ -71,7 +71,7 @@ function loadCredentials(): IniProfile {
     const mode = stat.mode & 0o777;
     if (mode !== 0o600) {
       process.stderr.write(
-        `[credentials] ⚠️  Warning: ${CREDENTIALS_FILE} has permissions ${mode.toString(8)} — expected 600. Run: chmod 600 ${CREDENTIALS_FILE}\n`
+        `[credentials] ⚠️  Warning: ${CREDENTIALS_FILE} has permissions ${mode.toString(8)} — expected 600. Run: chmod 600 ${CREDENTIALS_FILE}\n`,
       );
     }
   } catch {
@@ -86,7 +86,7 @@ function loadCredentials(): IniProfile {
 
   if (Object.keys(cachedCredentials).length === 0 && profile !== 'default') {
     process.stderr.write(
-      `[credentials] ⚠️  Profile "${profile}" not found in ${CREDENTIALS_FILE}. Falling back to empty.\n`
+      `[credentials] ⚠️  Profile "${profile}" not found in ${CREDENTIALS_FILE}. Falling back to empty.\n`,
     );
   }
 

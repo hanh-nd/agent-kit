@@ -16,10 +16,5 @@
     "strict": true,
     "noImplicitAny": true
   },
-  "include": [
-    "scripts/**/*",
-    "utils/**/*",
-    "tests/**/*",
-    "types/**/*"
-  ]
+  "include": ["scripts/**/*", "utils/**/*", "tests/**/*", "types/**/*"]
 }

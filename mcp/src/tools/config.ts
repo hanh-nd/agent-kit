@@ -5,7 +5,10 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { DEFAULT_MEMORY_CONFIG, type MemoryConfig } from '../memory/types.js';
+import { DEFAULT_MEMORY_CONFIG } from '../memory/constants.js';
+import type { MemoryConfig } from '../memory/types.js';
+import type { ConversationDigestSettings } from '../memory/digest/types.js';
+import { atomicWriteJsonFile } from '../utils/files.js';
 
 /**
  * Default file extensions - expanded to support more languages
@@ -75,9 +78,6 @@ export function getFileExtensions(projectDir: string): string[] {
   return DEFAULT_EXTENSIONS;
 }
 
-/**
- * Load project settings from .gemini/settings.json
- */
 export function loadProjectSettings(projectDir: string): ProjectSettings {
   const settingsPath = path.join(projectDir, '.agent-kit', 'settings.json');
 
@@ -90,6 +90,25 @@ export function loadProjectSettings(projectDir: string): ProjectSettings {
   }
 
   return {};
+}
+
+export function writeProjectSettings(workspaceRoot: string, patch: Partial<ProjectSettings>): void {
+  const settingsPath = path.join(workspaceRoot, '.agent-kit', 'settings.json');
+  const current = loadProjectSettings(workspaceRoot);
+  atomicWriteJsonFile(settingsPath, { ...current, ...patch });
+}
+
+export function resolveConversationDigestConfig(settings: ProjectSettings): ConversationDigestSettings | undefined {
+  const digest = settings.memory?.conversationDigest;
+  if (!digest?.initialized || typeof digest.modelId !== 'string' || typeof digest.initializedAt !== 'string') {
+    return undefined;
+  }
+  return {
+    enabled: digest.enabled !== false,
+    initialized: true,
+    modelId: digest.modelId,
+    initializedAt: digest.initializedAt,
+  };
 }
 
 /**
@@ -129,11 +148,4 @@ export const FORBIDDEN_PATTERNS: RegExp[] = [
 /**
  * Directory name segments that are always blocked.
  */
-export const FORBIDDEN_DIRS: string[] = [
-  '.git',
-  '.ssh',
-  '.aws',
-  '.kube',
-  '.gnupg',
-  '.docker',
-];
+export const FORBIDDEN_DIRS: string[] = ['.git', '.ssh', '.aws', '.kube', '.gnupg', '.docker'];

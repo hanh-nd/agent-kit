@@ -2,6 +2,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { WIKI_RAW_DIR } from './constants.js';
+import { normalizeTranscript } from './normalize.js';
 import { acquireFileLock, parseTranscript, releaseFileLock, runWhenInvoked } from './utils.js';
 function formatTurns(transcriptPath) {
     const transcript = parseTranscript(transcriptPath);
@@ -10,8 +11,11 @@ function formatTurns(transcriptPath) {
     const now = new Date().toISOString();
     const lines = [`### ${now}`];
     for (const msg of transcript.messages) {
+        const normalized = normalizeTranscript(msg.content);
+        if (normalized.replace(/\s/g, '').length < 5)
+            continue;
         const role = msg.role === 'assistant' || msg.role === 'gemini' ? 'Assistant' : 'User';
-        lines.push(`**${role}:** ${msg.content}`);
+        lines.push(`**${role}:** ${normalized}`);
         lines.push('');
     }
     return lines.join('\n');
@@ -27,8 +31,7 @@ runWhenInvoked(import.meta.url, async () => {
         const parsed = JSON.parse(stdinData);
         if (typeof parsed === 'object' && parsed !== null) {
             const p = parsed;
-            transcriptPath =
-                typeof p.transcript_path === 'string' ? p.transcript_path : undefined;
+            transcriptPath = typeof p.transcript_path === 'string' ? p.transcript_path : undefined;
         }
     }
     catch {

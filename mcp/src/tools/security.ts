@@ -122,13 +122,11 @@ export async function findFilesAsync(
   dir: string,
   extensions: string[],
   maxFiles: number,
-  excludeDirs: string[] = ['node_modules', '.git', 'dist', 'build', 'coverage']
+  excludeDirs: string[] = ['node_modules', '.git', 'dist', 'build', 'coverage'],
 ): Promise<string[]> {
   const results: string[] = [];
   // Use queue instead of recursion to prevent stack overflow
-  const queue: Array<{ fullPath: string; relativePath: string }> = [
-    { fullPath: dir, relativePath: '' },
-  ];
+  const queue: Array<{ fullPath: string; relativePath: string }> = [{ fullPath: dir, relativePath: '' }];
 
   while (queue.length > 0 && results.length < maxFiles) {
     const current = queue.shift()!;
@@ -144,9 +142,7 @@ export async function findFilesAsync(
       if (results.length >= maxFiles) break;
 
       const entryFullPath = path.join(current.fullPath, entry.name);
-      const entryRelPath = current.relativePath
-        ? path.join(current.relativePath, entry.name)
-        : entry.name;
+      const entryRelPath = current.relativePath ? path.join(current.relativePath, entry.name) : entry.name;
 
       if (entry.isDirectory()) {
         if (!excludeDirs.includes(entry.name)) {

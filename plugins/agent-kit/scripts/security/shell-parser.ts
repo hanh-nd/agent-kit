@@ -18,7 +18,10 @@ export function tokenizeCommand(cmd: string): string[] {
   return tokens;
 }
 
-export function expandToken(token: string, policy: Pick<SecurityPolicy, 'homeDir' | 'knownEnvVars'>): ExpandedToken {
+export function expandToken(
+  token: string,
+  policy: Pick<SecurityPolicy, 'homeDir' | 'knownEnvVars'>
+): ExpandedToken {
   let expanded = token;
   const unresolvedVars: string[] = [];
 
@@ -30,21 +33,24 @@ export function expandToken(token: string, policy: Pick<SecurityPolicy, 'homeDir
   }
 
   // Env var expansion — $VAR and ${VAR}, only for known vars
-  expanded = expanded.replace(/\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g, (match, braced, bare) => {
-    const varName = braced ?? bare;
-    if (varName in policy.knownEnvVars) {
-      return policy.knownEnvVars[varName];
+  expanded = expanded.replace(
+    /\$\{([^}]+)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g,
+    (match, braced, bare) => {
+      const varName = braced ?? bare;
+      if (varName in policy.knownEnvVars) {
+        return policy.knownEnvVars[varName];
+      }
+      unresolvedVars.push(match);
+      return match;
     }
-    unresolvedVars.push(match);
-    return match;
-  });
+  );
 
   return { expanded, unresolvedVars };
 }
 
 export function extractCandidates(
   cmd: string,
-  policy: Pick<SecurityPolicy, 'homeDir' | 'knownEnvVars'>,
+  policy: Pick<SecurityPolicy, 'homeDir' | 'knownEnvVars'>
 ): ShellCandidate[] {
   const tokens = tokenizeCommand(cmd);
   const candidates: ShellCandidate[] = [];
@@ -55,7 +61,9 @@ export function extractCandidates(
     const hasUnresolvedWithSep = unresolvedVars.length > 0 && /[/\\]/.test(expanded);
 
     if (hasPathSep || startsWithTilde || hasUnresolvedWithSep) {
-      candidates.push(Object.freeze({ raw: token, expanded, unresolvedVars: Object.freeze(unresolvedVars) }));
+      candidates.push(
+        Object.freeze({ raw: token, expanded, unresolvedVars: Object.freeze(unresolvedVars) })
+      );
     }
   }
   return candidates;

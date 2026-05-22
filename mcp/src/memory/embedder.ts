@@ -46,6 +46,12 @@ export class Embedder {
     return this.pipeline !== null;
   }
 
+  async initialize(): Promise<void> {
+    if (!this.pipeline) {
+      await this.loadModel();
+    }
+  }
+
   private async loadModel(): Promise<void> {
     try {
       const { EmbeddingModel, FlagEmbedding } = await import('fastembed');
@@ -58,7 +64,11 @@ export class Embedder {
 
       const model = modelMap[this.modelName] ?? EmbeddingModel.BGESmallENV15;
 
-      const embedder = await FlagEmbedding.init({ model: model as never, cacheDir: FASTEMBED_CACHE_DIR, showDownloadProgress: false });
+      const embedder = await FlagEmbedding.init({
+        model: model as never,
+        cacheDir: FASTEMBED_CACHE_DIR,
+        showDownloadProgress: false,
+      });
 
       this.pipeline = async (texts: string[]) => {
         const result: number[][] = [];

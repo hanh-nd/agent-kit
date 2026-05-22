@@ -10,10 +10,7 @@ import type { AgentKitSettings } from '@types';
 import type { DefaultSettings, InitHookInput } from '@types';
 
 function ensureDirectories(): void {
-  const dirs = [
-    'handoffs',
-    'logs',
-  ];
+  const dirs = ['handoffs', 'logs'];
   for (const dir of dirs) {
     const dirPath = path.join(KIT_PATH, dir);
     if (!fs.existsSync(dirPath)) {

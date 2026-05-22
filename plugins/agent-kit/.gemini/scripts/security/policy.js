@@ -6,7 +6,16 @@ import { ENFORCEMENT_MODES, FORBIDDEN_DIRS, FORBIDDEN_FILES, FORBIDDEN_PATTERN_S
 import { getSecurityConfig, loadSettings } from '../utils.js';
 export const PATH_ARG_KEYS = new Set(['file_path', 'path', 'notebook_path']);
 export const COMMAND_ARG_KEYS = new Set(['command']);
-const KNOWN_ENV_VAR_NAMES = ['HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'USER', 'LOGNAME', 'TMPDIR', 'TMP', 'TEMP'];
+const KNOWN_ENV_VAR_NAMES = [
+    'HOME',
+    'XDG_CONFIG_HOME',
+    'XDG_DATA_HOME',
+    'USER',
+    'LOGNAME',
+    'TMPDIR',
+    'TMP',
+    'TEMP',
+];
 function realpathBestEffort(p) {
     try {
         return fs.realpathSync(p);
@@ -43,12 +52,7 @@ export function loadPolicy() {
         }
     })
         .map((p) => realpathBestEffort(p));
-    const systemBinPaths = [
-        '/usr/bin/',
-        '/bin/',
-        '/usr/local/bin/',
-        ...cfg.additionalSystemBinPaths,
-    ];
+    const systemBinPaths = ['/usr/bin/', '/bin/', '/usr/local/bin/', ...cfg.additionalSystemBinPaths];
     const knownEnvVars = {};
     for (const name of KNOWN_ENV_VAR_NAMES) {
         if (process.env[name] !== undefined) {

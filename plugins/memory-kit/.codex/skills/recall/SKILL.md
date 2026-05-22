@@ -9,6 +9,10 @@ description: "Search persistent memory for context relevant to the current quest
 
 Search memory for context relevant to the user's question.
 
+## Rules
+
+If no relevant memories are found, respond: "No relevant memories found.", do not hallucinate or do your own finding for memories.
+
 ## Steps
 
 1. Call `kit_memory_search` with the user's question (or a concise reformulation) as the query.

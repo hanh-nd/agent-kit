@@ -8,14 +8,7 @@
   },
   "homepage": "https://github.com/hanh-nd/agent-kit/tree/main/plugins/agent-kit",
   "repository": "https://github.com/hanh-nd/agent-kit",
-  "keywords": [
-    "engineering",
-    "agents",
-    "brainstorm",
-    "planning",
-    "code-review",
-    "workflow"
-  ],
+  "keywords": ["engineering", "agents", "brainstorm", "planning", "code-review", "workflow"],
   "skills": "./skills/",
   "mcpServers": "./.codex-plugin/mcp.json",
   "hooks": "./hooks/hooks.json",
@@ -25,11 +18,7 @@
     "longDescription": "Reusable software engineering workflows for brainstorming, planning, coding, reviewing, validation, and project knowledge capture.",
     "developerName": "hanhnd",
     "category": "Productivity",
-    "capabilities": [
-      "Read",
-      "Write",
-      "MCP"
-    ],
+    "capabilities": ["Read", "Write", "MCP"],
     "websiteURL": "https://github.com/hanh-nd/agent-kit",
     "defaultPrompt": [
       "Use Agent Kit to plan this change.",

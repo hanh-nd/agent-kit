@@ -5,8 +5,15 @@ import { Embedder } from '../memory/embedder.js';
 import { MemoryIndexer } from '../memory/indexer.js';
 import { MemoryStore } from '../memory/store.js';
 import type { MemoryConfig } from '../memory/types.js';
+import { initializeConversationDigestModel } from '../memory/digest/processor.js';
+import { DEFAULT_DIGEST_MODEL_ID } from '../memory/digest/constants.js';
 import { mcpJson, mcpText } from '../utils/utils.js';
-import { resolveMemoryConfig, type ProjectSettings } from './config.js';
+import {
+  loadProjectSettings,
+  resolveConversationDigestConfig,
+  resolveMemoryConfig,
+  type ProjectSettings,
+} from './config.js';
 
 /**
  * Registers tool handlers onto an already-constructed indexer/store pair.
@@ -17,6 +24,7 @@ export function registerMemoryToolHandlers(
   indexer: MemoryIndexer,
   store: MemoryStore,
   config: MemoryConfig,
+  workspaceRoot: string = process.cwd(),
 ): void {
   server.tool(
     'kit_memory_search',
@@ -79,6 +87,35 @@ export function registerMemoryToolHandlers(
       }
     },
   );
+
+  server.tool(
+    'kit_memory_digest_init',
+    'Initialize or toggle local conversation digesting. Downloads/cache-loads the pinned local model only when explicitly invoked.',
+    {
+      model_id: z.string().optional().describe('Digest model id'),
+      enabled: z.boolean().optional().describe('Enable or disable conversation digesting'),
+    },
+    async ({ model_id, enabled }) => {
+      try {
+        const existingConfig = resolveConversationDigestConfig(loadProjectSettings(workspaceRoot));
+        const result = await initializeConversationDigestModel({
+          workspaceRoot,
+          modelId: model_id ?? existingConfig?.modelId ?? DEFAULT_DIGEST_MODEL_ID,
+          allowDownload: true,
+          enabled,
+        });
+        return mcpJson({
+          initialized: result.initialized,
+          model_id: result.modelId,
+          initialized_at: result.initializedAt,
+          error: result.error,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return mcpJson({ initialized: false, error: message });
+      }
+    },
+  );
 }
 
 /**
@@ -98,7 +135,7 @@ export function registerMemoryTools(
   const embedder = new Embedder(config.embeddingModel);
   const indexer = new MemoryIndexer(store, embedder, config);
 
-  registerMemoryToolHandlers(server, indexer, store, config);
+  registerMemoryToolHandlers(server, indexer, store, config, workspaceRoot);
 
   return indexer;
 }

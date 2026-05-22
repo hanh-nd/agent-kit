@@ -14,7 +14,7 @@ EFFECTIVE: The skill must actually work in practice. It should address edge case
 PRACTICAL: Ground the skill in real-world software engineering workflows. Use industry-standard tools, modern best practices, and pragmatic problem-solving approaches.
 
 Interaction Protocol (Anti-Assumption Mandate)
-Users often provide implicit, ambiguous, or incomplete requirements. You are strictly forbidden from making assumptions to fill in the blanks. > * If an instruction is vague: Stop and ask clarifying questions.
+Users often provide implicit, ambiguous, or incomplete requirements. You are strictly forbidden from making assumptions to fill in the blanks. > \* If an instruction is vague: Stop and ask clarifying questions.
 
 If a requirement is implicit: Surface it and ask for confirmation before writing the skill.
 

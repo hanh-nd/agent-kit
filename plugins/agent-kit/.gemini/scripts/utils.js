@@ -45,11 +45,15 @@ export function loadSettings() {
     return {};
 }
 function stringArray(value) {
-    return Array.isArray(value) ? value.filter((entry) => typeof entry === 'string') : [];
+    return Array.isArray(value)
+        ? value.filter((entry) => typeof entry === 'string')
+        : [];
 }
 export function getSecurityConfig(settings) {
     const s = isRecord(settings.security) ? settings.security : {};
-    const enforcementMode = s.enforcementMode === ENFORCEMENT_MODES.AUDIT ? ENFORCEMENT_MODES.AUDIT : ENFORCEMENT_MODES.BLOCK;
+    const enforcementMode = s.enforcementMode === ENFORCEMENT_MODES.AUDIT
+        ? ENFORCEMENT_MODES.AUDIT
+        : ENFORCEMENT_MODES.BLOCK;
     return {
         allowOutside: typeof s.allowOutside === 'boolean' ? s.allowOutside : false,
         allowedOutsidePaths: stringArray(s.allowedOutsidePaths),

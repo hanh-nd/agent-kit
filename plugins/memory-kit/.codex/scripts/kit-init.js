@@ -60,7 +60,7 @@ runWhenInvoked(import.meta.url, async () => {
     ensureWikiDirs();
     const nudge = checkInboxNudge();
     console.log(JSON.stringify({
-        systemMessage: '[memory-kit] Memory available' + nudge,
+        systemMessage: '[memory-kit] Memory ready' + nudge,
     }));
     process.exit(0);
 });

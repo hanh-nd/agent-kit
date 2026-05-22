@@ -4,7 +4,14 @@ import { isBlockedFilename, isInForbiddenDir } from '../../scripts/security/file
 
 const mockPolicy = {
   forbiddenFiles: ['.env', 'credentials', 'id_rsa'],
-  forbiddenRegexes: [/^\.env$/i, /^\.env[^a-z]/i, /^id_rsa/i, /^id_ed25519/i, /\.pem$/i, /credentials\.json$/i],
+  forbiddenRegexes: [
+    /^\.env$/i,
+    /^\.env[^a-z]/i,
+    /^id_rsa/i,
+    /^id_ed25519/i,
+    /\.pem$/i,
+    /credentials\.json$/i,
+  ],
   forbiddenDirs: ['.git', '.ssh', '.aws', '.kube', '.gnupg', '.docker'],
 };
 

@@ -5,21 +5,16 @@ import { syncBuiltinESMExports } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { after, before, describe, test } from 'node:test';
-import type { Embedder } from '../embedder.js';
 import { MemoryIndexer } from '../indexer.js';
 import { MemoryStore } from '../store.js';
 import type { MemoryConfig } from '../types.js';
 
-// Stub embedder — returns deterministic non-zero vectors without loading any model
-class StubEmbedder implements Pick<Embedder, 'embed' | 'dimension' | 'isReady'> {
+class StubEmbedder {
   async embed(texts: string[]): Promise<Float32Array[]> {
     return texts.map(() => new Float32Array(384).fill(0.05));
   }
-  get dimension() {
-    return 384 as number | undefined;
-  }
-  isReady() {
-    return true;
+  initialize(): Promise<void> {
+    return Promise.resolve();
   }
 }
 
@@ -45,7 +40,7 @@ describe('MemoryIndexer', () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-indexer-test-'));
     config = makeConfig(tmpDir);
     store = new MemoryStore(path.join(config.wikiDir, 'index.db'), config);
-    indexer = new MemoryIndexer(store, new StubEmbedder() as unknown as Embedder, config);
+    indexer = new MemoryIndexer(store, new StubEmbedder(), config);
   });
 
   after(() => {
@@ -115,7 +110,10 @@ describe('MemoryIndexer', () => {
     assert.ok(results.length > 0, 'Expected at least one search result');
     const expectedSource = path.relative(config.wikiDir, filePath);
     const match = results.find((r) => r.chunk.source === expectedSource);
-    assert.ok(match, `Expected result with source=${expectedSource}, got: ${results.map((r) => r.chunk.source).join(', ')}`);
+    assert.ok(
+      match,
+      `Expected result with source=${expectedSource}, got: ${results.map((r) => r.chunk.source).join(', ')}`,
+    );
     assert.equal(match.chunk.content, fileContent);
     assert.equal(match.contentSource, 'file');
   });
@@ -124,7 +122,7 @@ describe('MemoryIndexer', () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'recursive-index-'));
     const testCfg = makeConfig(path.join(testDir, 'wiki'));
     const testStore = new MemoryStore(path.join(testCfg.wikiDir, 'index.db'), testCfg);
-    const testIndexer = new MemoryIndexer(testStore, new StubEmbedder() as unknown as Embedder, testCfg);
+    const testIndexer = new MemoryIndexer(testStore, new StubEmbedder(), testCfg);
     const compiledDir = path.join(testCfg.wikiDir, 'compiled');
 
     try {
@@ -162,21 +160,23 @@ describe('MemoryIndexer', () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'recursive-stale-'));
     const testCfg = makeConfig(path.join(testDir, 'wiki'));
     const testStore = new MemoryStore(path.join(testCfg.wikiDir, 'index.db'), testCfg);
-    const testIndexer = new MemoryIndexer(testStore, new StubEmbedder() as unknown as Embedder, testCfg);
+    const testIndexer = new MemoryIndexer(testStore, new StubEmbedder(), testCfg);
     const compiledDir = path.join(testCfg.wikiDir, 'compiled');
 
     try {
       fs.mkdirSync(compiledDir, { recursive: true });
       testStore.upsert(
-        [{
-          id: 'stale-daily-file-0001',
-          source: '2026-05-18.md',
-          heading: 'Stale',
-          headingLevel: 1,
-          content: 'pre migration content',
-          lineStart: 1,
-          lineEnd: 2,
-        }],
+        [
+          {
+            id: 'stale-daily-file-0001',
+            source: '2026-05-18.md',
+            heading: 'Stale',
+            headingLevel: 1,
+            content: 'pre migration content',
+            lineStart: 1,
+            lineEnd: 2,
+          },
+        ],
         [new Float32Array(384)],
       );
       assert.ok(testStore.hashesBySource('2026-05-18.md').size > 0);
@@ -201,7 +201,7 @@ describe('MemoryIndexer', () => {
       overlapLines: 0,
     };
     const testStore = new MemoryStore(path.join(testCfg.wikiDir, 'index.db'), testCfg);
-    const testIndexer = new MemoryIndexer(testStore, new StubEmbedder() as unknown as Embedder, testCfg);
+    const testIndexer = new MemoryIndexer(testStore, new StubEmbedder(), testCfg);
     const filePath = path.join(testCfg.wikiDir, 'compiled', 'entities', 'dedup.md');
     const fileContent = [
       '# Dedup',
@@ -220,7 +220,10 @@ describe('MemoryIndexer', () => {
       });
 
       const expectedPath = path.join(testCfg.wikiDir, 'compiled/entities/dedup.md');
-      fsDefault.readFileSync = ((targetPath: fs.PathOrFileDescriptor, options?: BufferEncoding | { encoding?: BufferEncoding | null; flag?: string } | null) => {
+      fsDefault.readFileSync = ((
+        targetPath: fs.PathOrFileDescriptor,
+        options?: BufferEncoding | { encoding?: BufferEncoding | null; flag?: string } | null,
+      ) => {
         if (targetPath === expectedPath) readCount += 1;
         return originalReadFileSync(targetPath, options as never);
       }) as typeof fsDefault.readFileSync;
@@ -286,7 +289,7 @@ describe('MemoryIndexer', () => {
       ],
       getChunksByIds: (ids: string[]) => chunks.filter((chunk) => ids.includes(chunk.id)),
     } as unknown as MemoryStore;
-    const testIndexer = new MemoryIndexer(fakeStore, new StubEmbedder() as unknown as Embedder, testCfg);
+    const testIndexer = new MemoryIndexer(fakeStore, new StubEmbedder(), testCfg);
 
     try {
       fs.mkdirSync(path.dirname(firstPath), { recursive: true });
@@ -296,10 +299,10 @@ describe('MemoryIndexer', () => {
       const results = await testIndexer.search('duplicate source query', 2);
 
       assert.equal(results.length, 2);
-      assert.deepEqual(results.map((result) => result.chunk.source), [
-        'compiled/entities/first.md',
-        'compiled/entities/second.md',
-      ]);
+      assert.deepEqual(
+        results.map((result) => result.chunk.source),
+        ['compiled/entities/first.md', 'compiled/entities/second.md'],
+      );
       assert.equal(results[0].chunk.content, firstContent);
       assert.equal(results[1].chunk.content, secondContent);
     } finally {
@@ -338,11 +341,14 @@ describe('MemoryIndexer', () => {
       searchBm25: () => [{ id: 'preference-1', score: 1 }],
       getChunksByIds: (ids: string[]) => chunks.filter((chunk) => ids.includes(chunk.id)),
     } as unknown as MemoryStore;
-    const testIndexer = new MemoryIndexer(fakeStore, new StubEmbedder() as unknown as Embedder, testCfg);
+    const testIndexer = new MemoryIndexer(fakeStore, new StubEmbedder(), testCfg);
 
     const results = await testIndexer.search('personal likes and preferences of the user', 5);
 
-    assert.deepEqual(results.map((result) => result.chunk.id), ['preference-1']);
+    assert.deepEqual(
+      results.map((result) => result.chunk.id),
+      ['preference-1'],
+    );
     assert.equal(results[0].retriever, 'both');
   });
 
@@ -365,11 +371,14 @@ describe('MemoryIndexer', () => {
       searchBm25: () => [],
       getChunksByIds: (ids: string[]) => chunks.filter((chunk) => ids.includes(chunk.id)),
     } as unknown as MemoryStore;
-    const testIndexer = new MemoryIndexer(fakeStore, new StubEmbedder() as unknown as Embedder, testCfg);
+    const testIndexer = new MemoryIndexer(fakeStore, new StubEmbedder(), testCfg);
 
     const results = await testIndexer.search('favorite dish', 5);
 
-    assert.deepEqual(results.map((result) => result.chunk.id), ['semantic-1']);
+    assert.deepEqual(
+      results.map((result) => result.chunk.id),
+      ['semantic-1'],
+    );
     assert.equal(results[0].retriever, 'dense');
   });
 
@@ -377,7 +386,7 @@ describe('MemoryIndexer', () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'search-fallback-'));
     const testCfg = makeConfig(path.join(testDir, 'wiki'));
     const testStore = new MemoryStore(path.join(testCfg.wikiDir, 'index.db'), testCfg);
-    const testIndexer = new MemoryIndexer(testStore, new StubEmbedder() as unknown as Embedder, testCfg);
+    const testIndexer = new MemoryIndexer(testStore, new StubEmbedder(), testCfg);
     const filePath = path.join(testCfg.wikiDir, 'compiled', 'entities', 'missing.md');
     const fileContent = '# Missing\nfallbackUniqueTerm stored chunk text';
 
@@ -403,7 +412,7 @@ describe('MemoryIndexer', () => {
     const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'empty-store-'));
     const emptyCfg = makeConfig(emptyDir);
     const emptyStore = new MemoryStore(path.join(emptyCfg.wikiDir, 'index.db'), emptyCfg);
-    const emptyIndexer = new MemoryIndexer(emptyStore, new StubEmbedder() as unknown as Embedder, emptyCfg);
+    const emptyIndexer = new MemoryIndexer(emptyStore, new StubEmbedder(), emptyCfg);
 
     try {
       const results = await emptyIndexer.search('anything', 5);
@@ -418,7 +427,7 @@ describe('MemoryIndexer', () => {
     const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'save-daily-'));
     const testCfg = makeConfig(path.join(testDir, 'wiki'));
     const testStore = new MemoryStore(path.join(testCfg.wikiDir, 'index.db'), testCfg);
-    const testIndexer = new MemoryIndexer(testStore, new StubEmbedder() as unknown as Embedder, testCfg);
+    const testIndexer = new MemoryIndexer(testStore, new StubEmbedder(), testCfg);
     const datePart = new Date().toISOString().slice(0, 10);
     const savePath = path.join(testCfg.wikiDir, 'raw', `conv_save_${datePart}.md`);
 

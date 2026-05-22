@@ -1,3 +1,5 @@
+import type { ConversationDigestSettings } from './digest/types.js';
+
 export interface MemoryChunk {
   id: string;
   source: string;
@@ -23,6 +25,7 @@ export interface MemoryConfig {
   overlapLines: number;
   embeddingModel: string;
   vectorDimension: number;
+  conversationDigest?: ConversationDigestSettings;
 }
 
 export interface IndexStats {
@@ -30,13 +33,3 @@ export interface IndexStats {
   deleted: number;
   skipped: number;
 }
-
-export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
-  enabled: false,
-  wikiDir: '',
-  topK: 5,
-  chunkSize: 1500,
-  overlapLines: 2,
-  embeddingModel: 'Xenova/bge-small-en-v1.5',
-  vectorDimension: 384,
-};

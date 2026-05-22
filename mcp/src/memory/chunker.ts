@@ -1,8 +1,8 @@
-import { createHash } from 'crypto';
 import type { MemoryChunk, MemoryConfig } from './types.js';
+import { sha256Hex } from '../utils/hash.js';
 
 export function computeChunkId(content: string): string {
-  return createHash('sha256').update(content).digest('hex').slice(0, 16);
+  return sha256Hex(content).slice(0, 16);
 }
 
 export function cleanContentForEmbedding(text: string): string {
@@ -85,10 +85,7 @@ function splitAtSentence(text: string, maxLen: number): string[] {
   return parts.filter(Boolean);
 }
 
-function splitSection(
-  text: string,
-  maxLen: number,
-): string[] {
+function splitSection(text: string, maxLen: number): string[] {
   if (text.length <= maxLen) return [text];
   const byPara = splitAtParagraph(text, maxLen);
   if (byPara.every((p) => p.length <= maxLen)) return byPara;
@@ -138,10 +135,7 @@ export function chunkMarkdown(
     const sectionText = section.lines.map((l) => l.text).join('\n');
     if (!sectionText.trim()) continue;
 
-    const fullText =
-      prevOverlapLines.length > 0
-        ? `${prevOverlapLines.join('\n')}\n${sectionText}`
-        : sectionText;
+    const fullText = prevOverlapLines.length > 0 ? `${prevOverlapLines.join('\n')}\n${sectionText}` : sectionText;
 
     const parts = splitSection(fullText, chunkSize);
 

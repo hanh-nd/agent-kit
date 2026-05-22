@@ -3,12 +3,19 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { test, describe, before, after } from 'node:test';
-import { realpathSafe, isOutsideWorkspace, shouldBlockOutside } from '../../scripts/security/workspace.js';
+import {
+  realpathSafe,
+  isOutsideWorkspace,
+  shouldBlockOutside,
+} from '../../scripts/security/workspace.js';
 import type { SecurityPolicy } from '@types';
 
 describe('workspace', () => {
   let tmpDir: string;
-  let policy: Pick<SecurityPolicy, 'projectDir' | 'caseInsensitive' | 'allowedOutsidePaths' | 'allowOutside'>;
+  let policy: Pick<
+    SecurityPolicy,
+    'projectDir' | 'caseInsensitive' | 'allowedOutsidePaths' | 'allowOutside'
+  >;
 
   before(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ak-ws-'));
@@ -21,7 +28,11 @@ describe('workspace', () => {
   });
 
   after(() => {
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
   });
 
   test('file inside workspace is not blocked', () => {
@@ -61,7 +72,9 @@ describe('workspace', () => {
       fs.symlinkSync('/etc/passwd', link1);
       fs.symlinkSync(link1, link2);
       assert.ok(shouldBlockOutside(link2, policy), 'symlink chain to /etc/passwd must be blocked');
-    } catch { /* skip if can't create */ }
+    } catch {
+      /* skip if can't create */
+    }
   });
 
   test('broken symlink uses apparent path', () => {
@@ -69,8 +82,13 @@ describe('workspace', () => {
     try {
       fs.symlinkSync(path.join(tmpDir, 'nonexistent-target'), brokenLink);
       // Broken symlink inside workspace should NOT be blocked (apparent path is inside)
-      assert.ok(!shouldBlockOutside(brokenLink, policy), 'broken symlink inside workspace should not be blocked');
-    } catch { /* skip */ }
+      assert.ok(
+        !shouldBlockOutside(brokenLink, policy),
+        'broken symlink inside workspace should not be blocked'
+      );
+    } catch {
+      /* skip */
+    }
   });
 
   test('trailing separator resolves equivalently', () => {

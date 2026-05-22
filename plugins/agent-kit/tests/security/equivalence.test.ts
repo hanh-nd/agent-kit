@@ -21,11 +21,19 @@ describe('security-privacy equivalence', { skip: !entryExists }, () => {
   before(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ak-eq-'));
     symlinkPath = path.join(tmpDir, 'passwd-link');
-    try { fs.symlinkSync('/etc/passwd', symlinkPath); } catch { /* skip on systems without /etc/passwd */ }
+    try {
+      fs.symlinkSync('/etc/passwd', symlinkPath);
+    } catch {
+      /* skip on systems without /etc/passwd */
+    }
   });
 
   after(() => {
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch {
+      /* best effort */
+    }
   });
 
   function run(payload: unknown): ChildRunResult {
@@ -35,25 +43,63 @@ describe('security-privacy equivalence', { skip: !entryExists }, () => {
       encoding: 'utf8',
     });
     const errorCode = result.error && 'code' in result.error ? result.error.code : undefined;
-    const exitCode = result.status ?? (typeof errorCode === 'string' || typeof errorCode === 'number' ? errorCode : undefined);
+    const exitCode =
+      result.status ??
+      (typeof errorCode === 'string' || typeof errorCode === 'number' ? errorCode : undefined);
     return { exitCode, stderr: result.stderr ?? '' };
   }
 
   const EQUAL_CASES: SecurityCase[] = [
-    { name: 'read safe file', payload: { tool_name: 'Read', tool_input: { file_path: 'src/foo.ts' } }, expect: { exitCode: 0 } },
-    { name: 'npm test', payload: { tool_name: 'Bash', tool_input: { command: 'npm test' } }, expect: { exitCode: 0 } },
-    { name: 'ls -la', payload: { tool_name: 'Bash', tool_input: { command: 'ls -la' } }, expect: { exitCode: 0 } },
-    { name: 'git status', payload: { tool_name: 'Bash', tool_input: { command: 'git status' } }, expect: { exitCode: 0 } },
-    { name: 'read /etc/passwd', payload: { tool_name: 'Read', tool_input: { file_path: '/etc/passwd' } }, expect: { exitCode: 2 } },
-    { name: 'traversal ../../../etc/passwd', payload: { tool_name: 'Bash', tool_input: { command: 'cat ../../../etc/passwd' } }, expect: { exitCode: 2 } },
+    {
+      name: 'read safe file',
+      payload: { tool_name: 'Read', tool_input: { file_path: 'src/foo.ts' } },
+      expect: { exitCode: 0 },
+    },
+    {
+      name: 'npm test',
+      payload: { tool_name: 'Bash', tool_input: { command: 'npm test' } },
+      expect: { exitCode: 0 },
+    },
+    {
+      name: 'ls -la',
+      payload: { tool_name: 'Bash', tool_input: { command: 'ls -la' } },
+      expect: { exitCode: 0 },
+    },
+    {
+      name: 'git status',
+      payload: { tool_name: 'Bash', tool_input: { command: 'git status' } },
+      expect: { exitCode: 0 },
+    },
+    {
+      name: 'read /etc/passwd',
+      payload: { tool_name: 'Read', tool_input: { file_path: '/etc/passwd' } },
+      expect: { exitCode: 2 },
+    },
+    {
+      name: 'traversal ../../../etc/passwd',
+      payload: { tool_name: 'Bash', tool_input: { command: 'cat ../../../etc/passwd' } },
+      expect: { exitCode: 2 },
+    },
     { name: 'malformed json', payload: null, expect: { exitCode: 0 }, raw: 'not-json' },
   ];
 
   // These are cases where NEW entry must block but OLD may not — skip against OLD
   const IMPROVE_CASES: SecurityCase[] = [
-    { name: 'tilde expansion ~/.ssh/id_rsa', payload: { tool_name: 'Bash', tool_input: { command: 'cat ~/.ssh/id_rsa' } }, expect: { exitCode: 2 } },
-    { name: 'env var $HOME/.ssh/id_rsa', payload: { tool_name: 'Bash', tool_input: { command: 'cat $HOME/.ssh/id_rsa' } }, expect: { exitCode: 2 } },
-    { name: 'env var ${HOME}/.ssh/id_rsa', payload: { tool_name: 'Bash', tool_input: { command: 'cat ${HOME}/.ssh/id_rsa' } }, expect: { exitCode: 2 } },
+    {
+      name: 'tilde expansion ~/.ssh/id_rsa',
+      payload: { tool_name: 'Bash', tool_input: { command: 'cat ~/.ssh/id_rsa' } },
+      expect: { exitCode: 2 },
+    },
+    {
+      name: 'env var $HOME/.ssh/id_rsa',
+      payload: { tool_name: 'Bash', tool_input: { command: 'cat $HOME/.ssh/id_rsa' } },
+      expect: { exitCode: 2 },
+    },
+    {
+      name: 'env var ${HOME}/.ssh/id_rsa',
+      payload: { tool_name: 'Bash', tool_input: { command: 'cat ${HOME}/.ssh/id_rsa' } },
+      expect: { exitCode: 2 },
+    },
   ];
 
   for (const tc of EQUAL_CASES) {
@@ -65,14 +111,22 @@ describe('security-privacy equivalence', { skip: !entryExists }, () => {
         encoding: 'utf8',
       });
       const exitCode = result.status ?? (result.error ? 1 : 0);
-      assert.equal(exitCode, tc.expect.exitCode, `Expected exitCode ${tc.expect.exitCode} for "${tc.name}", got ${exitCode}\nstderr: ${result.stderr}`);
+      assert.equal(
+        exitCode,
+        tc.expect.exitCode,
+        `Expected exitCode ${tc.expect.exitCode} for "${tc.name}", got ${exitCode}\nstderr: ${result.stderr}`
+      );
     });
   }
 
   for (const tc of IMPROVE_CASES) {
     test(`improve: ${tc.name} — new entry must block`, () => {
       const result = run(tc.payload);
-      assert.equal(result.exitCode, tc.expect.exitCode, `Expected exitCode ${tc.expect.exitCode} for "${tc.name}", got ${result.exitCode}\nstderr: ${result.stderr}`);
+      assert.equal(
+        result.exitCode,
+        tc.expect.exitCode,
+        `Expected exitCode ${tc.expect.exitCode} for "${tc.name}", got ${result.exitCode}\nstderr: ${result.stderr}`
+      );
     });
   }
 });

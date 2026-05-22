@@ -1,6 +1,6 @@
 {
   "name": "@hanhnd/memory-kit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Memory Kit - Native TypeScript persistent memory for agent-kit",
   "type": "module",
   "publishConfig": {
@@ -13,8 +13,8 @@
   "scripts": {
     "build:plugin": "node dist/utils/build-plugin.js",
     "prepublishOnly": "npm run build:plugin",
-    "build": "tsc && npm run build:plugin",
-    "test": "tsc && node --test $(find dist/tests -name '*.test.js' | tr '\\n' ' ')"
+    "build": "rm -rf dist && tsc && npm run build:plugin",
+    "test": "rm -rf dist && tsc && node --test $(find tests -name '*.test.ts' | sed 's#^#dist/#; s#\\.ts$#.js#' | tr '\\n' ' ')"
   },
   "devDependencies": {
     "@types/node": "^22.15.21",

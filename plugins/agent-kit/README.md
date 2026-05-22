@@ -8,27 +8,27 @@
 
 Agent Kit ships these workflows as skills. In Claude Code, invoke them as slash commands such as `/plan ...`. In Codex or Gemini, ask the agent to use Agent Kit or the named skill, for example: `Use Agent Kit plan for this change`.
 
-| Skill / Command                  | Description                                                        |
-| -------------------------------- | ------------------------------------------------------------------ |
-| `/brainstorm [idea]`             | Turn a raw idea into an engineer-ready design brief                |
-| `/scenario [artifact]`           | Stress-test requirements, plans, tickets, or reviews for risks     |
-| `/clarify <file or task>`        | Resolve requirement gaps using codebase evidence                   |
-| `/plan [file or idea]`           | Create a detailed implementation blueprint                         |
-| `/investigate [issue]`           | Trace bugs, errors, or unexpected behavior to root cause           |
-| `/code [plan or report]`         | Implement from a WBS plan or investigation report                  |
-| `/test [intent]`                 | Add or update focused tests after implementation intent exists     |
-| `/code-review [diff or target]`  | Review diffs, PRs, or commits with evidence-backed findings        |
-| `/e2e-review [diff or target]`   | Review diffs, PRs, or commits with evidence-backed findings        |
-| `/review [base]`                 | Review local staged and unstaged changes                           |
-| `/review-pr [PR URL]`            | Fetch PR/Jira context, check out the branch, and run code review   |
-| `/code-simplify [target]`        | Improve readability without changing behavior or public shape      |
-| `/code-refactor [target]`        | Analyze structural refactors and produce a refactor proposal       |
-| `/validate [artifact]`           | Validate artifacts directly or by appending `with /validate`       |
-| `/research [topic]`              | Produce source-backed technical research                           |
-| `/debate [subject]`              | Run adversarial validation of an analysis, review, or plan         |
-| `/ticket [ID]`                   | Fetch a Jira ticket and route it into the planning pipeline        |
-| `/init`                          | Extract project DNA for downstream coding and planning workflows   |
-| `/delegate <agent> <task>`       | Delegate to Gemini, Claude, or Codex CLI with optional handoff     |
+| Skill / Command                 | Description                                                      |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `/brainstorm [idea]`            | Turn a raw idea into an engineer-ready design brief              |
+| `/scenario [artifact]`          | Stress-test requirements, plans, tickets, or reviews for risks   |
+| `/clarify <file or task>`       | Resolve requirement gaps using codebase evidence                 |
+| `/plan [file or idea]`          | Create a detailed implementation blueprint                       |
+| `/investigate [issue]`          | Trace bugs, errors, or unexpected behavior to root cause         |
+| `/code [plan or report]`        | Implement from a WBS plan or investigation report                |
+| `/test [intent]`                | Add or update focused tests after implementation intent exists   |
+| `/code-review [diff or target]` | Review diffs, PRs, or commits with evidence-backed findings      |
+| `/e2e-review [diff or target]`  | Review diffs, PRs, or commits with evidence-backed findings      |
+| `/review [base]`                | Review local staged and unstaged changes                         |
+| `/review-pr [PR URL]`           | Fetch PR/Jira context, check out the branch, and run code review |
+| `/code-simplify [target]`       | Improve readability without changing behavior or public shape    |
+| `/code-refactor [target]`       | Analyze structural refactors and produce a refactor proposal     |
+| `/validate [artifact]`          | Validate artifacts directly or by appending `with /validate`     |
+| `/research [topic]`             | Produce source-backed technical research                         |
+| `/debate [subject]`             | Run adversarial validation of an analysis, review, or plan       |
+| `/ticket [ID]`                  | Fetch a Jira ticket and route it into the planning pipeline      |
+| `/init`                         | Extract project DNA for downstream coding and planning workflows |
+| `/delegate <agent> <task>`      | Delegate to Gemini, Claude, or Codex CLI with optional handoff   |
 
 ---
 
