@@ -1,7 +1,6 @@
 ---
-name: init
+name: init-digest
 description: Optional local conversation digest setup for Memory Kit. Runs only when explicitly requested.
-context: fork
 ---
 
 # Memory Init
