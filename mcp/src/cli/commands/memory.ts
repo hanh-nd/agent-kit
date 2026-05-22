@@ -47,7 +47,7 @@ async function cmdDigestFile(args: string[]): Promise<number> {
   const inputPath = stringFlag(parsed.flags, 'input');
 
   if (!inputPath) {
-    process.stderr.write('Usage: agent-kit-cli memory digest-file --input <path> --model <id>\n');
+    process.stderr.write('Usage: cli memory digest-file --input <path> --model <id>\n');
     return 1;
   }
 
@@ -67,7 +67,7 @@ async function cmdDigestFile(args: string[]): Promise<number> {
 async function cmdDigestPending(args: string[]): Promise<number> {
   const parsed = parseArgs(args);
   if (parsed.flags.get('hook') !== true) {
-    process.stderr.write('Usage: agent-kit-cli memory digest-pending --hook\n');
+    process.stderr.write('Usage: cli memory digest-pending --hook\n');
     return 1;
   }
 
@@ -88,6 +88,6 @@ export async function runMemoryCli(args: string[], _env: NodeJS.ProcessEnv): Pro
     return 1;
   }
 
-  process.stderr.write('Usage: agent-kit-cli memory <digest-file|digest-init|digest-pending>\n');
+  process.stderr.write('Usage: cli memory <digest-file|digest-init|digest-pending>\n');
   return 1;
 }

@@ -6,6 +6,6 @@ export async function runAgentKitCli(argv: string[], env: NodeJS.ProcessEnv): Pr
     return runMemoryCli(rest, env);
   }
 
-  process.stderr.write('Usage: agent-kit-cli memory <digest-file|digest-init|digest-pending>\n');
+  process.stderr.write('Usage: cli memory <digest-file|digest-init|digest-pending>\n');
   return 1;
 }

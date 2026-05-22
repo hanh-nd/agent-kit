@@ -6,7 +6,7 @@
   "main": "dist/server.js",
   "bin": {
     "agent-kit": "dist/server.js",
-    "agent-kit-cli": "dist/cli.js"
+    "cli": "dist/cli.js"
   },
   "files": [
     "dist",
