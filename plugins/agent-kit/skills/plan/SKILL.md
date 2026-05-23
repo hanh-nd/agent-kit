@@ -4,7 +4,6 @@ description: 'Create an intern-proof implementation blueprint from a Design Brie
 version: 4.1.0
 providers:
   claude:
-    effort: xhigh
     model: opus
   gemini:
     model: gemini-3-pro-preview

@@ -4,7 +4,7 @@ description: 'Implement a WBS plan or Investigation Report end-to-end — edits 
 version: 2.0.0
 providers:
   claude:
-    effort: medium
+    model: sonnet
 ---
 
 # 💻 Code

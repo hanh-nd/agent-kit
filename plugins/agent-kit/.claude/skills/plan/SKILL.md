@@ -2,7 +2,6 @@
 name: plan
 description: 'Create an intern-proof implementation blueprint from a Design Brief or raw requirements'
 model: opus
-effort: xhigh
 ---
 
 # 🏛️ Plan

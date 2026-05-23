@@ -1,7 +1,7 @@
 ---
 name: code
 description: 'Implement a WBS plan or Investigation Report end-to-end — edits files in place, runs tests, halts on logic gaps.'
-effort: medium
+model: sonnet
 ---
 
 # 💻 Code

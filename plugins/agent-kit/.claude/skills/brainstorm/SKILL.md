@@ -2,7 +2,6 @@
 name: brainstorm
 description: 'Strategic architectural brainstorming — from raw idea to engineer-ready PRD'
 model: opus
-effort: xhigh
 ---
 
 # 💡 Brainstorm

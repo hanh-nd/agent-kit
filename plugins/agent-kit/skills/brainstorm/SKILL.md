@@ -4,7 +4,6 @@ description: 'Strategic architectural brainstorming — from raw idea to enginee
 version: 1.0.0
 providers:
   claude:
-    effort: xhigh
     model: opus
   gemini:
     model: gemini-3-pro-preview
