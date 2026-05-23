@@ -44,39 +44,19 @@ function buildPrompt(input: ConversationDigestInput, maxInputChars: number): Cha
     {
       role: 'system',
       content: [
-        '# ROLE',
-        'You write short project-memory wiki pages from developer transcripts.',
-        'Your output is temporary recall to prevent blind steps.',
-        '',
-        '# RULES',
-        '1. Read the end of the export FIRST to discover the ultimate resolution.',
-        '2. What the user says LAST ALWAYS overrides earlier agreements.',
-        '3. Capture absolute engineering conclusions, never conversational pleasantries.',
-        '4. Return Markdown only. Do not wrap output in code blocks (```markdown ... ```).',
+        'You are a technical summarizer.',
+        'Focus ONLY on the final decisions made at the end of the transcript.',
+        'Never invent or guess details.',
+        'Keep the output concise and strictly factual.',
       ].join('\n'),
     },
     {
       role: 'user',
       content: [
-        'Generate a high-level project memory page. STRICTLY adhere to this architectural layout:',
-        '',
-        '<layout>',
-        '# Digest: ' + titleFromSource(input.sourcePath),
-        '- **Ultimate Core Resolution**: [Describe the final working state of the feature and what problem it solves in 1-2 sentences. No conversational filler.]',
-        '- **Architectural Changes**: [List 3-4 high-level engineering decisions made (e.g., shifts in hook timing, data isolation, atomic locks). Focus on systemic changes, NOT individual files.]',
-        '- **Component State**: [Briefly state how the Plugin side and the MCP/CLI side now interact based on the final decision.]',
-        '- **Considered & Rejected**: [List concepts proposed but discarded (e.g., initial hooks location, mocking strategies). Omit if empty.]',
-        '</layout>',
-        '',
-        '# CRITICAL RULES:',
-        '- DO NOT list individual file paths, line numbers, or specific test cases (EXCLUDE lists of files).',
-        '- Focus entirely on the SYSTEM DESIGN and ARCHITECTURE that the next engineer needs to know.',
-        '- Keep output under 300 tokens. Stop immediately after the last valid section.',
-        '',
-        'Source path: ' + input.sourcePath,
-        '<conversation_export format="memory-kit">',
+        'Transcript:',
         conversationExport,
-        '</conversation_export>',
+        '',
+        'Task: Write a brief summary paragraph of the final agreed-upon decisions in the transcript above. Then, provide a simple bulleted list of the specific technical changes or outcomes.',
       ].join('\n'),
     },
   ];
@@ -153,7 +133,16 @@ export async function createLlamaLocalDigestProvider(modelId: string): Promise<C
           () => new LlamaLocalDigestProviderError(`Llama provider timed out after ${options.timeoutMs}ms`),
         );
 
-        return sanitizeConversationDigestMarkdown(response);
+        const metadata = `## Digest: ${titleFromSource(input.sourcePath)}
+
+| Key | Value |
+| ------ | ----- |
+| **Source** | ${input.sourcePath} |
+| **Generated** | ${new Date().toISOString().split('T')[0]} |
+| **Model** | ${modelId} |
+`;
+        const sanitized = sanitizeConversationDigestMarkdown(response);
+        return `${metadata}\n\n${sanitized}`;
       } finally {
         await context.dispose();
       }

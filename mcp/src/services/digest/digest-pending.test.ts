@@ -18,7 +18,7 @@ afterEach(() => {
   tempDirs.cleanup();
 });
 
-function writeInitState(workspace: string, modelId: string = DigestModelId.DEFAULT): void {
+function writeInitState(workspace: string, modelId: string = DigestModelId.BASE): void {
   writeConversationDigestSettings(workspace, {
     enabled: true,
     initialized: true,

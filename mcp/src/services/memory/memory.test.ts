@@ -36,7 +36,7 @@ const BASE_CONFIG: MemoryConfig = {
   topK: 5,
   chunkSize: 1500,
   overlapLines: 2,
-  embeddingModel: EmbeddingModelName.SMALL,
+  embeddingModel: EmbeddingModelName.BASE,
   vectorDimension: 384,
 };
 

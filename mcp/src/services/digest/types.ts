@@ -1,6 +1,6 @@
 export enum DigestModelId {
   TINY = 'tiny',
-  DEFAULT = 'default',
+  BASE = 'base',
   LARGE = 'large',
 }
 

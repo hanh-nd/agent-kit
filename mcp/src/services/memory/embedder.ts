@@ -57,7 +57,7 @@ export class Embedder {
 
       const modelMap: Record<string, unknown> = {
         [EmbeddingModelName.TINY]: EmbeddingModel.AllMiniLML6V2,
-        [EmbeddingModelName.SMALL]: EmbeddingModel.BGESmallENV15,
+        [EmbeddingModelName.BASE]: EmbeddingModel.BGESmallENV15,
         [EmbeddingModelName.LARGE]: EmbeddingModel.BGEBaseENV15,
       };
 

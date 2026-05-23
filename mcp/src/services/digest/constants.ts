@@ -1,8 +1,8 @@
 import * as path from 'node:path';
 import { DigestModelId } from './types.js';
 
-export const DEFAULT_DIGEST_MODEL_ID = DigestModelId.DEFAULT;
-export const DEFAULT_DIGEST_MAX_INPUT_CHARS = 3000;
+export const DEFAULT_DIGEST_MODEL_ID = DigestModelId.BASE;
+export const DEFAULT_DIGEST_MAX_INPUT_CHARS = 10000;
 export const DEFAULT_DIGEST_TIMEOUT_MS = 120_000;
 export const DIGEST_TIMEOUT_GRACE_MS = 5_000;
 export const DIGEST_WORKER_FLAG = '__agent-kit-digest-worker';
@@ -17,6 +17,6 @@ export const DIGEST_LOCKFILE_REL_PATH = path.join(DIGEST_WORKER_DIR, 'digest-wor
 export const DIGEST_WORKER_STATUS_REL_PATH = path.join(DIGEST_WORKER_DIR, 'digest-worker.status.json');
 export const DIGEST_WORKER_LOG_REL_PATH = path.join(DIGEST_WORKER_DIR, 'digest-worker.log');
 
-export const LLAMA_CONTEXT_SIZE = 4096;
+export const LLAMA_CONTEXT_SIZE = 8192;
 export const LLAMA_MAX_GENERATED_TOKENS = 512;
 export const LLAMA_TEMPERATURE = 0.1;

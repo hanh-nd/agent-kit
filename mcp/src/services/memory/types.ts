@@ -2,7 +2,7 @@ import type { ConversationDigestSettings } from '../digest/types.js';
 
 export enum EmbeddingModelName {
   TINY = 'tiny',
-  SMALL = 'small',
+  BASE = 'base',
   LARGE = 'large',
 }
 

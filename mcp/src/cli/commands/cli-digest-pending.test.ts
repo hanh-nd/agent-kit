@@ -17,7 +17,7 @@ function writeInitState(workspace: string): void {
   writeConversationDigestSettings(workspace, {
     enabled: true,
     initialized: true,
-    modelId: DigestModelId.DEFAULT,
+    modelId: DigestModelId.BASE,
     initializedAt: new Date().toISOString(),
   });
 }

@@ -17,8 +17,8 @@ const DIGEST_MODEL_REGISTRY: Record<string, DigestModelSpec> = {
     sourceUrl: 'https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF',
     enabled: true,
   },
-  [DigestModelId.DEFAULT]: {
-    id: DigestModelId.DEFAULT,
+  [DigestModelId.BASE]: {
+    id: DigestModelId.BASE,
     ggufUri: 'hf:bartowski/Qwen2.5-1.5B-Instruct-GGUF/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
 
     approxSizeBytes: 1_000_000_000,

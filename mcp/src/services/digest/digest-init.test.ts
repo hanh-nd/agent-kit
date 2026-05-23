@@ -29,7 +29,7 @@ describe('initializeConversationDigestModel', () => {
     const workspace = tempDirs.makeTempDir('digest-init-');
     const result = await initializeConversationDigestModel({
       workspaceRoot: workspace,
-      modelId: DigestModelId.DEFAULT,
+      modelId: DigestModelId.BASE,
       allowDownload: false,
     });
 
