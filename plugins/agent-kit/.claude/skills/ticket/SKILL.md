@@ -1,6 +1,7 @@
 ---
 name: ticket
 description: 'Fetch a Jira ticket and route to the planning pipeline'
+disable-model-invocation: true
 ---
 
 # 🎫 Ticket
