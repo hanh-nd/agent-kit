@@ -5,6 +5,9 @@ version: 1.0.0
 providers:
   claude:
     disable-model-invocation: true
+  codex:
+    policy:
+      allow_implicit_invocation: false
 ---
 
 # Debate Mode — Adversarial Validation Layer

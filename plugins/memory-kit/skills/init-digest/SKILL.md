@@ -5,6 +5,9 @@ providers:
   claude:
     disable-model-invocation: true
     context: fork
+  codex:
+    policy:
+      allow_implicit_invocation: false
 ---
 
 # Memory Init
