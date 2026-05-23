@@ -262,7 +262,7 @@ If any AC has no covering task → add the missing task to Section 2 before cont
 ### Phase 5: Handoff
 
 1. **Constraint check.** Verify NO source code was modified during this session.
-2. **Persist the blueprint immediately** — do NOT ask for approval first. Call `kit_save_handoff(type: "plan", content: <full blueprint markdown>, slug: <feature-name-without-versioning>)`. The tool will handle versioning automatically and returns the saved file path, typically `.agent-kit/handoffs/<feature-slug>/plan.md`.
+2. **Persist the blueprint immediately** — do NOT ask for approval first. Call `kit_save_handoff(type: "plan", slug: <feature-name-without-versioning>, files: { "index.md": <full blueprint markdown> })`. The tool will handle versioning automatically and returns the saved folder path, typically `.agent-kit/handoffs/<feature-slug>/plan/`.
 3. **Present execution menu.** Ask the user what to do next:
 
 ```

@@ -297,7 +297,7 @@ Never present Community-Reported as Verified.
 
 ## Phase 5: Persistence & Handoff
 
-1. **Persist the blueprint** Call `kit_save_handoff(type: "research", content: <full blueprint markdown>, slug: <feature-name-without-versioning>)`.
+1. **Persist the blueprint** Call `kit_save_handoff(type: "research", slug: <feature-name-without-versioning>, files: { "index.md": <full blueprint markdown> })`.
    The tool will handle versioning automatically and returns the saved file path. Output the next step:
    ```
    ✅ Research saved. To implement:

@@ -36,13 +36,12 @@ function inboxPath(projectDir: string): string {
 describe('kit-handoff-saved', () => {
   test('appends a well-formed entry on successful save (C1)', () => {
     const projectDir = makeTempDir();
-    const handoffPath = path.join(projectDir, '.agent-kit', 'handoffs', 'auth-flow', 'plan.md');
-    fs.mkdirSync(path.dirname(handoffPath), { recursive: true });
-    fs.writeFileSync(handoffPath, '# Plan\n\nFix auth.\n', 'utf8');
+    const handoffFolder = path.join(projectDir, '.agent-kit', 'handoffs', 'auth-flow', 'plan');
+    fs.mkdirSync(handoffFolder, { recursive: true });
 
     const result = runHook(projectDir, {
-      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffPath}` }],
-      tool_input: { type: 'plan', slug: 'auth-flow', content: '# Plan\n\nFix auth.\n' },
+      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffFolder}` }],
+      tool_input: { type: 'plan', slug: 'auth-flow', files: { 'index.md': '# Plan\n\nFix auth.\n' } },
     });
 
     assert.equal(result.status, 0, result.stderr);
@@ -52,7 +51,7 @@ describe('kit-handoff-saved', () => {
     assert.match(inbox, /## \[.+\] handoff \| plan-auth-flow/);
     assert.match(inbox, /^- type: plan$/m);
     assert.match(inbox, /^- slug: auth-flow$/m);
-    assert.match(inbox, /^- path: \.agent-kit\/handoffs\/auth-flow\/plan\.md$/m);
+    assert.match(inbox, /^- path: \.agent-kit\/handoffs\/auth-flow\/plan$/m);
     assert.match(inbox, /^- summary: Fix auth\.$/m);
   });
 
@@ -61,7 +60,7 @@ describe('kit-handoff-saved', () => {
 
     const result = runHook(projectDir, {
       tool_response: [{ type: 'text', text: 'Error saving handoff: disk full' }],
-      tool_input: { type: 'plan', slug: 'auth-flow', content: 'Fix auth.' },
+      tool_input: { type: 'plan', slug: 'auth-flow', files: { 'index.md': 'Fix auth.' } },
     });
 
     assert.equal(result.status, 0, result.stderr);
@@ -70,13 +69,12 @@ describe('kit-handoff-saved', () => {
 
   test('skips heading lines for summary (C3)', () => {
     const projectDir = makeTempDir();
-    const handoffPath = path.join(projectDir, '.agent-kit', 'handoffs', 'feat', 'plan.md');
-    fs.mkdirSync(path.dirname(handoffPath), { recursive: true });
-    fs.writeFileSync(handoffPath, '', 'utf8');
+    const handoffFolder = path.join(projectDir, '.agent-kit', 'handoffs', 'feat', 'plan');
+    fs.mkdirSync(handoffFolder, { recursive: true });
 
     runHook(projectDir, {
-      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffPath}` }],
-      tool_input: { type: 'plan', slug: 'feat', content: '# Title\n## sub\n\nReal first line.\n' },
+      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffFolder}` }],
+      tool_input: { type: 'plan', slug: 'feat', files: { 'index.md': '# Title\n## sub\n\nReal first line.\n' } },
     });
 
     const inbox = fs.readFileSync(inboxPath(projectDir), 'utf8');
@@ -85,14 +83,13 @@ describe('kit-handoff-saved', () => {
 
   test('truncates summary at 120 chars with ellipsis (C4)', () => {
     const projectDir = makeTempDir();
-    const handoffPath = path.join(projectDir, '.agent-kit', 'handoffs', 'feat', 'plan.md');
-    fs.mkdirSync(path.dirname(handoffPath), { recursive: true });
-    fs.writeFileSync(handoffPath, '', 'utf8');
+    const handoffFolder = path.join(projectDir, '.agent-kit', 'handoffs', 'feat', 'plan');
+    fs.mkdirSync(handoffFolder, { recursive: true });
 
     const longLine = 'A'.repeat(200);
     runHook(projectDir, {
-      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffPath}` }],
-      tool_input: { type: 'plan', slug: 'feat', content: longLine },
+      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffFolder}` }],
+      tool_input: { type: 'plan', slug: 'feat', files: { 'index.md': longLine } },
     });
 
     const inbox = fs.readFileSync(inboxPath(projectDir), 'utf8');
@@ -105,28 +102,27 @@ describe('kit-handoff-saved', () => {
   test('both entries land intact under concurrent saves (C5)', async () => {
     const projectDir = makeTempDir();
 
-    function makeHandoff(slug: string): string {
-      const p = path.join(projectDir, '.agent-kit', 'handoffs', slug, 'plan.md');
-      fs.mkdirSync(path.dirname(p), { recursive: true });
-      fs.writeFileSync(p, '', 'utf8');
+    function makeHandoffFolder(slug: string): string {
+      const p = path.join(projectDir, '.agent-kit', 'handoffs', slug, 'plan');
+      fs.mkdirSync(p, { recursive: true });
       return p;
     }
 
-    const pathA = makeHandoff('feat-a');
-    const pathB = makeHandoff('feat-b');
+    const folderA = makeHandoffFolder('feat-a');
+    const folderB = makeHandoffFolder('feat-b');
 
     await Promise.all([
       new Promise<void>((resolve) => {
         runHook(projectDir, {
-          tool_response: [{ type: 'text', text: `✅ Saved to: ${pathA}` }],
-          tool_input: { type: 'plan', slug: 'feat-a', content: 'Summary A.' },
+          tool_response: [{ type: 'text', text: `✅ Saved to: ${folderA}` }],
+          tool_input: { type: 'plan', slug: 'feat-a', files: { 'index.md': 'Summary A.' } },
         });
         resolve();
       }),
       new Promise<void>((resolve) => {
         runHook(projectDir, {
-          tool_response: [{ type: 'text', text: `✅ Saved to: ${pathB}` }],
-          tool_input: { type: 'plan', slug: 'feat-b', content: 'Summary B.' },
+          tool_response: [{ type: 'text', text: `✅ Saved to: ${folderB}` }],
+          tool_input: { type: 'plan', slug: 'feat-b', files: { 'index.md': 'Summary B.' } },
         });
         resolve();
       }),
@@ -153,16 +149,14 @@ describe('kit-handoff-saved', () => {
     assert.ok(!fs.existsSync(inboxPath(projectDir)));
   });
 
-  test('slug and type come from saved path, not tool_input (C11)', () => {
+  test('slug and type come from saved folder path, not tool_input (C11)', () => {
     const projectDir = makeTempDir();
-    // Simulates slug sanitization: tool_input.slug="PROJ-123 Auth" but path uses "proj-123"
-    const handoffPath = path.join(projectDir, '.agent-kit', 'handoffs', 'proj-123', 'plan.md');
-    fs.mkdirSync(path.dirname(handoffPath), { recursive: true });
-    fs.writeFileSync(handoffPath, '', 'utf8');
+    const handoffFolder = path.join(projectDir, '.agent-kit', 'handoffs', 'proj-123', 'plan');
+    fs.mkdirSync(handoffFolder, { recursive: true });
 
     runHook(projectDir, {
-      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffPath}` }],
-      tool_input: { type: 'plan', slug: 'PROJ-123 Auth', content: 'Fix ticket.' },
+      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffFolder}` }],
+      tool_input: { type: 'plan', slug: 'PROJ-123 Auth', files: { 'index.md': 'Fix ticket.' } },
     });
 
     const inbox = fs.readFileSync(inboxPath(projectDir), 'utf8');
@@ -170,18 +164,83 @@ describe('kit-handoff-saved', () => {
     assert.match(inbox, /^- type: plan$/m);
   });
 
-  test('uses "(no summary)" when content has only headings (C12)', () => {
+  test('uses "(no summary)" when files have only headings (C12)', () => {
     const projectDir = makeTempDir();
-    const handoffPath = path.join(projectDir, '.agent-kit', 'handoffs', 'feat', 'plan.md');
-    fs.mkdirSync(path.dirname(handoffPath), { recursive: true });
-    fs.writeFileSync(handoffPath, '', 'utf8');
+    const handoffFolder = path.join(projectDir, '.agent-kit', 'handoffs', 'feat', 'plan');
+    fs.mkdirSync(handoffFolder, { recursive: true });
 
     runHook(projectDir, {
-      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffPath}` }],
-      tool_input: { type: 'plan', slug: 'feat', content: '# heading\n\n\n' },
+      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffFolder}` }],
+      tool_input: { type: 'plan', slug: 'feat', files: { 'index.md': '# heading\n\n\n' } },
     });
 
     const inbox = fs.readFileSync(inboxPath(projectDir), 'utf8');
     assert.match(inbox, /^- summary: \(no summary\)$/m);
+  });
+
+  test('uses README.md as summary source when present (C13)', () => {
+    const projectDir = makeTempDir();
+    const handoffFolder = path.join(projectDir, '.agent-kit', 'handoffs', 'feat', 'brainstorm');
+    fs.mkdirSync(handoffFolder, { recursive: true });
+
+    runHook(projectDir, {
+      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffFolder}` }],
+      tool_input: {
+        type: 'brainstorm',
+        slug: 'feat',
+        files: { 'DETAIL.md': 'Technical detail.', 'README.md': 'Decision log.' },
+      },
+    });
+
+    const inbox = fs.readFileSync(inboxPath(projectDir), 'utf8');
+    assert.match(inbox, /^- summary: Decision log\.$/m);
+  });
+
+  test('falls back to first file when README.md absent (C14)', () => {
+    const projectDir = makeTempDir();
+    const handoffFolder = path.join(projectDir, '.agent-kit', 'handoffs', 'feat', 'research');
+    fs.mkdirSync(handoffFolder, { recursive: true });
+
+    runHook(projectDir, {
+      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffFolder}` }],
+      tool_input: { type: 'research', slug: 'feat', files: { 'index.md': 'Research summary.' } },
+    });
+
+    const inbox = fs.readFileSync(inboxPath(projectDir), 'utf8');
+    assert.match(inbox, /^- summary: Research summary\.$/m);
+  });
+
+  test('uses "(no summary)" when README.md has only headings (C15)', () => {
+    const projectDir = makeTempDir();
+    const handoffFolder = path.join(projectDir, '.agent-kit', 'handoffs', 'feat', 'brainstorm');
+    fs.mkdirSync(handoffFolder, { recursive: true });
+
+    runHook(projectDir, {
+      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffFolder}` }],
+      tool_input: {
+        type: 'brainstorm',
+        slug: 'feat',
+        files: { 'README.md': '# Heading only\n## Sub\n' },
+      },
+    });
+
+    const inbox = fs.readFileSync(inboxPath(projectDir), 'utf8');
+    assert.match(inbox, /^- summary: \(no summary\)$/m);
+  });
+
+  test('derives type and slug from folder path without .md stripping (C16)', () => {
+    const projectDir = makeTempDir();
+    const handoffFolder = path.join(projectDir, '.agent-kit', 'handoffs', 'my-feature', 'brainstorm');
+    fs.mkdirSync(handoffFolder, { recursive: true });
+
+    runHook(projectDir, {
+      tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffFolder}` }],
+      tool_input: { type: 'brainstorm', slug: 'my-feature', files: { 'README.md': 'Summary text.' } },
+    });
+
+    const inbox = fs.readFileSync(inboxPath(projectDir), 'utf8');
+    assert.match(inbox, /^- type: brainstorm$/m);
+    assert.match(inbox, /^- slug: my-feature$/m);
+    assert.match(inbox, /^- path: \.agent-kit\/handoffs\/my-feature\/brainstorm$/m);
   });
 });

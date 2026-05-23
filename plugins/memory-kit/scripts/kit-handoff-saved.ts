@@ -10,7 +10,7 @@ import { acquireFileLock, noOp, readStdin, releaseFileLock, runWhenInvoked } fro
 
 interface PostToolUsePayload {
   tool_name?: string;
-  tool_input?: { type?: string; slug?: string; content?: string };
+  tool_input?: { type?: string; slug?: string; files?: Record<string, string> };
   tool_response?: Array<{ type?: string; text?: string }>;
 }
 
@@ -39,9 +39,16 @@ function deriveTypeAndSlug(
   absPath: string,
   fallback: { type?: string; slug?: string },
 ): { type: string; slug: string } {
-  const type = path.basename(absPath, '.md') || fallback.type || 'unknown';
+  const type = path.basename(absPath) || fallback.type || 'unknown';
   const slug = path.basename(path.dirname(absPath)) || fallback.slug || 'unknown';
   return { type, slug };
+}
+
+function pickSummarySource(toolInput: PostToolUsePayload['tool_input']): string | undefined {
+  const files = toolInput?.files;
+  if (!files || typeof files !== 'object') return undefined;
+  if (typeof files['README.md'] === 'string') return files['README.md'];
+  return Object.values(files).find((v): v is string => typeof v === 'string');
 }
 
 function deriveSummary(content: string | undefined): string {
@@ -84,7 +91,7 @@ runWhenInvoked(import.meta.url, async () => {
     type: payload.tool_input?.type,
     slug: payload.tool_input?.slug,
   });
-  const summary = deriveSummary(payload.tool_input?.content);
+  const summary = deriveSummary(pickSummarySource(payload.tool_input));
   const timestamp = new Date().toISOString().slice(0, 19);
   const entry = formatInboxEntry({ timestamp, type, slug, relPath, summary });
 

@@ -189,98 +189,99 @@ If user agrees → proceed to Phase 3.
 
 ### Phase 3: Output — Write the Design Brief
 
-Only reached after consensus. Write the Design Brief immediately — do not request approval before writing:
+Only reached after consensus. Compose the README and DETAIL files silently — **do NOT print either file's content to chat before or after the tool call.**
+
+**README.md** (decision log — human-scannable):
 
 ````markdown
-## Design Brief: [Feature/Project Name]
+# Design Brief: [Feature/Project Name]
 
 > **Status:** APPROVED
-> **Created:** [date]
-> **Source:** [ticket ID, user request, or conversation reference]
+> **Created:** [YYYY-MM-DD]
+> **Source:** [ticket-id / user-request / conversation-ref]
 > **Complexity:** S | M | L | XL
 
----
+## Problem
+[One sentence: X happens, causing Y for Z.]
 
-### 1. Problem & Context
+- **Who:** [specific role and behavior]
+- **Status Quo:** [current workaround]
+- **Why Now:** [trigger]
 
-- **Problem:** [One sentence. "X happens, causing Y for Z."]
-- **Who:** [Specific role and behavior, not a category]
-- **Status Quo:** [Current workaround, however ugly]
-- **Why Now:** [What triggered this]
-
-### 2. Scope
-
+## Scope
 **IN:**
-
-- [Specific feature/behavior to build]
-- [...]
+- [feature/behavior]
 
 **OUT:**
+- [excluded item — one-line reason]
 
-- [Deliberately excluded item — brief reason]
-- [...]
+**Success =** [observable outcome]
 
-**Success =** [Observable, measurable outcome]
+## Decisions
+1. **[area]:** [chosen option] (NOT [rejected option])
+   - WHY: [one-line reason]
+   - HOW: [concrete implementation — "by doing Y and Z"]
+   - RISK: [main risk, or "none identified"]
+````
 
-### 3. High-Level Design
+**DETAIL.md** (technical spec — AI-optimized):
 
-**Rationale:** [Why this approach — 1-2 sentences]
+````markdown
+# Design Detail: [Feature/Project Name]
 
-**System Flow:**
+> See `README.md` for problem context, scope, and decision summary.
+
+## Context
+- **Problem:** [one sentence]
+- **Scope IN:** [comma-separated brief]
+- **Scope OUT:** [comma-separated brief]
+- **Success =** [observable outcome]
+
+## System Flow
 \```
 [Mermaid diagram: data flow, state machine, or user journey]
 \```
 
-**Core Entities:**
+## Core Entities
 \```
 [EntityName] {
-[field]: [type] — [purpose]
+  [field]: [type] — [purpose]
 }
 \```
 
-**Reuse:**
+## Edge Cases & Failure Modes
+| Scenario | System Behavior | User Sees |
+| :--- | :--- | :--- |
+| [failure case] | [technical response] | [user-facing result] |
+| [boundary case] | [technical response] | [user-facing result] |
 
-- [Existing code/pattern/service to leverage]
+## Reuse / New
+**Reuse:** [existing code/pattern/service to leverage]
+**New:** [what needs to be created — files, services, migrations]
 
-**New:**
-
-- [What needs to be created — files, services, migrations]
-
-### 4. Edge Cases & Failure Modes
-
-| Scenario          | System Behavior      | User Sees            |
-| :---------------- | :------------------- | :------------------- |
-| [failure case]    | [technical response] | [user-facing result] |
-| [boundary case]   | [technical response] | [user-facing result] |
-| [concurrent/race] | [technical response] | [user-facing result] |
-
-### 5. Handoff to Planning
-
+## Handoff to Planning
 **Focus areas:**
-
 1. [Suggested breakdown — e.g. "API endpoints + DB migration + UI components"]
 2. [Suggested implementation order]
 
 **Verify before implementing:**
-
 - [Implementation-level unknowns to confirm — e.g. "Check if payments API supports idempotency keys"]
-- [...]
 ````
 
-After writing the Design Brief: call `kit_save_handoff(type: "brainstorm", content: <full PRD markdown>, slug: <feature-slug-without-versioning>)` immediately — do not ask for approval first. The tool will handle versioning automatically and returns the saved file path. Then ask the user what to do next:
+After composing both files: call `kit_save_handoff(type: "brainstorm", slug: <feature-slug-without-versioning>, files: { "README.md": <readme content>, "DETAIL.md": <detail content> })` immediately — do not ask for approval first. **Do NOT print README or DETAIL content to chat before or after the tool call.** The tool returns the saved folder path. Then output only:
 
 ```
-✅ Design Brief saved → `<returned-path>`
+✅ Design Brief saved → `<folder-path>/`
 
 What would you like to do next?
 
-1) Execute plan phase  — Start /plan with this Design Brief
+1) Execute plan phase  — Start `/plan @<folder-path>/DETAIL.md`
 2) Done                — No further action
 ```
 
 **On user selection:**
 
-- **1 — Execute plan phase:** Invoke `/plan @<saved-path>` to hand the Design Brief directly to the planning skill.
+- **1 — Execute plan phase:** Invoke `/plan @<folder-path>/DETAIL.md` to hand the Design Brief directly to the planning skill.
 - **2 — Done:** Output `Design Brief saved. No further action.` and stop.
 - **3 — Custom:** The user types their request. Treat it as continuing the brainstorm conversation — revise the brief, revisit a decision, go deeper on a specific area, or anything else they need.
 
@@ -300,6 +301,6 @@ What would you like to do next?
 
 ### Completion Status
 
-- **DONE** — Design Brief written and confirmed.
+- **DONE** — Design Brief folder saved (README + DETAIL).
 - **FAST_TRACKED** — User skipped probing; root cause unvalidated. Flag in metadata.
 - **NEEDS_CONTEXT** — Critical questions unanswered. Do not write file.

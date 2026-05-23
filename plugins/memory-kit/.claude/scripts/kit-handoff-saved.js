@@ -22,9 +22,17 @@ function extractSavedAbsPath(payload) {
     return null;
 }
 function deriveTypeAndSlug(absPath, fallback) {
-    const type = path.basename(absPath, '.md') || fallback.type || 'unknown';
+    const type = path.basename(absPath) || fallback.type || 'unknown';
     const slug = path.basename(path.dirname(absPath)) || fallback.slug || 'unknown';
     return { type, slug };
+}
+function pickSummarySource(toolInput) {
+    const files = toolInput?.files;
+    if (!files || typeof files !== 'object')
+        return undefined;
+    if (typeof files['README.md'] === 'string')
+        return files['README.md'];
+    return Object.values(files).find((v) => typeof v === 'string');
 }
 function deriveSummary(content) {
     for (const line of (content ?? '').split(/\r?\n/)) {
@@ -60,7 +68,7 @@ runWhenInvoked(import.meta.url, async () => {
         type: payload.tool_input?.type,
         slug: payload.tool_input?.slug,
     });
-    const summary = deriveSummary(payload.tool_input?.content);
+    const summary = deriveSummary(pickSummarySource(payload.tool_input));
     const timestamp = new Date().toISOString().slice(0, 19);
     const entry = formatInboxEntry({ timestamp, type, slug, relPath, summary });
     try {

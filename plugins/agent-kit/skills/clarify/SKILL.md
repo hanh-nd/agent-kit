@@ -501,7 +501,7 @@ SEAM: AC-N ↔ AC-M
 - **back-to-brainstorm** — AC walk surfaced that the problem framing is wrong; recommend `/brainstorm` to revise.
 ````
 
-After writing: call `kit_save_handoff(type: "clarify", content: <full markdown>, slug: <feature-slug>)`. The tool versions the file and returns its path.
+After writing: call `kit_save_handoff(type: "clarify", slug: <feature-slug>, files: { "index.md": <full markdown> })`. The tool versions the folder and returns its path.
 
 ---
 

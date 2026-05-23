@@ -21,10 +21,10 @@ type CanonicalHandoffType =
   | 'scenario'
   | 'investigation';
 
-interface SavedHandoffLocation {
+export interface SavedHandoffFolderLocation {
   featureSlug: string;
   canonicalType: CanonicalHandoffType;
-  filePath: string;
+  folderPath: string;
   relativePath: string;
 }
 
@@ -71,24 +71,32 @@ function deriveFeatureSlug(input: { requestedSlug: string; content: string; type
   return sanitizeFeatureSlug(contentSlugCandidate(input.content)) || 'untitled-handoff';
 }
 
-export function resolveHandoffPath(input: {
+export function resolveHandoffFolder(input: {
   workspaceRoot: string;
   type: HandoffType;
   slug: string;
-  content: string;
-}): SavedHandoffLocation {
+  primaryContent: string;
+}): SavedHandoffFolderLocation {
   const canonicalType = normalizeHandoffType(input.type);
   const featureSlug = deriveFeatureSlug({
     requestedSlug: input.slug,
-    content: input.content,
+    content: input.primaryContent,
     type: canonicalType,
   });
-  const relativePath = path.join('.agent-kit', 'handoffs', featureSlug, `${canonicalType}.md`);
+  const relativePath = path.join('.agent-kit', 'handoffs', featureSlug, canonicalType);
 
   return {
     featureSlug,
     canonicalType,
-    filePath: path.join(input.workspaceRoot, relativePath),
+    folderPath: path.join(input.workspaceRoot, relativePath),
     relativePath,
   };
+}
+
+export function validateHandoffFilename(name: string): string {
+  const normalized = name.trim().replace(/^["']|["']$/g, '');
+  if (!/^[A-Za-z0-9_-]+\.md$/.test(normalized)) {
+    throw new Error(`Unsafe handoff filename: ${name}`);
+  }
+  return normalized;
 }

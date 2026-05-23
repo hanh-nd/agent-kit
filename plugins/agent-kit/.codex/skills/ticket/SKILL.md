@@ -32,7 +32,7 @@ description: 'Fetch a Jira ticket and route to the planning pipeline'
 <ticket raw description>
 ```
 
-4. Call `kit_save_handoff(type: "ticket", content: <formatted brief>, slug: "<extracted_id>")`.
+4. Call `kit_save_handoff(type: "ticket", slug: "<extracted_id>", files: { "index.md": <formatted brief> })`.
 
 5. The tool returns the saved file path. Present the execution choices as an interactive TUI menu using arrow keys (use `AskUserQuestion` tool or `ask_user` with type of `choice`) with the following format:
 
