@@ -42,8 +42,12 @@ function ensureMemoryEnabled(): void {
       settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) as Record<string, unknown>;
     }
     const memory = (settings.memory ?? {}) as Record<string, unknown>;
-    if (memory.enabled !== true) {
-      settings.memory = { ...memory, enabled: true };
+    if (memory.enabled !== true || !memory.embeddingModel) {
+      settings.memory = {
+        embeddingModel: '',
+        ...memory,
+        enabled: true,
+      };
       fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
     }
   } catch {

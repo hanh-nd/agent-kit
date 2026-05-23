@@ -53,10 +53,11 @@ describe('kit-init', () => {
 
     const settingsPath = path.join(process.env.HOME!, '.agent-kit', 'settings.json');
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) as {
-      memory?: { enabled?: boolean };
+      memory?: { enabled?: boolean; embeddingModel?: string };
     };
 
     assert.equal(settings.memory?.enabled, true);
+    assert.equal(settings.memory?.embeddingModel, '');
     assert.ok(fs.existsSync(path.join(projectDir, '.agent-kit', 'wiki', 'raw')));
     assert.ok(fs.existsSync(path.join(projectDir, '.agent-kit', 'wiki', 'compiled')));
     assert.ok(fs.existsSync(path.join(projectDir, '.agent-kit', 'wiki', 'archive', 'conversations')));
