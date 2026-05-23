@@ -5,6 +5,7 @@ import {
 } from '../../services/digest/processor.js';
 import { launchDigestPendingWorker, runDigestPendingWorker } from '../../services/digest/background.js';
 import { isDigestWorkerInvocation, runDigestFileInWorker } from '../../services/digest/worker.js';
+import type { DigestPendingLauncherResult, DigestPendingResult } from '../../services/digest/types.js';
 import {
   DEFAULT_DIGEST_MAX_INPUT_CHARS,
   DEFAULT_DIGEST_MODEL_ID,
@@ -23,6 +24,41 @@ function writeDigestFileResult(result: unknown, workerMode: boolean): void {
   }
 
   process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+}
+
+function formatLauncherResult(result: DigestPendingLauncherResult): string {
+  if (!result.ok) return `Digest failed: ${result.error ?? 'unknown error'}`;
+  if (result.spawned) return 'Background digest started';
+
+  switch (result.status.state) {
+    case 'locked':
+      return 'Digest already running';
+    case 'no-pending':
+      return 'No conversations to digest';
+    case 'not-initialized':
+      return 'Digest not initialized';
+    default:
+      return `Digest skipped (${result.status.state})`;
+  }
+}
+
+function formatPendingResult(result: DigestPendingResult): string {
+  if (!result.ok) return `Digest failed: ${result.error ?? 'unknown error'}`;
+  if (result.action === 'noop') {
+    switch (result.reason) {
+      case 'locked':
+        return 'Digest already running';
+      case 'no-pending':
+        return 'No conversations to digest';
+      case 'not-initialized':
+        return 'Digest not initialized';
+    }
+  }
+
+  const parts = [`${result.count} conversation${result.count !== 1 ? 's' : ''} digested`];
+  if (result.skipped > 0) parts.push(`${result.skipped} skipped`);
+  if (result.errors > 0) parts.push(`${result.errors} errors`);
+  return parts.join(', ');
 }
 
 async function cmdDigestInit(args: string[]): Promise<number> {
@@ -83,12 +119,20 @@ async function cmdDigestPending(args: string[]): Promise<number> {
       args,
       entrypoint: process.argv[1],
     });
-    process.stdout.write(JSON.stringify(result) + '\n');
+    process.stdout.write(
+      JSON.stringify({
+        systemMessage: `[memory-kit] ${formatLauncherResult(result)}`,
+      }) + '\n',
+    );
     return 0;
   }
 
   const result = await digestPendingConversations({ workspaceRoot });
-  process.stdout.write(JSON.stringify(result) + '\n');
+  process.stdout.write(
+    JSON.stringify({
+      systemMessage: `[memory-kit] ${formatPendingResult(result)}`,
+    }) + '\n',
+  );
   return 0;
 }
 

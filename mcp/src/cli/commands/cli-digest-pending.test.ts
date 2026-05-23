@@ -66,8 +66,8 @@ describe('cmdDigestPending CLI', () => {
 
     assert.equal(code, 0);
     const parsed = JSON.parse(output.trim()) as Record<string, unknown>;
-    assert.ok('ok' in parsed, 'result must have ok field');
-    assert.ok('action' in parsed, 'result must have action field');
+    assert.ok('systemMessage' in parsed, 'result must have systemMessage field');
+    assert.match(parsed.systemMessage as string, /No conversations to digest|digested|initialized/);
   });
 
   test('--background returns launcher JSON without waiting for worker when no pending', async () => {
@@ -84,9 +84,8 @@ describe('cmdDigestPending CLI', () => {
 
     assert.equal(code, 0);
     const parsed = JSON.parse(output.trim()) as Record<string, unknown>;
-    assert.equal(parsed.mode, 'background-launcher');
-    assert.equal(parsed.spawned, false);
-    assert.equal((parsed.status as Record<string, unknown>).state, 'no-pending');
+    assert.ok('systemMessage' in parsed, 'result must have systemMessage field');
+    assert.equal(parsed.systemMessage, 'No conversations to digest');
   });
 
   test('--background worker flag returns final worker status JSON', async () => {
@@ -131,9 +130,8 @@ describe('cmdDigestPending CLI', () => {
 
       assert.equal(code, 0);
       const parsed = JSON.parse(output.trim()) as Record<string, unknown>;
-      assert.equal(parsed.mode, 'background-launcher');
-      assert.equal(parsed.spawned, false);
-      assert.equal((parsed.status as Record<string, unknown>).state, 'failed');
+      assert.ok('systemMessage' in parsed, 'result must have systemMessage field');
+      assert.equal(parsed.systemMessage, 'Digest failed: CLI entrypoint is unavailable');
     } finally {
       process.argv[1] = previousArgv;
     }
