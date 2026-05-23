@@ -1,4 +1,4 @@
-import type { MemoryChunk, MemoryConfig } from './types.js';
+import type { MemoryChunk, MemoryConfig, SourceType } from './types.js';
 import { sha256Hex } from '../../utils/hash.js';
 
 function computeChunkId(content: string): string {
@@ -96,6 +96,7 @@ export function chunkMarkdown(
   text: string,
   source: string,
   config: Pick<MemoryConfig, 'chunkSize' | 'overlapLines'>,
+  meta: { sourceType: SourceType; fileMtimeAt: number },
 ): MemoryChunk[] {
   if (!text || !text.trim()) return [];
 
@@ -151,11 +152,13 @@ export function chunkMarkdown(
       chunks.push({
         id: computeChunkId(content),
         source,
+        sourceType: meta.sourceType,
         heading: section.heading,
         headingLevel: section.headingLevel,
         content,
         lineStart: firstLine,
         lineEnd: lastLine,
+        fileMtimeAt: meta.fileMtimeAt,
       });
 
       // Update overlap for next iteration (last N lines of this chunk)

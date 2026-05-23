@@ -1,4 +1,7 @@
 import * as assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { describe, test } from 'node:test';
 import type { MemoryIndexer } from './indexer.js';
 import type { MemoryStore } from './store.js';
@@ -9,23 +12,27 @@ import { registerMemoryTools } from '../../mcp/memory.js';
 // Minimal McpServer stub that captures tool registrations
 function makeMockServer() {
   const tools = new Map<string, (args: Record<string, unknown>) => Promise<unknown>>();
+  const descriptions = new Map<string, string>();
   const server = {
-    tool(name: string, _desc: string, _schema: unknown, handler: (args: Record<string, unknown>) => Promise<unknown>) {
+    tool(name: string, desc: string, _schema: unknown, handler: (args: Record<string, unknown>) => Promise<unknown>) {
+      descriptions.set(name, desc);
       tools.set(name, handler);
     },
   };
-  return { server, tools };
+  return { server, tools, descriptions };
 }
 
 function makeChunk(overrides: Partial<MemoryChunk> = {}): MemoryChunk {
   return {
     id: 'test-id-abc123',
     source: '2024-01-01.md',
+    sourceType: 'wiki',
     heading: 'My Section',
     headingLevel: 2,
     content: 'This is the chunk content.',
     lineStart: 1,
     lineEnd: 5,
+    fileMtimeAt: 1000,
     ...overrides,
   };
 }
@@ -49,8 +56,14 @@ function makeIndexerStub(
   } as unknown as MemoryIndexer;
 }
 
-function makeStoreStub(vecAvailable: boolean): MemoryStore {
-  return { vecAvailable } as unknown as MemoryStore;
+function makeStoreStub(
+  vecAvailable: boolean,
+  overrides: Partial<Pick<MemoryStore, 'getRecentSources'>> = {},
+): MemoryStore {
+  return {
+    vecAvailable,
+    getRecentSources: overrides.getRecentSources ?? (() => []),
+  } as unknown as MemoryStore;
 }
 
 function extractText(result: unknown): string {
@@ -238,6 +251,153 @@ describe('kit_memory_search', () => {
     const text = extractText(result);
     assert.ok(text.includes('kit_memory_search failed'), `Expected error prefix, got: ${text}`);
     assert.ok(text.includes('search exploded'), `Expected error message, got: ${text}`);
+  });
+
+  test('description routes factual and temporal queries distinctly', () => {
+    const indexer = makeIndexerStub();
+    const store = makeStoreStub(true);
+    const { server, descriptions } = makeMockServer();
+    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+      indexer,
+      store,
+      config: BASE_CONFIG,
+    });
+
+    const description = descriptions.get('kit_memory_search') ?? '';
+    assert.match(description, /factual|semantic/);
+    assert.match(description, /kit_memory_recent/);
+    assert.match(description, /keywords/);
+    assert.match(description, /stopwords/);
+  });
+});
+
+describe('kit_memory_recent', () => {
+  test('returns recent sources ordered by store recency result', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-recent-digest-'));
+    const wikiDir = path.join(tmpDir, 'wiki');
+    const olderSource = 'compiled/provisional/conversation-digests/older.md';
+    const newerSource = 'compiled/provisional/conversation-digests/newer.md';
+    const entitySource = 'compiled/entities/entity.md';
+
+    try {
+      fs.mkdirSync(path.join(wikiDir, 'compiled', 'provisional', 'conversation-digests'), { recursive: true });
+      fs.mkdirSync(path.join(wikiDir, 'compiled', 'entities'), { recursive: true });
+      fs.writeFileSync(path.join(wikiDir, olderSource), '# Older\nolder content', 'utf8');
+      fs.writeFileSync(path.join(wikiDir, newerSource), '# Newer\nnewer content', 'utf8');
+      fs.writeFileSync(path.join(wikiDir, entitySource), '# Entity\nentity content', 'utf8');
+
+      const calls: Array<Record<string, unknown>> = [];
+      const store = makeStoreStub(true, {
+        getRecentSources: (options) => {
+          calls.push(options);
+          return [
+            { source: entitySource, fileMtimeAt: 300 },
+            { source: newerSource, fileMtimeAt: 200 },
+            { source: olderSource, fileMtimeAt: 100 },
+          ];
+        },
+      });
+      const { server, tools } = makeMockServer();
+      registerMemoryTools(server as never, { memory: { enabled: true } }, tmpDir, {
+        indexer: makeIndexerStub(),
+        store,
+        config: { ...BASE_CONFIG, wikiDir },
+      });
+
+      const result = await tools.get('kit_memory_recent')!({ n: 2 });
+      const text = extractText(result);
+
+      assert.deepEqual(calls, [{ limit: 2, sourceType: undefined }]);
+      assert.ok(text.indexOf('entity.md') < text.indexOf('newer.md'));
+      assert.ok(text.includes('# Entity\nentity content'));
+      assert.ok(text.includes('# Newer\nnewer content'));
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('passes optional source type filter to recent lookup', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-recent-filter-'));
+    const wikiDir = path.join(tmpDir, 'wiki');
+    const digestSource = 'compiled/provisional/conversation-digests/digest.md';
+
+    try {
+      fs.mkdirSync(path.join(wikiDir, 'compiled', 'provisional', 'conversation-digests'), { recursive: true });
+      fs.writeFileSync(path.join(wikiDir, digestSource), '# Digest\nfiltered content', 'utf8');
+
+      const calls: Array<Record<string, unknown>> = [];
+      const store = makeStoreStub(true, {
+        getRecentSources: (options) => {
+          calls.push(options);
+          return [{ source: digestSource, fileMtimeAt: 100 }];
+        },
+      });
+      const { server, tools } = makeMockServer();
+      registerMemoryTools(server as never, { memory: { enabled: true } }, tmpDir, {
+        indexer: makeIndexerStub(),
+        store,
+        config: { ...BASE_CONFIG, wikiDir },
+      });
+
+      const result = await tools.get('kit_memory_recent')!({ source_type: 'digest' });
+      const text = extractText(result);
+
+      assert.deepEqual(calls, [{ limit: 5, sourceType: 'digest' }]);
+      assert.ok(text.includes('provisional/conversation-digests/digest.md'));
+      assert.ok(text.includes('filtered content'));
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('skips missing files without source-unavailable warning', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-recent-missing-'));
+    const wikiDir = path.join(tmpDir, 'wiki');
+    const presentSource = 'compiled/entities/present.md';
+
+    try {
+      fs.mkdirSync(path.join(wikiDir, 'compiled', 'entities'), { recursive: true });
+      fs.writeFileSync(path.join(wikiDir, presentSource), '# Present\navailable content', 'utf8');
+
+      const store = makeStoreStub(true, {
+        getRecentSources: () => [
+          { source: 'compiled/entities/missing.md', fileMtimeAt: 200 },
+          { source: presentSource, fileMtimeAt: 100 },
+        ],
+      });
+      const { server, tools } = makeMockServer();
+      registerMemoryTools(server as never, { memory: { enabled: true } }, tmpDir, {
+        indexer: makeIndexerStub(),
+        store,
+        config: { ...BASE_CONFIG, wikiDir },
+      });
+
+      const result = await tools.get('kit_memory_recent')!({});
+      const text = extractText(result);
+
+      assert.ok(!text.includes('missing.md'));
+      assert.ok(!text.includes('Source file unavailable'));
+      assert.ok(text.includes('available content'));
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('is registered only when memory is enabled and description mentions temporal routing', () => {
+    const enabledServer = makeMockServer();
+    registerMemoryTools(enabledServer.server as never, { memory: { enabled: true } }, '/tmp', {
+      indexer: makeIndexerStub(),
+      store: makeStoreStub(true),
+      config: BASE_CONFIG,
+    });
+
+    assert.ok(enabledServer.tools.has('kit_memory_recent'));
+    assert.match(enabledServer.descriptions.get('kit_memory_recent') ?? '', /last session|recent/);
+
+    const disabledServer = makeMockServer();
+    const result = registerMemoryTools(disabledServer.server as never, { memory: { enabled: false } }, '/tmp');
+    assert.equal(result, null);
+    assert.equal(disabledServer.tools.has('kit_memory_recent'), false);
   });
 });
 

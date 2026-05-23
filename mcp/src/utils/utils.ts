@@ -4,9 +4,6 @@ export function getWorkspaceRoot(): string {
     process.env.CLAUDE_PROJECT_DIR ||
     process.env.CODEX_PROJECT_DIR ||
     process.env.GEMINI_PROJECT_DIR ||
-    process.env.CLAUDE_WORKSPACE ||
-    process.env.CODEX_WORKSPACE ||
-    process.env.GEMINI_WORKSPACE ||
     process.env.INIT_CWD ||
     process.env.PWD ||
     process.cwd()
@@ -21,4 +18,8 @@ export function mcpText(text: string): McpTextResult {
 
 export function mcpJson(obj: unknown): McpTextResult {
   return mcpText(JSON.stringify(obj, null, 2));
+}
+
+export function formatError(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }

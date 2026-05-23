@@ -1,13 +1,15 @@
+import * as fs from 'fs';
 import * as path from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { Embedder } from '../services/memory/embedder.js';
 import { MemoryIndexer } from '../services/memory/indexer.js';
 import { MemoryStore } from '../services/memory/store.js';
-import type { MemoryConfig } from '../services/memory/types.js';
+import type { MemoryConfig, SourceType } from '../services/memory/types.js';
+import { SOURCE_TYPES } from '../services/memory/types.js';
 import { initializeConversationDigestModel } from '../services/digest/processor.js';
 import { DEFAULT_DIGEST_MODEL_ID } from '../services/digest/constants.js';
-import { mcpJson, mcpText } from '../utils/utils.js';
+import { formatError, mcpJson, mcpText } from '../utils/utils.js';
 import {
   loadProjectSettings,
   resolveConversationDigestConfig,
@@ -27,25 +29,21 @@ function registerMemoryToolHandlers(
 ): void {
   server.tool(
     'kit_memory_search',
-    'Search persistent memory for context relevant to the current question. Returns semantically relevant results using hybrid dense+BM25+RRF search.',
+    'Search persistent memory for factual or semantic matches (decisions, concepts, entities). Extract concise keywords only, removing stopwords and filler words from the user request before querying. Use kit_memory_recent for temporal or recency questions.',
     {
-      query: z.string().min(1).describe('Search query'),
+      query: z.string().min(1).describe('Keyword-only search query with stopwords removed'),
       top_k: z.number().int().positive().optional().describe('Number of results to return'),
     },
     async ({ query, top_k }) => {
       try {
         const results = await indexer.search(query, top_k ?? config.topK);
-
-        if (results.length === 0) {
-          const degradedNote = !store.vecAvailable
-            ? '⚠️ Vector search unavailable — showing keyword-only results.\n\n'
-            : '';
-          return mcpText(`${degradedNote}No memories found for query: "${query}"`);
-        }
-
         const degradedNote = !store.vecAvailable
           ? '⚠️ Vector search unavailable — showing keyword-only results.\n\n'
           : '';
+
+        if (results.length === 0) {
+          return mcpText(`${degradedNote}No memories found for query: "${query}"`);
+        }
 
         const formatted = results
           .map((r) => {
@@ -60,8 +58,38 @@ function registerMemoryToolHandlers(
 
         return mcpText(`${degradedNote}${formatted}`);
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return mcpText(`kit_memory_search failed: ${message}`);
+        return mcpText(`kit_memory_search failed: ${formatError(err)}`);
+      }
+    },
+  );
+
+  server.tool(
+    'kit_memory_recent',
+    'Return the N most recently updated memory sources. Optionally filter by source type. Use for temporal questions like "what did we do last session" or "recent".',
+    {
+      n: z.number().int().positive().max(50).optional().describe('How many recent sources to return (default 5)'),
+      source_type: z.enum(SOURCE_TYPES).optional().describe('Optional source type filter'),
+    },
+    async ({ n, source_type }) => {
+      try {
+        const rows = store.getRecentSources({ limit: n ?? 5, sourceType: source_type as SourceType });
+        if (rows.length === 0) return mcpText('No recent sources found.');
+
+        const blocks: string[] = [];
+        for (const row of rows) {
+          try {
+            const content = fs.readFileSync(path.join(config.wikiDir, row.source), 'utf8');
+            const displaySource = row.source.replace(/^compiled\//, '');
+            blocks.push(`### ${displaySource}\n${content}`);
+          } catch (err) {
+            console.warn(`[memory] Skipping unavailable recent source ${row.source}:`, err);
+          }
+        }
+
+        if (blocks.length === 0) return mcpText('No recent sources found.');
+        return mcpText(blocks.join('\n\n---\n\n'));
+      } catch (err) {
+        return mcpText(`kit_memory_recent failed: ${formatError(err)}`);
       }
     },
   );
@@ -81,8 +109,10 @@ function registerMemoryToolHandlers(
           message: 'Saved to wiki/raw — will be indexed after next /wiki compile',
         });
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return mcpJson({ saved: false, error: message });
+        return mcpJson({
+          saved: false,
+          error: formatError(err),
+        });
       }
     },
   );
@@ -110,8 +140,7 @@ function registerMemoryToolHandlers(
           error: result.error,
         });
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return mcpJson({ initialized: false, error: message });
+        return mcpJson({ initialized: false, error: formatError(err) });
       }
     },
   );

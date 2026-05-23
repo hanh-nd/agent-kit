@@ -22,7 +22,7 @@
   },
   "scripts": {
     "build": "rm -rf dist && tsc && npm run bundle",
-    "bundle": "esbuild src/entrypoints/server.ts src/entrypoints/cli.ts --bundle --platform=node --format=esm --outdir=dist --external:node:* --external:better-sqlite3 --external:sqlite-vec --external:fastembed --external:node-llama-cpp --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
+    "bundle": "esbuild src/entrypoints/server.ts src/entrypoints/cli.ts --bundle --platform=node --format=esm --outdir=dist --external:node:* --external:better-sqlite3 --external:sqlite-vec --external:fastembed --external:node-llama-cpp",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build",
     "test": "tsc && node --test $(find dist -name '*.test.js' | tr '\\n' ' ')"

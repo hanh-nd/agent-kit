@@ -1,3 +1,5 @@
+import type { MemoryIndexer } from '../memory/indexer.js';
+
 export enum DigestModelId {
   TINY = 'tiny',
   BASE = 'base',
@@ -52,6 +54,7 @@ export interface DigestFileOptions {
   outDir?: string;
   maxInputChars?: number;
   timeoutMs?: number;
+  indexer?: MemoryIndexer;
 }
 
 export interface ProvisionalDigestResult {

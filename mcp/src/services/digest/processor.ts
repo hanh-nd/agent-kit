@@ -26,6 +26,7 @@ import type {
 import { loadProjectSettings, resolveConversationDigestConfig, resolveMemoryConfig } from '../../core/config/index.js';
 import { MemoryStore } from '../memory/store.js';
 import { MemoryIndexer } from '../memory/indexer.js';
+import { Embedder } from '../memory/embedder.js';
 import { releaseLock, tryAcquireProcessLock } from '../../utils/files.js';
 
 function digestLockPath(workspaceRoot: string): string {
@@ -63,18 +64,29 @@ function discoverPendingConversationFiles(workspaceRoot: string): string[] {
 async function indexProvisionalDigestFile(
   workspaceRoot: string,
   markdownPath: string,
+  indexer?: MemoryIndexer,
 ): Promise<{ indexed: boolean; error?: string }> {
+  let store: MemoryStore | undefined;
   try {
+    if (indexer) {
+      await indexer.indexFile(markdownPath);
+      return { indexed: true };
+    }
+
     const settings = loadProjectSettings(workspaceRoot);
     const config = resolveMemoryConfig(settings, workspaceRoot);
-    const store = new MemoryStore(path.join(config.wikiDir, 'index.db'), config);
-    const embedder = { embed: async (_texts: string[]) => [], initialize: async () => {} };
-    const indexer = new MemoryIndexer(store, embedder, config);
-    await indexer.indexFile(markdownPath);
+    if (config.enabled !== true) return { indexed: false };
+
+    store = new MemoryStore(path.join(config.wikiDir, 'index.db'), config);
+    const embedder = new Embedder(config.embeddingModel);
+    await embedder.initialize();
+
+    await new MemoryIndexer(store, embedder, config).indexFile(markdownPath);
     return { indexed: true };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { indexed: false, error: message };
+    return { indexed: false, error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    store?.close();
   }
 }
 
@@ -86,7 +98,7 @@ export async function digestConversationFile(options: DigestFileOptions): Promis
 
   const existingPath = findExistingProvisionalDigest(outDir, input);
   if (existingPath) {
-    const indexResult = await indexProvisionalDigestFile(options.workspaceRoot, existingPath);
+    const indexResult = await indexProvisionalDigestFile(options.workspaceRoot, existingPath, options.indexer);
     return {
       markdown: existingPath,
       status: 'provisional',
@@ -105,7 +117,7 @@ export async function digestConversationFile(options: DigestFileOptions): Promis
     });
 
     const markdownPath = writeProvisionalDigestFile(outDir, input, markdown);
-    const indexResult = await indexProvisionalDigestFile(options.workspaceRoot, markdownPath);
+    const indexResult = await indexProvisionalDigestFile(options.workspaceRoot, markdownPath, options.indexer);
 
     return {
       markdown: markdownPath,
@@ -152,11 +164,22 @@ export async function digestPendingConversations({
     return { ok: true, initialized: true, action: 'noop', reason: 'locked' };
   }
 
+  let closeIndexer: (() => void) | undefined;
   try {
     const candidates = discoverPendingConversationFiles(workspaceRoot);
 
     if (candidates.length === 0) {
       return { ok: true, initialized: true, action: 'noop', reason: 'no-pending' };
+    }
+
+    let indexer: MemoryIndexer | undefined;
+    const memoryConfig = resolveMemoryConfig(loadProjectSettings(workspaceRoot), workspaceRoot);
+    if (memoryConfig.enabled === true) {
+      const store = new MemoryStore(path.join(memoryConfig.wikiDir, 'index.db'), memoryConfig);
+      const embedder = new Embedder(memoryConfig.embeddingModel);
+      indexer = new MemoryIndexer(store, embedder, memoryConfig);
+      closeIndexer = () => store.close();
+      await embedder.initialize();
     }
 
     let count = 0;
@@ -169,6 +192,7 @@ export async function digestPendingConversations({
           workspaceRoot,
           inputPath: filePath,
           modelId: digestConfig.modelId,
+          indexer,
         });
         if (result.skipped) {
           skipped++;
@@ -187,9 +211,17 @@ export async function digestPendingConversations({
     return { ok: true, initialized: true, action: 'digested', count, skipped, errors };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    console.warn('[digest] Pending conversation digest failed:', err);
     return { ok: false, initialized: true, action: 'error', error: message };
   } finally {
     releaseLock(lockPath);
+    if (closeIndexer) {
+      try {
+        closeIndexer();
+      } catch (err) {
+        console.warn('[digest] Failed to close memory indexer store:', err);
+      }
+    }
   }
 }
 

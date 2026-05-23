@@ -6,14 +6,19 @@ export enum EmbeddingModelName {
   LARGE = 'large',
 }
 
+export const SOURCE_TYPES = ['digest', 'concept', 'entity', 'preference', 'wiki'] as const;
+export type SourceType = (typeof SOURCE_TYPES)[number];
+
 export interface MemoryChunk {
   id: string;
   source: string;
+  sourceType: SourceType;
   heading: string;
   headingLevel: number;
   content: string;
   lineStart: number;
   lineEnd: number;
+  fileMtimeAt: number;
 }
 
 export interface SearchResult {
@@ -38,4 +43,9 @@ export interface IndexStats {
   indexed: number;
   deleted: number;
   skipped: number;
+}
+
+export interface RecentSource {
+  source: string;
+  fileMtimeAt: number;
 }

@@ -5,7 +5,7 @@ import { syncBuiltinESMExports } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { after, before, describe, test } from 'node:test';
-import { MemoryIndexer } from './indexer.js';
+import { deriveSourceType, MemoryIndexer } from './indexer.js';
 import { MemoryStore } from './store.js';
 import { type MemoryConfig, EmbeddingModelName } from './types.js';
 
@@ -170,11 +170,13 @@ describe('MemoryIndexer', () => {
           {
             id: 'stale-daily-file-0001',
             source: '2026-05-18.md',
+            sourceType: 'wiki',
             heading: 'Stale',
             headingLevel: 1,
             content: 'pre migration content',
             lineStart: 1,
             lineEnd: 2,
+            fileMtimeAt: 1,
           },
         ],
         [new Float32Array(384)],
@@ -443,6 +445,44 @@ describe('MemoryIndexer', () => {
       assert.match(content, /first manual save/);
       assert.match(content, /second manual save/);
       assert.equal(fs.readdirSync(path.dirname(savePath)).filter((name) => /^conv_save_.*\.md$/.test(name)).length, 1);
+    } finally {
+      testStore.close();
+      fs.rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  test('deriveSourceType follows documented path conventions', () => {
+    assert.equal(deriveSourceType('compiled/provisional/conversation-digests/abc.md'), 'digest');
+    assert.equal(deriveSourceType('compiled/concepts/x.md'), 'concept');
+    assert.equal(deriveSourceType('compiled/entities/foo.md'), 'entity');
+    assert.equal(deriveSourceType('compiled/preferences.md'), 'preference');
+    assert.equal(deriveSourceType('compiled/preferences/something.md'), 'wiki');
+    assert.equal(deriveSourceType('raw/conv_x.md'), 'wiki');
+    assert.equal(deriveSourceType(''), 'wiki');
+  });
+
+  test('indexFile stamps source type and file mtime onto stored chunks', async () => {
+    const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'index-meta-'));
+    const testCfg = makeConfig(path.join(testDir, 'wiki'));
+    const testStore = new MemoryStore(path.join(testCfg.wikiDir, 'index.db'), testCfg);
+    const testIndexer = new MemoryIndexer(testStore, new StubEmbedder(), testCfg);
+    const filePath = path.join(testCfg.wikiDir, 'compiled', 'provisional', 'conversation-digests', 'digest.md');
+
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(filePath, '# Digest\nmtime metadata unique content', 'utf8');
+      const expectedMtime = fs.statSync(filePath).mtimeMs;
+
+      const stats = await testIndexer.indexFile(filePath);
+      assert.ok(stats.indexed > 0, `Expected indexed > 0, got ${stats.indexed}`);
+
+      const ids = [...testStore.hashesBySource('compiled/provisional/conversation-digests/digest.md')];
+      assert.ok(ids.length > 0);
+      const chunks = testStore.getChunksByIds(ids);
+      for (const chunk of chunks) {
+        assert.equal(chunk.sourceType, 'digest');
+        assert.equal(chunk.fileMtimeAt, expectedMtime);
+      }
     } finally {
       testStore.close();
       fs.rmSync(testDir, { recursive: true, force: true });

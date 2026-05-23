@@ -2,13 +2,21 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { chunkMarkdown } from './chunker.js';
 import type { MemoryStore } from './store.js';
-import type { IndexStats, MemoryConfig, SearchResult } from './types.js';
+import type { IndexStats, MemoryConfig, SearchResult, SourceType } from './types.js';
 import { LOCK_RETRY_MS, LOCK_TIMEOUT_MS, RRF_K } from './constants.js';
 import { acquireLock, releaseLock } from '../../utils/files.js';
 
 interface TextEmbedder {
   embed(texts: string[]): Promise<Float32Array[]>;
   initialize(): Promise<void>;
+}
+
+export function deriveSourceType(source: string): SourceType {
+  if (source.startsWith('compiled/provisional/conversation-digests/')) return 'digest';
+  if (source.startsWith('compiled/concepts/')) return 'concept';
+  if (source.startsWith('compiled/entities/')) return 'entity';
+  if (source === 'compiled/preferences.md') return 'preference';
+  return 'wiki';
 }
 
 export class MemoryIndexer {
@@ -36,7 +44,16 @@ export class MemoryIndexer {
       return { indexed: 0, deleted: 0, skipped: existingChunkIds.size };
     }
 
-    const allChunks = chunkMarkdown(text, source, this.config);
+    let fileMtimeAt: number;
+    try {
+      fileMtimeAt = fs.statSync(absolutePath).mtimeMs;
+    } catch (err) {
+      console.warn(`[memory-indexer] Cannot stat file ${absolutePath}:`, err);
+      fileMtimeAt = Date.now();
+    }
+
+    const sourceType = deriveSourceType(source);
+    const allChunks = chunkMarkdown(text, source, this.config, { sourceType, fileMtimeAt });
     const currentChunkIds = new Set(allChunks.map((chunk) => chunk.id));
 
     const toIndex = allChunks.filter((chunk) => !existingChunkIds.has(chunk.id));
@@ -147,12 +164,9 @@ export class MemoryIndexer {
     });
 
     bm25Results.forEach((r, rank) => {
-      const existing = scoreMap.get(r.id);
-      if (existing) {
-        existing.bm25 = 1 / (RRF_K + rank + 1);
-      } else {
-        scoreMap.set(r.id, { dense: 0, bm25: 1 / (RRF_K + rank + 1) });
-      }
+      const entry = scoreMap.get(r.id) ?? { dense: 0, bm25: 0 };
+      entry.bm25 = 1 / (RRF_K + rank + 1);
+      scoreMap.set(r.id, entry);
     });
 
     const hasDense = this.store.vecAvailable && denseResults.length > 0;

@@ -1,8 +1,13 @@
 import Database from 'better-sqlite3';
 import * as fs from 'fs';
+import { createRequire } from 'module';
 import * as path from 'path';
 import { eng, removeStopwords } from 'stopword';
-import type { MemoryChunk, MemoryConfig } from './types.js';
+import type { MemoryChunk, MemoryConfig, RecentSource, SourceType } from './types.js';
+
+const require = createRequire(import.meta.url);
+
+export const SCHEMA_VERSION = 2;
 
 export class StoreError extends Error {
   constructor(message: string, cause?: unknown) {
@@ -50,7 +55,6 @@ export class MemoryStore {
 
   private loadVecExtension(db: Database.Database): void {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const sqliteVec = require('sqlite-vec') as { load: (db: Database.Database) => void };
       sqliteVec.load(db);
       this._vecAvailable = true;
@@ -61,59 +65,80 @@ export class MemoryStore {
   }
 
   private createSchema(db: Database.Database): void {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS memory_chunks (
-        rowid         INTEGER PRIMARY KEY AUTOINCREMENT,
-        id            TEXT NOT NULL UNIQUE,
-        source        TEXT NOT NULL,
-        heading       TEXT NOT NULL DEFAULT '',
-        heading_level INTEGER NOT NULL DEFAULT 0,
-        content       TEXT NOT NULL,
-        line_start    INTEGER NOT NULL,
-        line_end      INTEGER NOT NULL,
-        indexed_at    INTEGER NOT NULL
-      );
-
-      CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
-        source,
-        heading,
-        content,
-        content='memory_chunks',
-        content_rowid='rowid'
-      );
-
-      CREATE TRIGGER IF NOT EXISTS memory_chunks_ai
-        AFTER INSERT ON memory_chunks BEGIN
-          INSERT INTO memory_fts(rowid, source, heading, content)
-            VALUES (new.rowid, new.source, new.heading, new.content);
-        END;
-
-      CREATE TRIGGER IF NOT EXISTS memory_chunks_ad
-        AFTER DELETE ON memory_chunks BEGIN
-          INSERT INTO memory_fts(memory_fts, rowid, source, heading, content)
-            VALUES ('delete', old.rowid, old.source, old.heading, old.content);
-        END;
-    `);
-
-    if (this._vecAvailable) {
-      try {
+    try {
+      const current = Number(db.pragma('user_version', { simple: true }) ?? 0);
+      if (current < SCHEMA_VERSION) {
         db.exec(`
-          CREATE VIRTUAL TABLE IF NOT EXISTS memory_vec USING vec0(
-            embedding FLOAT[${this.config.vectorDimension}]
-          );
+          DROP TRIGGER IF EXISTS memory_chunks_ai;
+          DROP TRIGGER IF EXISTS memory_chunks_ad;
+          DROP TABLE IF EXISTS memory_fts;
+          DROP TABLE IF EXISTS memory_vec;
+          DROP TABLE IF EXISTS memory_chunks;
         `);
-      } catch (err) {
-        console.warn('[memory-store] Failed to create memory_vec, disabling vector search:', err);
-        this._vecAvailable = false;
+        db.pragma(`user_version = ${SCHEMA_VERSION}`);
       }
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS memory_chunks (
+          rowid         INTEGER PRIMARY KEY AUTOINCREMENT,
+          id            TEXT NOT NULL UNIQUE,
+          source        TEXT NOT NULL,
+          source_type   TEXT NOT NULL DEFAULT 'wiki',
+          heading       TEXT NOT NULL DEFAULT '',
+          heading_level INTEGER NOT NULL DEFAULT 0,
+          content       TEXT NOT NULL,
+          line_start    INTEGER NOT NULL,
+          line_end      INTEGER NOT NULL,
+          indexed_at    INTEGER NOT NULL,
+          file_mtime_at INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_memory_chunks_type_mtime
+          ON memory_chunks (source_type, file_mtime_at DESC);
+
+        CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
+          source,
+          heading,
+          content,
+          content='memory_chunks',
+          content_rowid='rowid'
+        );
+
+        CREATE TRIGGER IF NOT EXISTS memory_chunks_ai
+          AFTER INSERT ON memory_chunks BEGIN
+            INSERT INTO memory_fts(rowid, source, heading, content)
+              VALUES (new.rowid, new.source, new.heading, new.content);
+          END;
+
+        CREATE TRIGGER IF NOT EXISTS memory_chunks_ad
+          AFTER DELETE ON memory_chunks BEGIN
+            INSERT INTO memory_fts(memory_fts, rowid, source, heading, content)
+              VALUES ('delete', old.rowid, old.source, old.heading, old.content);
+          END;
+      `);
+
+      if (this._vecAvailable) {
+        try {
+          db.exec(`
+            CREATE VIRTUAL TABLE IF NOT EXISTS memory_vec USING vec0(
+              embedding FLOAT[${this.config.vectorDimension}]
+            );
+          `);
+        } catch (err) {
+          console.warn('[memory-store] Failed to create memory_vec, disabling vector search:', err);
+          this._vecAvailable = false;
+        }
+      }
+    } catch (err) {
+      throw new StoreError('schema migration failed', err);
     }
   }
 
   upsert(chunks: MemoryChunk[], embeddings: Float32Array[]): void {
     const insertChunk = this.db.prepare(`
       INSERT OR REPLACE INTO memory_chunks
-        (id, source, heading, heading_level, content, line_start, line_end, indexed_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (id, source, source_type, heading, heading_level, content, line_start, line_end, indexed_at, file_mtime_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     let insertVec: Database.Statement | null = null;
@@ -131,16 +156,19 @@ export class MemoryStore {
           const info = insertChunk.run(
             chunk.id,
             chunk.source,
+            chunk.sourceType,
             chunk.heading,
             chunk.headingLevel,
             chunk.content,
             chunk.lineStart,
             chunk.lineEnd,
             Date.now(),
+            chunk.fileMtimeAt,
           );
 
           if (insertVec && embeddings[i] && info.lastInsertRowid) {
-            const rowid = Number(info.lastInsertRowid);
+            const rowid =
+              typeof info.lastInsertRowid === 'bigint' ? info.lastInsertRowid : BigInt(info.lastInsertRowid);
             const emb = embeddings[i];
             const buf = Buffer.from(emb.buffer, emb.byteOffset, emb.byteLength);
             insertVec.run(rowid, buf);
@@ -168,6 +196,25 @@ export class MemoryStore {
       source: string;
     }>;
     return rows.map((r) => r.source);
+  }
+
+  getRecentSources(options: { limit: number; sourceType?: SourceType }): RecentSource[] {
+    const limit = Math.min(Math.max(1, options.limit || 5), 50);
+    const whereClause = options.sourceType ? ' WHERE source_type = ?' : '';
+    const params = options.sourceType ? [options.sourceType, limit] : [limit];
+
+    try {
+      const rows = this.db
+        .prepare(
+          `SELECT source, MAX(file_mtime_at) AS t FROM memory_chunks${whereClause} GROUP BY source ORDER BY t DESC LIMIT ?`,
+        )
+        .all(...params) as Array<{ source: string; t: number }>;
+
+      return rows.map((row) => ({ source: row.source, fileMtimeAt: row.t }));
+    } catch (err) {
+      console.warn('[memory-store] Recent source lookup failed:', err);
+      return [];
+    }
   }
 
   deleteBySource(source: string): void {
@@ -280,27 +327,31 @@ export class MemoryStore {
     const placeholders = ids.map(() => '?').join(', ');
     const rows = this.db
       .prepare(
-        `SELECT id, source, heading, heading_level, content, line_start, line_end
+        `SELECT id, source, source_type, heading, heading_level, content, line_start, line_end, file_mtime_at
          FROM memory_chunks WHERE id IN (${placeholders})`,
       )
       .all(...ids) as Array<{
       id: string;
       source: string;
+      source_type: SourceType;
       heading: string;
       heading_level: number;
       content: string;
       line_start: number;
       line_end: number;
+      file_mtime_at: number;
     }>;
 
     return rows.map((r) => ({
       id: r.id,
       source: r.source,
+      sourceType: r.source_type,
       heading: r.heading,
       headingLevel: r.heading_level,
       content: r.content,
       lineStart: r.line_start,
       lineEnd: r.line_end,
+      fileMtimeAt: r.file_mtime_at,
     }));
   }
 
