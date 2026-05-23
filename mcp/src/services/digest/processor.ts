@@ -23,7 +23,7 @@ import type {
   ConversationDigestInitResult,
   InitializeConversationDigestInput,
 } from './types.js';
-import { loadProjectSettings, resolveConversationDigestConfig, resolveMemoryConfig } from '../../core/config/index.js';
+import { loadGlobalSettings, resolveConversationDigestConfig, resolveMemoryConfig } from '../../core/config/index.js';
 import { MemoryStore } from '../memory/store.js';
 import { MemoryIndexer } from '../memory/indexer.js';
 import { Embedder } from '../memory/embedder.js';
@@ -73,7 +73,7 @@ async function indexProvisionalDigestFile(
       return { indexed: true };
     }
 
-    const settings = loadProjectSettings(workspaceRoot);
+    const settings = loadGlobalSettings();
     const config = resolveMemoryConfig(settings, workspaceRoot);
     if (config.enabled !== true) return { indexed: false };
 
@@ -132,7 +132,7 @@ export async function digestConversationFile(options: DigestFileOptions): Promis
 }
 
 export function summarizePendingConversations(workspaceRoot: string): DigestPendingCandidateSummary {
-  const digestConfig = resolveConversationDigestConfig(loadProjectSettings(workspaceRoot));
+  const digestConfig = resolveConversationDigestConfig(loadGlobalSettings());
   if (!digestConfig || digestConfig.enabled === false) {
     return { initialized: false, pending: 0, reason: 'not-initialized' };
   }
@@ -154,7 +154,7 @@ export async function digestPendingConversations({
   digestFn?: (opts: DigestFileOptions) => Promise<ProvisionalDigestResult>;
   onProgress?: (progress: { processed: number; skipped: number; errors: number }) => void | Promise<void>;
 }): Promise<DigestPendingResult> {
-  const digestConfig = resolveConversationDigestConfig(loadProjectSettings(workspaceRoot));
+  const digestConfig = resolveConversationDigestConfig(loadGlobalSettings());
   if (!digestConfig || digestConfig.enabled === false) {
     return { ok: true, initialized: false, action: 'noop', reason: 'not-initialized' };
   }
@@ -173,7 +173,7 @@ export async function digestPendingConversations({
     }
 
     let indexer: MemoryIndexer | undefined;
-    const memoryConfig = resolveMemoryConfig(loadProjectSettings(workspaceRoot), workspaceRoot);
+    const memoryConfig = resolveMemoryConfig(loadGlobalSettings(), workspaceRoot);
     if (memoryConfig.enabled === true) {
       const store = new MemoryStore(path.join(memoryConfig.wikiDir, 'index.db'), memoryConfig);
       const embedder = new Embedder(memoryConfig.embeddingModel);

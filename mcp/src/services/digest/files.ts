@@ -4,7 +4,7 @@ import type { ConversationDigestInput, ConversationDigestSettings } from './type
 import { PROVISIONAL_DIGEST_DIR } from './constants.js';
 import { atomicWriteTextFile } from '../../utils/files.js';
 import { sha256Hex } from '../../utils/hash.js';
-import { loadProjectSettings, writeProjectSettings } from '../../core/config/index.js';
+import { loadGlobalSettings, writeGlobalSettings } from '../../core/config/index.js';
 
 export function defaultProvisionalDigestDir(workspaceRoot: string): string {
   return path.join(workspaceRoot, PROVISIONAL_DIGEST_DIR);
@@ -44,9 +44,9 @@ export function writeProvisionalDigestFile(outDir: string, input: ConversationDi
 }
 
 export function writeConversationDigestSettings(workspaceRoot: string, digest: ConversationDigestSettings): void {
-  const current = loadProjectSettings(workspaceRoot);
+  const current = loadGlobalSettings();
   const memory = current.memory ?? {};
-  writeProjectSettings(workspaceRoot, {
+  writeGlobalSettings({
     memory: {
       ...memory,
       enabled: memory.enabled ?? true,

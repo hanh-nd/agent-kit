@@ -1,7 +1,7 @@
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { afterEach, describe, test } from 'node:test';
+import { afterEach, describe, test, beforeEach } from 'node:test';
 import { createTempDirTracker } from '../../utils/temp-dir.test.js';
 import { runMemoryCli } from './memory.js';
 import { writeConversationDigestSettings } from '../../services/digest/files.js';
@@ -9,8 +9,21 @@ import { DigestModelId } from '../../services/digest/types.js';
 
 const tempDirs = createTempDirTracker();
 
+let originalHome: string | undefined;
+let originalUserProfile: string | undefined;
+
+beforeEach(() => {
+  originalHome = process.env.HOME;
+  originalUserProfile = process.env.USERPROFILE;
+  const mockHome = tempDirs.makeTempDir('mock-home-');
+  process.env.HOME = mockHome;
+  process.env.USERPROFILE = mockHome;
+});
+
 afterEach(() => {
   tempDirs.cleanup();
+  process.env.HOME = originalHome;
+  process.env.USERPROFILE = originalUserProfile;
 });
 
 function writeInitState(workspace: string): void {
@@ -85,7 +98,7 @@ describe('cmdDigestPending CLI', () => {
     assert.equal(code, 0);
     const parsed = JSON.parse(output.trim()) as Record<string, unknown>;
     assert.ok('systemMessage' in parsed, 'result must have systemMessage field');
-    assert.equal(parsed.systemMessage, 'No conversations to digest');
+    assert.equal(parsed.systemMessage, '[memory-kit] No conversations to digest');
   });
 
   test('--background worker flag returns final worker status JSON', async () => {
@@ -131,7 +144,7 @@ describe('cmdDigestPending CLI', () => {
       assert.equal(code, 0);
       const parsed = JSON.parse(output.trim()) as Record<string, unknown>;
       assert.ok('systemMessage' in parsed, 'result must have systemMessage field');
-      assert.equal(parsed.systemMessage, 'Digest failed: CLI entrypoint is unavailable');
+      assert.equal(parsed.systemMessage, '[memory-kit] Digest failed: CLI entrypoint is unavailable');
     } finally {
       process.argv[1] = previousArgv;
     }

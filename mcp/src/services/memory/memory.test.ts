@@ -87,7 +87,8 @@ describe('kit_memory_search', () => {
     const indexer = makeIndexerStub({ search: async () => [searchResult] });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+    registerMemoryTools(server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
       indexer,
       store,
       config: BASE_CONFIG,
@@ -106,7 +107,8 @@ describe('kit_memory_search', () => {
     const indexer = makeIndexerStub({ search: async () => [] });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+    registerMemoryTools(server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
       indexer,
       store,
       config: BASE_CONFIG,
@@ -125,7 +127,8 @@ describe('kit_memory_search', () => {
     const indexer = makeIndexerStub({ search: async () => [] });
     const store = makeStoreStub(false);
     const { server, tools } = makeMockServer();
-    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+    registerMemoryTools(server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
       indexer,
       store,
       config: BASE_CONFIG,
@@ -152,7 +155,8 @@ describe('kit_memory_search', () => {
     const indexer = makeIndexerStub({ search: async () => [searchResult] });
     const store = makeStoreStub(false);
     const { server, tools } = makeMockServer();
-    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+    registerMemoryTools(server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
       indexer,
       store,
       config: BASE_CONFIG,
@@ -180,7 +184,8 @@ describe('kit_memory_search', () => {
     const indexer = makeIndexerStub({ search: async () => [searchResult] });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+    registerMemoryTools(server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
       indexer,
       store,
       config: BASE_CONFIG,
@@ -203,7 +208,8 @@ describe('kit_memory_search', () => {
     });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+    registerMemoryTools(server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
       indexer,
       store,
       config: BASE_CONFIG,
@@ -223,7 +229,8 @@ describe('kit_memory_search', () => {
     });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+    registerMemoryTools(server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
       indexer,
       store,
       config: BASE_CONFIG,
@@ -241,7 +248,8 @@ describe('kit_memory_search', () => {
     });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+    registerMemoryTools(server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
       indexer,
       store,
       config: BASE_CONFIG,
@@ -257,7 +265,8 @@ describe('kit_memory_search', () => {
     const indexer = makeIndexerStub();
     const store = makeStoreStub(true);
     const { server, descriptions } = makeMockServer();
-    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+    registerMemoryTools(server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
       indexer,
       store,
       config: BASE_CONFIG,
@@ -298,7 +307,8 @@ describe('kit_memory_recent', () => {
         },
       });
       const { server, tools } = makeMockServer();
-      registerMemoryTools(server as never, { memory: { enabled: true } }, tmpDir, {
+      registerMemoryTools(server as never, tmpDir, {
+        settings: { memory: { enabled: true } },
         indexer: makeIndexerStub(),
         store,
         config: { ...BASE_CONFIG, wikiDir },
@@ -333,7 +343,8 @@ describe('kit_memory_recent', () => {
         },
       });
       const { server, tools } = makeMockServer();
-      registerMemoryTools(server as never, { memory: { enabled: true } }, tmpDir, {
+      registerMemoryTools(server as never, tmpDir, {
+        settings: { memory: { enabled: true } },
         indexer: makeIndexerStub(),
         store,
         config: { ...BASE_CONFIG, wikiDir },
@@ -366,7 +377,8 @@ describe('kit_memory_recent', () => {
         ],
       });
       const { server, tools } = makeMockServer();
-      registerMemoryTools(server as never, { memory: { enabled: true } }, tmpDir, {
+      registerMemoryTools(server as never, tmpDir, {
+        settings: { memory: { enabled: true } },
         indexer: makeIndexerStub(),
         store,
         config: { ...BASE_CONFIG, wikiDir },
@@ -385,7 +397,8 @@ describe('kit_memory_recent', () => {
 
   test('is registered only when memory is enabled and description mentions temporal routing', () => {
     const enabledServer = makeMockServer();
-    registerMemoryTools(enabledServer.server as never, { memory: { enabled: true } }, '/tmp', {
+    registerMemoryTools(enabledServer.server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
       indexer: makeIndexerStub(),
       store: makeStoreStub(true),
       config: BASE_CONFIG,
@@ -395,7 +408,9 @@ describe('kit_memory_recent', () => {
     assert.match(enabledServer.descriptions.get('kit_memory_recent') ?? '', /last session|recent/);
 
     const disabledServer = makeMockServer();
-    const result = registerMemoryTools(disabledServer.server as never, { memory: { enabled: false } }, '/tmp');
+    const result = registerMemoryTools(disabledServer.server as never, '/tmp', {
+      settings: { memory: { enabled: false } },
+    });
     assert.equal(result, null);
     assert.equal(disabledServer.tools.has('kit_memory_recent'), false);
   });
@@ -408,7 +423,8 @@ describe('kit_memory_save', () => {
     });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+    registerMemoryTools(server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
       indexer,
       store,
       config: BASE_CONFIG,
@@ -435,7 +451,8 @@ describe('kit_memory_save', () => {
     });
     const store = makeStoreStub(true);
     const { server, tools } = makeMockServer();
-    registerMemoryTools(server as never, { memory: { enabled: true } }, '/tmp', {
+    registerMemoryTools(server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
       indexer,
       store,
       config: BASE_CONFIG,

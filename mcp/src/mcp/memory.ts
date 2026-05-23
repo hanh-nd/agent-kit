@@ -11,7 +11,7 @@ import { initializeConversationDigestModel } from '../services/digest/processor.
 import { DEFAULT_DIGEST_MODEL_ID } from '../services/digest/constants.js';
 import { formatError, mcpJson, mcpText } from '../utils/utils.js';
 import {
-  loadProjectSettings,
+  loadGlobalSettings,
   resolveConversationDigestConfig,
   resolveMemoryConfig,
   type ProjectSettings,
@@ -126,7 +126,7 @@ function registerMemoryToolHandlers(
     },
     async ({ model_id, enabled }) => {
       try {
-        const existingConfig = resolveConversationDigestConfig(loadProjectSettings(workspaceRoot));
+        const existingConfig = resolveConversationDigestConfig(loadGlobalSettings());
         const result = await initializeConversationDigestModel({
           workspaceRoot,
           modelId: model_id ?? existingConfig?.modelId ?? DEFAULT_DIGEST_MODEL_ID,
@@ -153,14 +153,15 @@ function registerMemoryToolHandlers(
  */
 export function registerMemoryTools(
   server: McpServer,
-  settings: ProjectSettings,
   workspaceRoot: string,
   overrides?: {
     indexer?: MemoryIndexer;
     store?: MemoryStore;
     config?: MemoryConfig;
+    settings?: ProjectSettings; // For testing
   },
 ): MemoryIndexer | null {
+  const settings = overrides?.settings ?? loadGlobalSettings();
   if (settings.memory?.enabled !== true) return null;
 
   const config = overrides?.config ?? resolveMemoryConfig(settings, workspaceRoot);

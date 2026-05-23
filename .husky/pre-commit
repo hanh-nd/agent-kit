@@ -1,3 +1,3 @@
-npm run build
+npm run lint && npm run build
 git add plugins/agent-kit/.claude plugins/agent-kit/.codex plugins/agent-kit/.gemini
 git add plugins/memory-kit/.claude plugins/memory-kit/.codex plugins/memory-kit/.gemini

@@ -2,7 +2,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { KIT_PATH, WIKI_ARCHIVE_CONVERSATIONS_DIR, WIKI_COMPILED_DIR, WIKI_RAW_DIR } from './constants.js';
+import { AGENT_KIT_HOME, WIKI_ARCHIVE_CONVERSATIONS_DIR, WIKI_COMPILED_DIR, WIKI_RAW_DIR } from './constants.js';
 import { exitWithSuccess, readStdin, runWhenInvoked } from './utils.js';
 
 function checkInboxNudge(): string {
@@ -34,9 +34,9 @@ function ensureWikiDirs(): void {
 }
 
 function ensureMemoryEnabled(): void {
-  const settingsPath = path.join(KIT_PATH, 'settings.json');
+  const settingsPath = path.join(AGENT_KIT_HOME, 'settings.json');
   try {
-    fs.mkdirSync(KIT_PATH, { recursive: true });
+    fs.mkdirSync(AGENT_KIT_HOME, { recursive: true });
     let settings: Record<string, unknown> = {};
     if (fs.existsSync(settingsPath)) {
       settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) as Record<string, unknown>;

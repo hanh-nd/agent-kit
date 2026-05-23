@@ -12,7 +12,6 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { registerCoreTools } from '../mcp/core.js';
 import { registerAgentTools } from '../mcp/agent.js';
 import { registerIntegrationTools } from '../mcp/integration.js';
-import { loadProjectSettings } from '../core/config/index.js';
 import { registerMemoryTools } from '../mcp/memory.js';
 import { getWorkspaceRoot } from '../utils/utils.js';
 
@@ -30,8 +29,7 @@ registerCoreTools(server);
 registerAgentTools(server);
 
 const workspaceRoot = getWorkspaceRoot();
-const settings = loadProjectSettings(workspaceRoot);
-const memoryIndexer = registerMemoryTools(server, settings, workspaceRoot);
+const memoryIndexer = registerMemoryTools(server, workspaceRoot);
 
 // ═══════════════════════════════════════════════════════════════
 // START SERVER

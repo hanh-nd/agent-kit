@@ -4,6 +4,7 @@
  */
 
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { DEFAULT_MEMORY_CONFIG } from '../../services/memory/constants.js';
 import type { MemoryConfig } from '../../services/memory/types.js';
@@ -84,6 +85,28 @@ export function writeProjectSettings(workspaceRoot: string, patch: Partial<Proje
   const settingsPath = path.join(workspaceRoot, '.agent-kit', 'settings.json');
   const current = loadProjectSettings(workspaceRoot);
   atomicWriteJsonFile(settingsPath, { ...current, ...patch });
+}
+
+export function getGlobalSettingsFile(): string {
+  return path.join(os.homedir(), '.agent-kit', 'settings.json');
+}
+
+export function loadGlobalSettings(): ProjectSettings {
+  const file = getGlobalSettingsFile();
+  if (fs.existsSync(file)) {
+    try {
+      return JSON.parse(fs.readFileSync(file, 'utf-8'));
+    } catch (error) {
+      console.error(`[agent-kit] Warning: Failed to parse ${file}:`, error);
+    }
+  }
+
+  return {};
+}
+
+export function writeGlobalSettings(patch: Partial<ProjectSettings>): void {
+  const current = loadGlobalSettings();
+  atomicWriteJsonFile(getGlobalSettingsFile(), { ...current, ...patch });
 }
 
 export function resolveConversationDigestConfig(settings: ProjectSettings): ConversationDigestSettings | undefined {

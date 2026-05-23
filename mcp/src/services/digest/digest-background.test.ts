@@ -1,7 +1,7 @@
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { afterEach, describe, test } from 'node:test';
+import { afterEach, describe, test, beforeEach } from 'node:test';
 import { createTempDirTracker } from '../../utils/temp-dir.test.js';
 import { writeConversationDigestSettings } from './files.js';
 import { launchDigestPendingWorker, runDigestPendingWorker } from './background.js';
@@ -10,8 +10,21 @@ import { DigestModelId, type DigestWorkerStatus } from './types.js';
 
 const tempDirs = createTempDirTracker();
 
+let originalHome: string | undefined;
+let originalUserProfile: string | undefined;
+
+beforeEach(() => {
+  originalHome = process.env.HOME;
+  originalUserProfile = process.env.USERPROFILE;
+  const mockHome = tempDirs.makeTempDir('mock-home-');
+  process.env.HOME = mockHome;
+  process.env.USERPROFILE = mockHome;
+});
+
 afterEach(() => {
   tempDirs.cleanup();
+  process.env.HOME = originalHome;
+  process.env.USERPROFILE = originalUserProfile;
 });
 
 function digestWorkerLogPath(workspace: string): string {
@@ -94,7 +107,7 @@ describe('digest background helpers', () => {
 });
 
 describe('launchDigestPendingWorker', () => {
-  test('writes not-initialized and does not spawn before digest init', () => {
+  test('writes not-initialized and does not spawn before digest init', async () => {
     const workspace = tempDirs.makeTempDir('digest-bg-not-init-');
     const result = launchDigestPendingWorker({
       workspaceRoot: workspace,
@@ -108,7 +121,7 @@ describe('launchDigestPendingWorker', () => {
     assert.equal(readDigestWorkerStatus(workspace)?.state, 'not-initialized');
   });
 
-  test('writes no-pending and does not spawn when initialized with no candidates', () => {
+  test('writes no-pending and does not spawn when initialized with no candidates', async () => {
     const workspace = tempDirs.makeTempDir('digest-bg-no-pending-');
     writeInitState(workspace);
     const result = launchDigestPendingWorker({
@@ -122,7 +135,7 @@ describe('launchDigestPendingWorker', () => {
     assert.equal(result.status.state, 'no-pending');
   });
 
-  test('writes locked when an existing running worker pid is live', () => {
+  test('writes locked when an existing running worker pid is live', async () => {
     const workspace = tempDirs.makeTempDir('digest-bg-locked-status-');
     writeDigestWorkerStatus(workspace, status());
 
@@ -136,7 +149,7 @@ describe('launchDigestPendingWorker', () => {
     assert.equal(result.status.state, 'locked');
   });
 
-  test('marks stale running status before continuing to no-pending preflight', () => {
+  test('marks stale running status before continuing to no-pending preflight', async () => {
     const workspace = tempDirs.makeTempDir('digest-bg-stale-status-');
     writeInitState(workspace);
     writeDigestWorkerStatus(workspace, status({ pid: 999999999 }));
@@ -151,7 +164,7 @@ describe('launchDigestPendingWorker', () => {
     assert.equal(result.status.state, 'no-pending');
   });
 
-  test('tolerates corrupt stale lock files and continues preflight', () => {
+  test('tolerates corrupt stale lock files and continues preflight', async () => {
     const workspace = tempDirs.makeTempDir('digest-bg-stale-lock-');
     writeInitState(workspace);
     const lockDir = path.join(workspace, '.agent-kit', 'wiki', 'digest');
@@ -168,7 +181,7 @@ describe('launchDigestPendingWorker', () => {
     assert.equal(result.status.state, 'no-pending');
   });
 
-  test('writes failed status when pending work exists but entrypoint is unavailable', () => {
+  test('writes failed status when pending work exists but entrypoint is unavailable', async () => {
     const workspace = tempDirs.makeTempDir('digest-bg-spawn-failed-');
     writeInitState(workspace);
     writeConvFile(workspace);

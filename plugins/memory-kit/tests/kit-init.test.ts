@@ -3,9 +3,12 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, describe, test } from 'node:test';
+import { afterEach, describe, test, beforeEach } from 'node:test';
 
 const tempDirs: string[] = [];
+
+let originalHome: string | undefined;
+let originalUserProfile: string | undefined;
 
 function makeTempDir(): string {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-kit-init-'));
@@ -13,11 +16,21 @@ function makeTempDir(): string {
   return tempDir;
 }
 
+beforeEach(() => {
+  originalHome = process.env.HOME;
+  originalUserProfile = process.env.USERPROFILE;
+  const mockHome = makeTempDir();
+  process.env.HOME = mockHome;
+  process.env.USERPROFILE = mockHome;
+});
+
 afterEach(() => {
   while (tempDirs.length > 0) {
     const tempDir = tempDirs.pop();
     if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
   }
+  process.env.HOME = originalHome;
+  process.env.USERPROFILE = originalUserProfile;
 });
 
 describe('kit-init', () => {
@@ -38,7 +51,7 @@ describe('kit-init', () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(JSON.parse(result.stdout).systemMessage, '[memory-kit] Memory ready');
 
-    const settingsPath = path.join(projectDir, '.agent-kit', 'settings.json');
+    const settingsPath = path.join(process.env.HOME!, '.agent-kit', 'settings.json');
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) as {
       memory?: { enabled?: boolean };
     };

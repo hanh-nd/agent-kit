@@ -13,7 +13,7 @@ import {
   DIGEST_WORKER_FLAG,
   DIGEST_WORKER_RESULT_PREFIX,
 } from '../../services/digest/constants.js';
-import { loadProjectSettings, resolveConversationDigestConfig } from '../../core/config/index.js';
+import { loadGlobalSettings, resolveConversationDigestConfig } from '../../core/config/index.js';
 import { parseArgs, stringFlag, numberFlag } from '../utils/args.js';
 import { getWorkspaceRoot } from '../../utils/utils.js';
 
@@ -80,7 +80,7 @@ async function cmdDigestFile(args: string[]): Promise<number> {
 
   const parsed = parseArgs(args);
   const workspaceRoot = getWorkspaceRoot();
-  const digestConfig = resolveConversationDigestConfig(loadProjectSettings(workspaceRoot));
+  const digestConfig = resolveConversationDigestConfig(loadGlobalSettings());
   const modelId = stringFlag(parsed.flags, 'model') ?? digestConfig?.modelId ?? DEFAULT_DIGEST_MODEL_ID;
   const inputPath = stringFlag(parsed.flags, 'input');
 
