@@ -1,6 +1,6 @@
 {
   "name": "mk",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Native TypeScript persistent memory for agent-kit",
   "author": {
     "name": "hanhnd"
