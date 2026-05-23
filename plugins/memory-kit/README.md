@@ -12,6 +12,7 @@ Memory Kit provides a zero-configuration, persistent knowledge base for your AI 
 | -------------------------------- | ------------------------------------------------------------------ |
 | `/wiki [compile\|query\|lint]`   | Persistent project wiki. Commands — compile (default), query {question}, lint. |
 | `/recall [query]`                | Search persistent memory for context relevant to the current question. |
+| `/init-digest [model]`            | Initialize or toggle optional local conversation digesting setup.  |
 
 ---
 
