@@ -177,112 +177,252 @@ Walk through four pillars sequentially. Apply severity-based routing throughout.
 
 Once scope is locked and review issues resolved, transition to **State 2: Intern-Proof Blueprint.**
 
-**Generation strategy — two explicit steps to prevent quality degradation:**
+**Global Phase 4 rules:**
 
-- **Step 4.1:** Generate Section 0 (Goal & ACs), Section 1 (Architecture & Contracts), and Section 2 (WBS) in full. Output and stop — complete Step 4.1 fully before beginning Section 3.
-- **Step 4.2:** Re-read the full WBS in Section 2 above before writing a single word of Section 3. Then generate Section 3 (Test Plan), Section 3.5 (AC Coverage Check), and Section 4 (Completion Summary).
+- Each compose sub-step (4.1, 4.2, 4.3, 4.4) MUST get its own response. The agent MUST NOT attempt to compose two or more files in a single response — doing so re-introduces the per-response compression this refactor exists to solve.
+- The agent MUST NOT print README/ARCHITECTURE/TASKS/TESTS content to chat at any point — not during composition, not after save. Conversation review happens in Phase 2/3. The saved files ARE the artifact.
+- If a sub-step's response budget would be exceeded while composing its file, halt and surface `STATUS: BLOCKED — Phase 4.<N> overflow: <details>` rather than silently truncating. Treat a TASKS-layer-N split fallback as an edge-case mitigation, not default behavior.
+- Before Step 4.1, choose and freeze a non-empty `<plan-slug-without-versioning>`. Every Phase 4 `kit_save_handoff` call MUST reuse this exact slug. Do NOT rely on content-derived slug fallback, because each file has different content and could otherwise land in a different folder.
+- After each `kit_save_handoff` call, record the returned folder path internally. If any later save returns a different folder path, halt and surface `STATUS: BLOCKED — Phase 4 save path mismatch: <details>`.
 
-This split exists because Section 3's Behavioral Contracts and the AC Coverage Check must derive from the finalized WBS — not from a half-formed mental model of it.
+**Step 4.1: Compose and save `ARCHITECTURE.md`.** Use one full response for `ARCHITECTURE.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. Capture system flow, data contracts, failure modes, reuse map, and architectural NOT-in-scope items using the template below. Immediately after composing this file, save only this file:
 
----
+```ts
+kit_save_handoff({
+  type: "plan",
+  slug: "<plan-slug-without-versioning>",
+  files: {
+    "ARCHITECTURE.md": "<architecture markdown>",
+  },
+});
+```
 
-Draft the WBS foundation-first, then in verifiable slices. A layer may establish shared contracts or prerequisites, but avoid horizontal batches that defer all integration until the end. After the foundation is in place, prefer tasks that complete a usable path through the stack, or a risk-first proof when uncertainty is the main threat.
+**Step 4.2: Re-read, compose, and save `TASKS.md`.** Before writing the first character of `TASKS.md`, re-read the saved `ARCHITECTURE.md` content from the returned folder path. Use one full response for `TASKS.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. Draft the WBS foundation-first, then in verifiable slices, using `[P]` and `[S: task_id]` annotations and function/method contracts. Immediately after composing this file, save only this file with the exact same slug:
 
-Tasks must be granular and expressed as **function/method contracts**: lock the public interface (name, input types, output type, error cases) — do NOT prescribe the implementation algorithm inside the function body. The *what* is the plan's domain; the *how* is the implementer's domain.
+```ts
+kit_save_handoff({
+  type: "plan",
+  slug: "<plan-slug-without-versioning>",
+  files: {
+    "TASKS.md": "<tasks markdown>",
+  },
+});
+```
 
-- ❌ Too vague: "Implement the user mapping logic"
-- ❌ Prescribes algorithm: "Map the array of `User` objects to `UserDTO`, filtering out items where `isActive` is false. Throw `ValidationError` if the array is empty."
-- ✅ Contract style: "Implement `UserMapper.toDTO(users: User[]): UserDTO[]` — returns only active users. Throws `ValidationError` if input is empty."
+**Step 4.3: Re-read, compose, and save `TESTS.md`.** Before writing the first character of `TESTS.md`, re-read the saved `TASKS.md` content from the returned folder path. Use one full response for `TESTS.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. Derive behavioral contracts from Acceptance Criteria and failure modes, and reference only Task IDs that exist in finalized `TASKS.md`. Immediately after composing this file, save only this file with the exact same slug:
 
-**Identifier rule:** Verify all public identifiers (types, function names, file paths) with `Read` before including them — a wrong name produces broken code downstream. If a file does not exist yet, state explicitly: "New file — create with these specs." Internal logic should be expressed as business rules (inputs, outputs, error cases) — avoid prescribing local variable names, which the implementing engineer should own. Diagram liberally: include Mermaid diagrams for data flow, state machines, dependency graphs, and processing pipelines, and flag where diagrams should be embedded in code comments.
+```ts
+kit_save_handoff({
+  type: "plan",
+  slug: "<plan-slug-without-versioning>",
+  files: {
+    "TESTS.md": "<tests markdown>",
+  },
+});
+```
+
+**Step 4.4: Re-read, compose, and save `README.md`.** Before writing the first character of `README.md`, re-read the saved `ARCHITECTURE.md`, `TASKS.md`, and `TESTS.md` from the returned folder path. Use one full response for `README.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. First enumerate every decision made during Phase 2 (Scope Challenge resolutions) and Phase 3 (Architecture / Code Quality / Test / Performance review resolutions). For each decision, capture WHAT was chosen, WHY, HOW (concrete approach), and RISK (or `none identified`). This enumerated list is the source for README.Decisions — paraphrasing or omitting is forbidden. After Steps 4.1-4.3, scan the saved `TASKS.md` for every file path referenced by a CREATE/MODIFY/DELETE task. Aggregate those paths into the Component Manifest table with one-line purpose per file pulled from the originating task. Do NOT invent paths not in `TASKS.md`. Include a Risk Callout noting `/code` folder-awareness as a follow-on dependency; if blocking before that ships, document fallback `/code @<folder>/TASKS.md`. Immediately after composing this file, save only this file with the exact same slug:
+
+```ts
+kit_save_handoff({
+  type: "plan",
+  slug: "<plan-slug-without-versioning>",
+  files: {
+    "README.md": "<readme markdown>",
+  },
+});
+```
+
+**Step 4.5: Final saved-folder integrity check.** Do not compose or save additional file content in this response, and do not print compose-target file content to chat. Verify the returned folder path contains all four expected files: `README.md`, `ARCHITECTURE.md`, `TASKS.md`, and `TESTS.md`. If any file is missing, halt and surface `STATUS: BLOCKED — Phase 4.5 missing saved file: <filename>`. If all four exist, proceed to Phase 5 with the final returned folder path.
+
+## Templates (Phase 4 compose targets)
+
+### README.md template
 
 ```markdown
-### Execution Blueprint: [Feature Name]
+# Plan: <Feature Name>
 
-#### 0. Goal & Acceptance Criteria
+> **Status:** APPROVED
+> **Created:** <YYYY-MM-DD>
+> **Source:** <ticket-id / design-brief-path / user-request>
+> **Complexity:** <S | M | L | XL>
 
-- **Goal:** [Briefly state the "Why" and the high-level "What"]
-- **Acceptance Criteria:**
-  - [ ] AC 1: [Condition]
-  - [ ] AC 2: [Condition]
-- **Background:** [Relevant context/rationale if needed for implementation]
+## Goal
+<One sentence: what we're building and why>
 
-#### 1. Technical Architecture & Contracts
+## Acceptance Criteria
+- [ ] AC1: <observable, verifiable condition>
+- [ ] AC2: <...>
 
-- **Mermaid Diagram:** [Data flow, state machine, or pipeline]
-- **Data Contracts:** [Exact schemas, interfaces, or API payloads]
-- **Failure Modes:** [Production failure scenarios and required handling]
-- **NOT in Scope:** [Considered and explicitly deferred — one-line rationale each]
+## Decisions
+1. **<Area>:** <chose X> (NOT <rejected Y>)
+   - WHY: <one-line>
+   - HOW: <concrete approach>
+   - RISK: <main risk or "none identified">
+2. **<Next>:** ...
 
-#### 2. Implementation Phases (Micro-WBS)
+## Component Manifest
 
-> **Dependency notation:** Annotate every task with `[P]` (can run in parallel within its layer — no intra-layer dependencies) or `[S: task_id]` (sequential — depends on a specific prior task). This annotation is machine-readable and used by parallel execution agents to determine grouping. Tasks in different layers are always sequential (Layer 2 cannot start until all Layer 1 tasks complete).
+| Action | Path | Purpose |
+| :--- | :--- | :--- |
+| CREATE | `path/to/file.ts` | <one-line purpose> |
+| MODIFY | `path/to/other.ts` | <one-line purpose> |
+| DELETE | `path/to/dead.ts` | <one-line reason> |
 
-- **Layer 1: Foundation & Types**
-  - [ ] [P] Task 1.1: In `[file_path]`, export interface `[Name]` containing `[fields]`.
-- **Layer 2: Core Logic & Edge Cases**
-  - [ ] [P] Task 2.1: In `[file_path]`, implement `[Name]([input]: [InputType]): [ReturnType]`
-    - _Contract:_ [What it must return given valid input — I/O invariants only, no algorithm]
-    - _Error:_ [Exception type and the exact condition that triggers it]
-  - [ ] [S: 2.1] Task 2.2: [Task that depends on 2.1]
-- **Layer 3: Integration & Presentation**
-  - [ ] [S: 2.1, 2.2] Task 3.1: [Specific integration steps]
+## Scope
+**IN:**
+- <feature/behavior>
 
-Each layer should leave at least one explicit verification point. If a layer cannot produce a runnable path, state the first later task that makes it runnable and why the delay is unavoidable.
+**OUT:**
+- <excluded item — one-line reason>
 
-#### 3. Test Plan
+## NOT in Scope (considered, deferred)
+- <considered architectural option — one-line rationale>
 
-- **Codepath Diagram:** [Mermaid diagram of all new paths — annotated with which behavioral contract each path exercises]
-- **Behavioral Contracts:** [Derived from ACs — one falsifiable contract per AC]
-  - `Given [precondition], [subject] MUST [observable outcome]` → covers AC [N]
-  - `Given [precondition], [subject] MUST NOT [outcome]` → covers failure mode [N]
-- **Coverage Gaps:** [Failure modes from Section 1 with no covering contract — each must have a corresponding WBS task in Section 2 or an explicit error handler]
-- **Critical Gaps:** [Coverage gaps where no error handling exists AND failure would be silent — each must have a WBS task in Section 2]
+## Risk Callouts
+- <project-level risk requiring user attention>
 
-#### 3.5 AC Coverage Check
+## File Map
+- `README.md` (this file) — decisions + manifest + summary
+- `ARCHITECTURE.md` — diagrams, data contracts, failure modes, reuse map
+- `TASKS.md` — implementation WBS + AC Coverage Check
+- `TESTS.md` — codepath diagram + behavioral contracts + coverage gaps
 
-Before proceeding to Section 4, verify: for each AC listed in Section 0, at least one WBS task in Section 2 covers it. List the mapping explicitly:
+## Completion Summary
+- Scope Challenge: <accepted as-is | reduced per recommendation | skipped (Design Brief input)>
+- Architecture Review: <N issues found, N resolved>
+- Code Quality Review: <N issues, N resolved>
+- Test Review: <N coverage gaps, N critical gaps>
+- Performance Review: <N issues, N resolved>
+- What Already Exists: <N reuse opportunities>
+- Critical Gaps: <N flagged>
+```
 
-- AC 1 → Task [N.N]
-- AC 2 → Task [N.N]
+### ARCHITECTURE.md template
 
-If any AC has no covering task → add the missing task to Section 2 before continuing.
+```markdown
+# Architecture: <Feature Name>
 
-#### 4. Completion Summary
+> See `README.md` for goal, decisions, and component manifest.
+> See `TASKS.md` for the implementation WBS referencing the contracts below.
 
-- Scope Challenge: [accepted as-is / reduced per recommendation]
-- Architecture Review: [N issues found, N resolved]
-- Code Quality Review: [N issues found, N resolved]
-- Test Review: [diagram produced, N gaps identified]
-- Performance Review: [N issues found, N resolved]
-- NOT in Scope: [N items deferred]
-- What Already Exists: [N reuse opportunities identified]
-- Critical Gaps: [N flagged]
+## System Flow
+<Mermaid: sequence, flowchart, or state diagram of the new/changed system behavior>
+
+## Data Contracts
+
+\```ts
+// path/to/file.ts
+export interface FooContract { ... }
+export function bar(input: X): Y;
+\```
+
+## Failure Modes
+
+| # | Scenario | System Behavior | Required Handling |
+| :--- | :--- | :--- | :--- |
+| F1 | <failure case> | <technical response> | <where handled — link to TASKS.md task ID> |
+
+## Reuse Map
+
+| Existing Asset | Path | Reuse For |
+| :--- | :--- | :--- |
+| <function/class/pattern> | `path/to/file.ts:Line` | <where this plan leverages it> |
+
+## NOT in Scope (architectural)
+- <considered architectural option, deferred — one-line rationale>
+```
+
+### TASKS.md template
+
+```markdown
+# Tasks: <Feature Name>
+
+> See `README.md` for goal and decisions.
+> See `ARCHITECTURE.md` for contract definitions referenced below.
+> See `TESTS.md` for behavioral contracts derived from these tasks.
+
+> **Dependency notation:** `[P]` = parallel-safe within layer; `[S: id]` = sequential, depends on the listed task(s). Layers are always sequential.
+
+## Layer 1: Foundation & Types
+- [ ] [P] **Task 1.1:** In `<file_path>`, export interface `<Name>` per `ARCHITECTURE.md > Data Contracts > <Name>`.
+- [ ] [P] **Task 1.2:** ...
+
+## Layer 2: Core Logic & Edge Cases
+- [ ] [P] **Task 2.1:** In `<file_path>`, implement `<funcName>(input: <Type>): <Return>` per `ARCHITECTURE.md > Data Contracts > <Name>`.
+  - _Contract:_ <I/O invariants only — no algorithm>
+  - _Error:_ <exception type and exact trigger condition>
+- [ ] [S: 2.1] **Task 2.2:** ...
+
+## Layer 3: Integration & Presentation
+- [ ] [S: 2.1, 2.2] **Task 3.1:** ...
+
+## AC Coverage Check
+
+| AC ID | Covering Task(s) |
+| :--- | :--- |
+| AC1 | Task 2.1, Task 3.1 |
+| AC2 | Task 2.3 |
+
+If any AC has no covering task → add the missing task to the relevant Layer above before proceeding.
+```
+
+### TESTS.md template
+
+```markdown
+# Tests: <Feature Name>
+
+> See `README.md` for goal and ACs.
+> See `TASKS.md` for WBS task IDs referenced below.
+> See `ARCHITECTURE.md` for failure mode IDs referenced below.
+
+## Codepath Diagram
+<Mermaid: all new code paths — annotated with which behavioral contract each path exercises>
+
+## Behavioral Contracts
+
+| ID | Contract | Covers | Tested by |
+| :--- | :--- | :--- | :--- |
+| BC1 | Given <precondition>, <subject> MUST <observable outcome> | AC1 | Task 2.1 |
+| BC2 | Given <precondition>, <subject> MUST NOT <outcome> | F1 | Task 2.3 |
+
+## Coverage Gaps
+Failure modes from `ARCHITECTURE.md` with no covering contract — each MUST have a covering WBS task or an explicit error handler.
+
+| Failure Mode | Has Contract? | Has Error Handler? | Resolution |
+| :--- | :--- | :--- | :--- |
+| F1 | yes (BC2) | n/a | covered |
+| F2 | NO | no — silent failure | **CRITICAL — add Task X.Y to TASKS.md** |
+
+## Critical Gaps
+Coverage gaps where no error handling exists AND failure would be silent (no log, no user-facing signal, no exception propagation):
+- <none / explicit list>
 ```
 
 ### Phase 5: Handoff
 
 1. **Constraint check.** Verify NO source code was modified during this session.
-2. **Persist the blueprint immediately** — do NOT ask for approval first. Call `kit_save_handoff(type: "plan", slug: <feature-name-without-versioning>, files: { "index.md": <full blueprint markdown> })`. The tool will handle versioning automatically and returns the saved folder path, typically `.agent-kit/handoffs/<feature-slug>/plan/`.
-3. **Present execution menu.** Ask the user what to do next:
+2. **Chat output constraint.** After save, do NOT print compose-target file content to chat. Do not restate README, ARCHITECTURE, TASKS, or TESTS body content.
+3. **Present only the saved folder path, 4-line file tree, and next-step menu:**
 
 ```
-✅ Plan saved → `<returned-path>`
+✅ Plan saved → `<returned-path>/`
+     ├── README.md
+     ├── ARCHITECTURE.md
+     ├── TASKS.md
+     └── TESTS.md
 
 What would you like to do next?
 
 1) Execute now        — I implement the plan directly in this session
 2) Delegate to agent  — Hand off to Gemini (default), Claude, or Codex
 3) Done               — No further action
+4) Custom             — Revise, deepen, or run parallel-agent execution
 ```
 
 **On user selection:**
 
-- **1 — Execute now:** Invoke `/code @<saved-path>` and begin implementation immediately.
-- **2 — Delegate:** Ask "Gemini, Claude, or Codex?" (default: Gemini). Invoke the `delegate` skill telling it to implement the plan, passing the saved plan path as context.
+- **1 — Execute now:** Invoke `/code @<saved-folder-path>` and begin implementation immediately. Pass the folder path, not a single file path.
+- **2 — Delegate:** Ask "Gemini, Claude, or Codex?" (default: Gemini). Invoke the `delegate` skill telling it to implement the plan, passing the saved folder path as context.
 - **3 — Done:** Output `Plan saved. No further action.` and stop.
-- **4 — Custom:** The user types their request. Treat it as continuing the planning conversation — revise the blueprint, challenge a decision, go deeper on a specific phase, or anything else they need. If the user asks to implement the plan using parallel agents, ask "Gemini, Claude, or Codex?" (default: Gemini). Then:
-  1. Analyze the WBS using the `[P]` / `[S: task_id]` annotations to identify independent task groups.
-  2. Group tasks into execution batches: tasks within a batch all carry `[P]` and share the same layer, or have all their `[S]` dependencies already satisfied by a prior batch.
-  3. Spawn one agent per batch. Each agent receives: (a) its assigned task list, (b) the saved plan path for full context, (c) the data contracts from Section 1 of the blueprint.
-  4. Agents run in parallel within each batch. Wait for all agents in a batch to complete before spawning the next batch (layer boundary).
+- **4 — Custom:** The user types their request. Treat it as continuing the planning conversation — revise the blueprint, challenge a decision, go deeper on a specific phase, or anything else they need. If the user asks to implement the plan using parallel agents, ask "Gemini, Claude, or Codex?" (default: Gemini). Then read `TASKS.md`, extract `[P]` / `[S: task_id]` annotations, group tasks into execution batches by layer and satisfied dependencies, and spawn one agent per batch. Each agent receives the saved folder path, its assigned task list, and the relevant contracts from `ARCHITECTURE.md`. Agents run in parallel within each batch; wait for all agents in a batch to complete before spawning the next batch.

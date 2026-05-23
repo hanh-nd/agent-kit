@@ -65,7 +65,7 @@ export function registerCoreTools(server: McpServer): void {
       files: z
         .record(z.string(), z.string())
         .describe(
-          '{ "README.md": "...", "DETAIL.md": "..." } for brainstorm; { "index.md": "..." } for all others. Filenames must match /^[A-Za-z0-9_-]+\\.md$/.',
+          'Markdown files to write into the handoff folder. May include one or many files per call; repeated calls with the same type and slug add or overwrite the provided files. Filenames must match /^[A-Za-z0-9_-]+\\.md$/.',
         ),
       slug: z
         .string()
