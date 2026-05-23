@@ -1,6 +1,6 @@
 {
   "name": "@hanhnd/memory-kit",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Memory Kit - Native TypeScript persistent memory for agent-kit",
   "type": "module",
   "publishConfig": {
