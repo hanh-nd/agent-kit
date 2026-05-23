@@ -31,7 +31,7 @@ These rules govern every write:
 1. **The codebase is the source of truth. The wiki annotates it.** If a wiki claim cannot be traced to a file, a decision artifact, or a stated preference, the claim does not belong in the wiki.
 2. **Entity pages are nouns that exist in the codebase.** A file, a directory, a module, a service, a feature, a domain object. Slugs derive from the codebase noun: `credentials-utility`, `kit-jira-tools`, `ak-plan-skill`. Slugs never derive from work events (`-refactor`, `-redesign`, `-migration`, `-fix`) or from ticket IDs (`yr-24781`, `proj-1234`).
 3. **Work events update the entity; they do not become entities.** A refactor of `credentials-utility` is logged in the entity's `Events` section. It does not produce a separate `credential-manager-refactor.md`.
-4. **A handoff bundle resolves to one target.** When `brainstorm-X`, `plan-X`, and `ticket-X` describe the same work, they update the same entity or concept.
+4. **A handoff bundle resolves to one target.** When `brainstorm-X`, `plan-X`, `ticket-X`, and `code-X` describe the same work, they update the same entity or concept.
 5. **Not every handoff deserves a page.** Routine tickets with no synthesis value go into `log.md` only.
 6. **Read only what proves the claim.** Follow handoff paths, conversation files, existing wiki pages, and cited code anchors. Do not scan unrelated code unless it changes a wiki claim.
 
@@ -83,7 +83,7 @@ Written by the `PostToolUse` hook after each `kit_save_handoff` call:
 
 ```
 ## [YYYY-MM-DDTHH:MM:SS] handoff | {type}-{slug}
-- type: {brainstorm | clarification | plan | ticket | research | scenario | investigation}
+- type: {brainstorm | clarification | plan | ticket | research | scenario | investigation | code}
 - slug: {slug}
 - path: {relative path to handoff folder}
 - summary: {one-line summary}
@@ -185,6 +185,7 @@ Before writing any page, scan each bundle's source handoffs for **negative knowl
 | Universal coding anti-pattern or standing rule | `preferences.md` |
 | Rejected alternative for a specific entity | Entity `Considered & Rejected` |
 | Generalizable architectural lesson | Concept page |
+| Feature-specific execution decision | Relevant entity `Key Decisions`, relevant concept page, or log only |
 | Abandoned approach, no useful conclusion | F-exploration, log only |
 
 A preference mined this way is a negative rule — `## Rule` states what to avoid, `## Why` captures the failure that surfaced it:
@@ -218,7 +219,7 @@ For every entity page being created or updated:
 - If a plan exists but the files are missing → set status to `parked` and add `> ⚠️ Reality Gap: Plan exists but {path} is missing` near the top.
 - If files were previously documented and are now gone → set status to `deprecated` and add `> ⚠️ Reality Gap: {path} no longer exists in the codebase`.
 
-Treat handoffs as intent, not truth. Brainstorm, plan, and ticket artifacts describe proposed behavior; the codebase check decides actual behavior. If implementation diverged from the plan, document what exists now. Record the divergence only when the reason matters for future work.
+Treat handoffs as intent, not truth. Brainstorm, plan, and ticket artifacts describe proposed behavior; code handoffs describe execution evidence; the codebase check decides actual behavior. If implementation diverged from the plan, document what exists now. Record the divergence only when the reason matters for future work.
 
 This step keeps the wiki anchored to reality.
 

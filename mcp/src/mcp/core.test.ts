@@ -96,4 +96,28 @@ describe('handleSaveHandoff', () => {
     const folderPath = resultText(r2).replace('✅ Saved to: ', '');
     assert.equal(fs.readFileSync(path.join(folderPath, 'README.md'), 'utf8'), 'v2');
   });
+
+  test('C8: code handoff writes REPORT.md and DECISIONS.md without README.md', () => {
+    const workspace = makeTempWorkspace();
+    const result = handleSaveHandoff(
+      {
+        type: 'code',
+        slug: 'execution-decision-ledger',
+        files: {
+          'REPORT.md': '# Code Execution Report',
+          'DECISIONS.md': '# Execution Decision Records',
+        },
+      },
+      workspace,
+    );
+    const text = resultText(result);
+    assert.ok(text.startsWith('✅ Saved to:'), `expected success, got: ${text}`);
+    const folderPath = text.replace('✅ Saved to: ', '');
+    assert.equal(folderPath, path.join(workspace, '.agent-kit', 'handoffs', 'execution-decision-ledger', 'code'));
+    assert.ok(fs.existsSync(path.join(folderPath, 'REPORT.md')), 'REPORT.md must exist');
+    assert.ok(fs.existsSync(path.join(folderPath, 'DECISIONS.md')), 'DECISIONS.md must exist');
+    assert.equal(fs.existsSync(path.join(folderPath, 'README.md')), false);
+    assert.equal(fs.readFileSync(path.join(folderPath, 'REPORT.md'), 'utf8'), '# Code Execution Report');
+    assert.equal(fs.readFileSync(path.join(folderPath, 'DECISIONS.md'), 'utf8'), '# Execution Decision Records');
+  });
 });

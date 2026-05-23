@@ -51,6 +51,21 @@ describe('resolveHandoffFolder', () => {
     const result = resolveHandoffFolder({ workspaceRoot: WORKSPACE, type: 'ticket', slug: '', primaryContent: '' });
     assert.equal(result.featureSlug, 'untitled-handoff');
   });
+
+  test('code handoff resolves under code folder', () => {
+    const result = resolveHandoffFolder({
+      workspaceRoot: WORKSPACE,
+      type: 'code',
+      slug: 'execution-decision-ledger',
+      primaryContent: '# Execution Report',
+    });
+    assert.equal(result.canonicalType, 'code');
+    assert.equal(result.relativePath, path.join('.agent-kit', 'handoffs', 'execution-decision-ledger', 'code'));
+    assert.equal(
+      result.folderPath,
+      path.join(WORKSPACE, '.agent-kit', 'handoffs', 'execution-decision-ledger', 'code'),
+    );
+  });
 });
 
 describe('validateHandoffFilename', () => {
