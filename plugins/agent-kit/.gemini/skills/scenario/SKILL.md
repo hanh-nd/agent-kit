@@ -51,7 +51,7 @@ Support these natural requests:
 - `/scenario "User can invite team members by email"`
 - `/scenario @design-brief.md find planning risks`
 - `/scenario @clarification-brief.md find missing seams before plan`
-- `/scenario @plan.md identify scenarios that need tests or review`
+- `/scenario @.agent-kit/handoffs/feature-slug/plan identify scenarios that need tests or review`
 - `/scenario @diff.md @ticket.md focus review on risky behavior`
 
 If the user gives no anchor, ask for one concrete feature, AC, artifact, or diff. Do not produce generic lists.
@@ -138,7 +138,7 @@ Ownership is a data-flow decision, not a label. For each non-ignore row, write t
 
 ### Phase 5: Write the Scenario Brief
 
-Create a portable artifact. If this is meant to feed another AgentKit skill, call `kit_save_handoff(type: "scenario", slug: <feature-slug>, files: { "index.md": <full markdown> })`.
+Create a portable artifact. If this is meant to feed another AgentKit skill, call `kit_save_handoff(type: "scenario", slug: <feature-slug>, files: { "README.md": <full markdown> })`.
 
 ````markdown
 ## Scenario Brief: [Feature / Artifact Name]

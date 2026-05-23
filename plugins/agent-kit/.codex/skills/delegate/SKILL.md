@@ -11,16 +11,16 @@ description: 'Delegate a task to an external agent CLI (Gemini, Claude, or Codex
 
 ## Execution
 
-Parse `$ARGUMENTS` as: `<agent> <task or file path>`
+Parse `$ARGUMENTS` as: `<agent> <task or handoff folder path>`
 
 - **agent** — first word: `gemini`, `claude`, or `codex`
-- **task** — remainder: a message string OR a path to a handoff file
+- **task** — remainder: a message string OR a path to a handoff folder
 
 Examples:
 
 - `/delegate gemini scout the codebase and summarize key patterns`
-- `/delegate gemini .agent-kit/handoffs/feature-slug/plan.md`
-- `/delegate claude implement the plan in .agent-kit/handoffs/feature-slug/plan.md`
+- `/delegate gemini .agent-kit/handoffs/feature-slug/plan`
+- `/delegate claude implement the plan in .agent-kit/handoffs/feature-slug/plan`
 - `/delegate codex review this repo and identify risky refactors`
 
 ---

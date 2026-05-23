@@ -85,11 +85,11 @@ Written by the `PostToolUse` hook after each `kit_save_handoff` call:
 ## [YYYY-MM-DDTHH:MM:SS] handoff | {type}-{slug}
 - type: {brainstorm | clarification | plan | ticket | research | scenario | investigation}
 - slug: {slug}
-- path: {relative path to handoff file}
+- path: {relative path to handoff folder}
 - summary: {one-line summary}
 ```
 
-When compiling, the `path` field points to the full handoff document — read it for richer context than the summary alone.
+When compiling, the `path` field points to the handoff folder — read it for richer context than the summary alone.
 
 ---
 

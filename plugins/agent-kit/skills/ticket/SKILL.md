@@ -33,9 +33,9 @@ version: 1.0.0
 <ticket raw description>
 ```
 
-4. Call `kit_save_handoff(type: "ticket", slug: "<extracted_id>", files: { "index.md": <formatted brief> })`.
+4. Call `kit_save_handoff(type: "ticket", slug: "<extracted_id>", files: { "README.md": <formatted brief> })`.
 
-5. The tool returns the saved file path. Present the execution choices as an interactive TUI menu using arrow keys (use `AskUserQuestion` tool or `ask_user` with type of `choice`) with the following format:
+5. The tool returns the saved folder path. Present the execution choices as an interactive TUI menu using arrow keys (use `AskUserQuestion` tool or `ask_user` with type of `choice`) with the following format:
 
 ```
 ✅ Ticket brief saved → `<returned-path>`
@@ -48,6 +48,6 @@ What would you like to do next?
 
 **On user selection:**
 
-- **1 — Plan:** Invoke `/plan @<saved-path>` to hand the ticket brief directly to the planning skill.
+- **1 — Plan:** Invoke `/plan @<saved-path>` to hand the ticket brief folder directly to the planning skill.
 - **2 — Done:** Output `Ticket saved. No further action.` and stop.
 - **3 — Custom:** The user types their request. Treat it as continuing the conversation — brainstorm the approach, ask questions about the ticket, or anything else they need.

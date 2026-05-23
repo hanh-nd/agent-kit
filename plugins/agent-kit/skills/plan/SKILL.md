@@ -226,7 +226,7 @@ kit_save_handoff({
 });
 ```
 
-**Step 4.4: Re-read, compose, and save `README.md`.** Before writing the first character of `README.md`, re-read the saved `ARCHITECTURE.md`, `TASKS.md`, and `TESTS.md` from the returned folder path. Use one full response for `README.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. First enumerate every decision made during Phase 2 (Scope Challenge resolutions) and Phase 3 (Architecture / Code Quality / Test / Performance review resolutions). For each decision, capture WHAT was chosen, WHY, HOW (concrete approach), and RISK (or `none identified`). This enumerated list is the source for README.Decisions — paraphrasing or omitting is forbidden. After Steps 4.1-4.3, scan the saved `TASKS.md` for every file path referenced by a CREATE/MODIFY/DELETE task. Aggregate those paths into the Component Manifest table with one-line purpose per file pulled from the originating task. Do NOT invent paths not in `TASKS.md`. Include a Risk Callout noting `/code` folder-awareness as a follow-on dependency; if blocking before that ships, document fallback `/code @<folder>/TASKS.md`. Immediately after composing this file, save only this file with the exact same slug:
+**Step 4.4: Re-read, compose, and save `README.md`.** Before writing the first character of `README.md`, re-read the saved `ARCHITECTURE.md`, `TASKS.md`, and `TESTS.md` from the returned folder path. Use one full response for `README.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. First enumerate every decision made during Phase 2 (Scope Challenge resolutions) and Phase 3 (Architecture / Code Quality / Test / Performance review resolutions). For each decision, capture WHAT was chosen, WHY, HOW (concrete approach), and RISK (or `none identified`). This enumerated list is the source for README.Decisions — paraphrasing or omitting is forbidden. After Steps 4.1-4.3, scan the saved `TASKS.md` for every file path referenced by a CREATE/MODIFY/DELETE task. Aggregate those paths into the Component Manifest table with one-line purpose per file pulled from the originating task. Do NOT invent paths not in `TASKS.md`. Immediately after composing this file, save only this file with the exact same slug:
 
 ```ts
 kit_save_handoff({
@@ -288,7 +288,7 @@ kit_save_handoff({
 - <project-level risk requiring user attention>
 
 ## File Map
-- `README.md` (this file) — decisions + manifest + summary
+- `README.md` (this file) — decisions, component manifest, and summary
 - `ARCHITECTURE.md` — diagrams, data contracts, failure modes, reuse map
 - `TASKS.md` — implementation WBS + AC Coverage Check
 - `TESTS.md` — codepath diagram + behavioral contracts + coverage gaps

@@ -38,8 +38,8 @@ Your mandate is to execute the contract precisely — translate it into producti
 ## Inputs
 
 1. **Implementation contract.** Required. May be either:
-   - **WBS plan** from `plan` — a file path (e.g. `@.agent-kit/handoffs/<feature-slug>/plan.md`) or inline content.
-   - **Investigation Report** from `investigate` — a file path (e.g. `@.agent-kit/handoffs/<feature-slug>/investigation.md`) or inline content with confirmed/probable root cause evidence and recommended actions.
+   - **WBS plan** from `plan` — a handoff folder (e.g. `@.agent-kit/handoffs/<feature-slug>/plan`) or explicitly provided inline content.
+   - **Investigation Report** from `investigate` — a handoff folder (e.g. `@.agent-kit/handoffs/<feature-slug>/investigation`) or explicitly provided inline content with confirmed/probable root cause evidence and recommended actions.
    If absent, stop and request a plan or Investigation Report.
 2. **Project DNA** at `.agent-kit/project.md`. Read when present — it carries naming, error-handling, and stack conventions.
 3. **`.agent-kit/settings.json`** (`project` section). Read the `hasTests` and `runTests` flags — they gate Phase 5.

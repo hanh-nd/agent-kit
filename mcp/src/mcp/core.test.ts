@@ -41,17 +41,18 @@ describe('handleSaveHandoff', () => {
     assert.equal(fs.readFileSync(path.join(folderPath, 'DETAIL.md'), 'utf8'), '# Detail');
   });
 
-  test('C2: single index.md written under folder; returns folder path', () => {
+  test('C2: single README.md written under folder; returns folder path', () => {
     const workspace = makeTempWorkspace();
     const result = handleSaveHandoff(
-      { type: 'plan', slug: 'my-plan', files: { 'index.md': '# Plan content' } },
+      { type: 'ticket', slug: 'my-ticket', files: { 'README.md': '# Ticket content' } },
       workspace,
     );
     const text = resultText(result);
     assert.ok(text.startsWith('✅ Saved to:'), `expected success, got: ${text}`);
     const folderPath = text.replace('✅ Saved to: ', '');
-    assert.ok(fs.existsSync(path.join(folderPath, 'index.md')), 'index.md must exist');
-    assert.equal(fs.readFileSync(path.join(folderPath, 'index.md'), 'utf8'), '# Plan content');
+    assert.ok(!text.endsWith('.md'), 'folder path must not end with .md');
+    assert.ok(fs.existsSync(path.join(folderPath, 'README.md')), 'README.md must exist');
+    assert.equal(fs.readFileSync(path.join(folderPath, 'README.md'), 'utf8'), '# Ticket content');
   });
 
   test('C3: empty files returns error containing "files cannot be empty"', () => {
@@ -84,15 +85,15 @@ describe('handleSaveHandoff', () => {
 
   test('C7: second call with same slug overwrites files without error (idempotent)', () => {
     const workspace = makeTempWorkspace();
-    const args = { type: 'plan' as const, slug: 'idem', files: { 'index.md': 'v1' } };
+    const args = { type: 'plan' as const, slug: 'idem', files: { 'README.md': 'v1' } };
     const r1 = handleSaveHandoff(args, workspace);
     assert.ok(resultText(r1).startsWith('✅'), `first call failed: ${resultText(r1)}`);
 
-    const argsV2 = { type: 'plan' as const, slug: 'idem', files: { 'index.md': 'v2' } };
+    const argsV2 = { type: 'plan' as const, slug: 'idem', files: { 'README.md': 'v2' } };
     const r2 = handleSaveHandoff(argsV2, workspace);
     assert.ok(resultText(r2).startsWith('✅'), `second call failed: ${resultText(r2)}`);
 
     const folderPath = resultText(r2).replace('✅ Saved to: ', '');
-    assert.equal(fs.readFileSync(path.join(folderPath, 'index.md'), 'utf8'), 'v2');
+    assert.equal(fs.readFileSync(path.join(folderPath, 'README.md'), 'utf8'), 'v2');
   });
 });

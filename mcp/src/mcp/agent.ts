@@ -1,6 +1,6 @@
 /**
  * Agent Delegation Tools - Invoke external agent CLIs (Gemini, Claude, Codex)
- * Supports handoff file injection and automatic fallback
+ * Supports handoff folder references and automatic fallback
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -76,12 +76,12 @@ function initAgentLog(
 export function registerAgentTools(server: McpServer): void {
   server.tool(
     'kit_trigger_agent',
-    '!Important: Trigger only when user explicitly asks to delegate a task to an external agent CLI (gemini, claude, or codex). The task can be a direct message or a path to a handoff file (.agent-kit/handoffs/feature-slug/plan.md).',
+    '!Important: Trigger only when user explicitly asks to delegate a task to an external agent CLI (gemini, claude, or codex). The task can be a direct message or a path to a handoff folder (.agent-kit/handoffs/feature-slug/plan).',
     {
       agent: z.enum(['gemini', 'claude', 'codex']).describe('The agent CLI to invoke: "gemini", "claude", or "codex"'),
       task: z
         .string()
-        .describe('Task message or path to a handoff file (e.g., ".agent-kit/handoffs/feature-slug/plan.md")'),
+        .describe('Task message or path to a handoff folder (e.g., ".agent-kit/handoffs/feature-slug/plan")'),
     },
     async ({ agent, task }, extra) => {
       const workspaceRoot = getWorkspaceRoot();

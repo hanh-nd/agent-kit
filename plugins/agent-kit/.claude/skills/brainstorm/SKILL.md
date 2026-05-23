@@ -222,6 +222,10 @@ Only reached after consensus. Compose the README and DETAIL files silently — *
    - WHY: [one-line reason]
    - HOW: [concrete implementation — "by doing Y and Z"]
    - RISK: [main risk, or "none identified"]
+
+## File Map
+- `README.md` (this file) — problem, scope, success criteria, and decisions
+- `DETAIL.md` — system flow, entities, edge cases, reuse map, and planning notes
 ````
 
 **DETAIL.md** (technical spec — AI-optimized):
@@ -275,13 +279,13 @@ After composing both files: call `kit_save_handoff(type: "brainstorm", slug: <fe
 
 What would you like to do next?
 
-1) Execute plan phase  — Start `/plan @<folder-path>/DETAIL.md`
+1) Execute plan phase  — Start `/plan @<folder-path>`
 2) Done                — No further action
 ```
 
 **On user selection:**
 
-- **1 — Execute plan phase:** Invoke `/plan @<folder-path>/DETAIL.md` to hand the Design Brief directly to the planning skill.
+- **1 — Execute plan phase:** Invoke `/plan @<folder-path>` to hand the Design Brief folder directly to the planning skill.
 - **2 — Done:** Output `Design Brief saved. No further action.` and stop.
 - **3 — Custom:** The user types their request. Treat it as continuing the brainstorm conversation — revise the brief, revisit a decision, go deeper on a specific area, or anything else they need.
 

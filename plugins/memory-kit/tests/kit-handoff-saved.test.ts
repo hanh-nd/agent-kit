@@ -196,14 +196,14 @@ describe('kit-handoff-saved', () => {
     assert.match(inbox, /^- summary: Decision log\.$/m);
   });
 
-  test('falls back to first file when README.md absent (C14)', () => {
+  test('uses README.md for single-file current handoffs (C14)', () => {
     const projectDir = makeTempDir();
     const handoffFolder = path.join(projectDir, '.agent-kit', 'handoffs', 'feat', 'research');
     fs.mkdirSync(handoffFolder, { recursive: true });
 
     runHook(projectDir, {
       tool_response: [{ type: 'text', text: `✅ Saved to: ${handoffFolder}` }],
-      tool_input: { type: 'research', slug: 'feat', files: { 'index.md': 'Research summary.' } },
+      tool_input: { type: 'research', slug: 'feat', files: { 'README.md': 'Research summary.' } },
     });
 
     const inbox = fs.readFileSync(inboxPath(projectDir), 'utf8');

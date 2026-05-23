@@ -494,13 +494,13 @@ SEAM: AC-N ↔ AC-M
 
 ### 7. Recommended Next Step
 
-- **proceed-to-plan** — Brief is complete; `/plan @<this-file>` is safe.
+- **proceed-to-plan** — Brief is complete; `/plan @<saved-folder-path>` is safe.
 - **spike-first** — One or more AC items are `needs-spike`; prototype before WBS.
 - **re-clarify-after-stakeholder** — Deferred questions block planning; resume after stakeholder input.
 - **back-to-brainstorm** — AC walk surfaced that the problem framing is wrong; recommend `/brainstorm` to revise.
 ````
 
-After writing: call `kit_save_handoff(type: "clarify", slug: <feature-slug>, files: { "index.md": <full markdown> })`. The tool versions the folder and returns its path.
+After writing: call `kit_save_handoff(type: "clarify", slug: <feature-slug>, files: { "README.md": <full markdown> })`. The tool versions the folder and returns its path.
 
 ---
 
@@ -514,7 +514,7 @@ Ask the user what to do next:
 
 What would you like to do next?
 
-1) Execute plan phase  — Start /plan with this Clarification Brief
+1) Execute plan phase  — Start /plan with this Clarification Brief folder
 2) Done                — No further action (e.g. waiting on stakeholder)
 3) Custom              — Continue clarifying or revise
 ```
