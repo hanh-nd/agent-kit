@@ -15,6 +15,8 @@ You write test cases (pressure scenarios with subagents), watch them fail (basel
 
 **Core principle:** If you didn't watch an agent fail without the skill, you don't know if the skill teaches the right thing.
 
+**Quality principle:** QUALITY over EVERYTHING. Predictable, high-quality agent behavior is more important than saving tokens. Do not remove, compress, or relocate required instructions just to make `SKILL.md` shorter. If freedom would make outputs unpredictable, constrain the agent with explicit rules, phases, gates, examples, and stop conditions inline.
+
 **REQUIRED BACKGROUND:** You MUST understand [test-driven-development](references/test-driven-development.md) before using this skill. That skill defines the fundamental RED-GREEN-REFACTOR cycle. This skill adapts TDD to documentation.
 
 **Official guidance:** For Anthropic's official skill authoring best practices, see references/anthropic-best-practices.md. This document provides additional patterns and guidelines that complement the TDD-focused approach in this skill.
@@ -84,11 +86,16 @@ skills/
 **Separate files for:**
 1. **Heavy reference** (100+ lines) - API docs, comprehensive syntax
 2. **Reusable tools** - Scripts, utilities, templates
+3. **Optional examples or validation scenarios** - Loaded only when needed
 
 **Keep inline:**
 - Principles and concepts
+- REQUIRED rules, workflows, gates, and stop conditions
+- Anything the agent must always follow to use the skill correctly
 - Code patterns (< 50 lines)
 - Everything else
+
+**Critical:** Do not move required behavior into references. References are for optional depth; `SKILL.md` is the contract. If skipping a reference would let the agent violate the process, that content belongs inline even when it increases length.
 
 ## SKILL.md Structure
 
@@ -210,9 +217,11 @@ Use words Claude would search for:
 - ✅ `creating-skills` not `skill-creation`
 - ✅ `condition-based-waiting` not `async-test-helpers`
 
-### 4. Token Efficiency (Critical)
+### 4. Token Efficiency (Secondary to Quality)
 
-**Problem:** getting-started and frequently-referenced skills load into EVERY conversation. Every token counts.
+**Problem:** getting-started and frequently-referenced skills load into EVERY conversation. Token efficiency matters only after the required behavior is complete, explicit, and predictable.
+
+**Never trade correctness for brevity:** Do not compress away required phases, gates, output contracts, examples, or failure counters. Token savings are valid only for optional explanation, redundancy, and reference material.
 
 **Target word counts:**
 - getting-started workflows: <150 words each
