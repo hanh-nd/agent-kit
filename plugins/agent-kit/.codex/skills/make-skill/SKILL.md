@@ -120,12 +120,6 @@ description: Use when [specific triggering conditions and symptoms]
 ## Overview
 What is this? Core principle in 1-2 sentences.
 
-## When to Use
-[Small inline flowchart IF decision non-obvious]
-
-Bullet list with SYMPTOMS and use cases
-When NOT to use
-
 ## Core Pattern (for techniques/patterns)
 Before/after code comparison
 
@@ -142,6 +136,8 @@ What goes wrong + fixes
 ## Real-World Impact (optional)
 Concrete results
 ```
+
+Do not add a separate `## When to Use` body section for Agent Kit skills. Put triggering conditions in the frontmatter `description`; keep the body focused on the behavior the agent must follow after the skill is loaded.
 
 
 ## Claude Search Optimization (CSO)
