@@ -1,5 +1,11 @@
 import { type MemoryConfig, EmbeddingModelName } from './types.js';
 
+export const EMBEDDING_MODEL_DIMENSIONS: Record<EmbeddingModelName, number> = {
+  [EmbeddingModelName.TINY]: 384,
+  [EmbeddingModelName.BASE]: 384,
+  [EmbeddingModelName.LARGE]: 768,
+};
+
 export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
   enabled: false,
   wikiDir: '',
@@ -7,7 +13,7 @@ export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
   chunkSize: 1500,
   overlapLines: 2,
   embeddingModel: EmbeddingModelName.BASE,
-  vectorDimension: 384,
+  vectorDimension: EMBEDDING_MODEL_DIMENSIONS[EmbeddingModelName.BASE],
 };
 
 export const LOCK_RETRY_MS = 50;

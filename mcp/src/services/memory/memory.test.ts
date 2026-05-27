@@ -479,4 +479,21 @@ describe('resolveMemoryConfig', () => {
 
     assert.equal(config.wikiDir, '/custom/wiki');
   });
+
+  test('derives vector dimension from embedding model', () => {
+    const config = resolveMemoryConfig({ memory: { embeddingModel: EmbeddingModelName.LARGE } }, '/repo');
+
+    assert.equal(config.embeddingModel, EmbeddingModelName.LARGE);
+    assert.equal(config.vectorDimension, 768);
+  });
+
+  test('preserves explicit vector dimension override', () => {
+    const config = resolveMemoryConfig(
+      { memory: { embeddingModel: EmbeddingModelName.LARGE, vectorDimension: 1024 } },
+      '/repo',
+    );
+
+    assert.equal(config.embeddingModel, EmbeddingModelName.LARGE);
+    assert.equal(config.vectorDimension, 1024);
+  });
 });

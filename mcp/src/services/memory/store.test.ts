@@ -457,4 +457,52 @@ describe('MemoryStore', () => {
       fs.rmSync(migrationDir, { recursive: true, force: true });
     }
   });
+
+  test('recreates schema when existing vector dimension differs from config', () => {
+    const dimensionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-dimension-migration-'));
+    const dimensionDbPath = path.join(dimensionDir, 'index.db');
+
+    const baseStore = new MemoryStore(dimensionDbPath, { ...TEST_CONFIG, wikiDir: dimensionDir });
+    try {
+      baseStore.upsert([makeChunk({ id: 'old-dimension-row', source: 'dimension.md' })], [makeEmbedding(17)]);
+    } finally {
+      baseStore.close();
+    }
+
+    const largeConfig = {
+      ...TEST_CONFIG,
+      wikiDir: dimensionDir,
+      embeddingModel: EmbeddingModelName.LARGE,
+      vectorDimension: 768,
+    };
+    const largeStore = new MemoryStore(dimensionDbPath, largeConfig);
+    try {
+      const verifyDb = new Database(dimensionDbPath, { readonly: true });
+      try {
+        const columns = verifyDb.prepare(`PRAGMA table_info(memory_chunks)`).all() as Array<{
+          name: string;
+          type: string;
+        }>;
+        const embeddingColumn = columns.find((column) => column.name === 'embedding');
+        assert.equal(embeddingColumn?.type, 'F32_BLOB(768)');
+        const rowCount = verifyDb.prepare(`SELECT COUNT(*) AS count FROM memory_chunks`).get() as { count: number };
+        assert.equal(rowCount.count, 0);
+      } finally {
+        verifyDb.close();
+      }
+
+      const chunk = makeChunk({
+        id: 'new-dimension-row',
+        source: 'dimension.md',
+        content: 'large dimension vector can be indexed',
+      });
+      largeStore.upsert([chunk], [makeEmbedding(18, 768)]);
+
+      const results = largeStore.searchBm25('large dimension vector', 5);
+      assert.ok(results.some((result) => result.id === 'new-dimension-row'));
+    } finally {
+      largeStore.close();
+      fs.rmSync(dimensionDir, { recursive: true, force: true });
+    }
+  });
 });

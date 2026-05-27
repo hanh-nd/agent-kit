@@ -4,7 +4,7 @@ import * as path from 'path';
 import { eng, removeStopwords } from 'stopword';
 import type { MemoryChunk, MemoryConfig, RecentSource, SourceType } from './types.js';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 interface LibsqlRunResult {
   changes?: number;
@@ -79,7 +79,11 @@ export class MemoryStore {
   private createSchema(db: LibsqlDatabaseLike): void {
     try {
       const current = this.readUserVersion(db);
-      if (current < SCHEMA_VERSION) {
+      const currentVectorDimension = current >= SCHEMA_VERSION ? this.readEmbeddingColumnDimension(db) : undefined;
+      if (
+        current < SCHEMA_VERSION ||
+        (currentVectorDimension !== undefined && currentVectorDimension !== this.config.vectorDimension)
+      ) {
         db.exec(`
           DROP TRIGGER IF EXISTS memory_chunks_ai;
           DROP TRIGGER IF EXISTS memory_chunks_ad;
@@ -135,6 +139,25 @@ export class MemoryStore {
       `);
     } catch (err) {
       throw new StoreError('schema migration failed', err);
+    }
+  }
+
+  private readEmbeddingColumnDimension(db: LibsqlDatabaseLike): number | undefined {
+    try {
+      const rows = db.pragma('table_info(memory_chunks)');
+      if (!Array.isArray(rows)) return undefined;
+
+      const embeddingColumn = rows.find((row): row is { name: string; type: string } => {
+        if (!row || typeof row !== 'object') return false;
+        const candidate = row as { name?: unknown; type?: unknown };
+        return candidate.name === 'embedding' && typeof candidate.type === 'string';
+      });
+      const match = /^F32_BLOB\((\d+)\)$/i.exec(embeddingColumn?.type.trim() ?? '');
+      if (!match) return undefined;
+
+      return Number.parseInt(match[1], 10);
+    } catch {
+      return undefined;
     }
   }
 

@@ -6,8 +6,8 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { DEFAULT_MEMORY_CONFIG } from '../../services/memory/constants.js';
-import type { MemoryConfig } from '../../services/memory/types.js';
+import { DEFAULT_MEMORY_CONFIG, EMBEDDING_MODEL_DIMENSIONS } from '../../services/memory/constants.js';
+import { EmbeddingModelName, type MemoryConfig } from '../../services/memory/types.js';
 import type { ConversationDigestSettings } from '../../services/digest/types.js';
 import { atomicWriteJsonFile } from '../../utils/files.js';
 
@@ -55,16 +55,31 @@ export { MemoryConfig };
  */
 export function resolveMemoryConfig(settings: ProjectSettings, workspaceRoot: string): MemoryConfig {
   const override = settings.memory ?? {};
+  const embeddingModel = isEmbeddingModelName(override.embeddingModel)
+    ? override.embeddingModel
+    : DEFAULT_MEMORY_CONFIG.embeddingModel;
+  const vectorDimension =
+    typeof override.vectorDimension === 'number' &&
+    Number.isFinite(override.vectorDimension) &&
+    override.vectorDimension > 0
+      ? override.vectorDimension
+      : EMBEDDING_MODEL_DIMENSIONS[embeddingModel];
 
   return {
     ...DEFAULT_MEMORY_CONFIG,
     ...override,
     enabled: override.enabled ?? DEFAULT_MEMORY_CONFIG.enabled,
+    embeddingModel,
+    vectorDimension,
     wikiDir:
       typeof override.wikiDir === 'string' && override.wikiDir.length > 0
         ? override.wikiDir
         : path.join(workspaceRoot, '.agent-kit', 'wiki'),
   };
+}
+
+function isEmbeddingModelName(value: unknown): value is EmbeddingModelName {
+  return value === EmbeddingModelName.TINY || value === EmbeddingModelName.BASE || value === EmbeddingModelName.LARGE;
 }
 
 export function loadProjectSettings(projectDir: string): ProjectSettings {
