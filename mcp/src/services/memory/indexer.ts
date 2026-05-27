@@ -3,7 +3,14 @@ import * as path from 'path';
 import { chunkMarkdown } from './chunker.js';
 import type { MemoryStore } from './store.js';
 import type { IndexStats, MemoryConfig, SearchResult, SourceType } from './types.js';
-import { LOCK_RETRY_MS, LOCK_TIMEOUT_MS, RRF_K } from './constants.js';
+import {
+  DENSE_SCORE_FLOOR,
+  FETCH_MULTIPLIER,
+  LOCK_RETRY_MS,
+  LOCK_TIMEOUT_MS,
+  RECENCY_WEIGHT,
+  RRF_K,
+} from './constants.js';
 import { acquireLock, releaseLock } from '../../utils/files.js';
 
 interface TextEmbedder {
@@ -139,7 +146,8 @@ export class MemoryIndexer {
   }
 
   async search(query: string, topK: number): Promise<SearchResult[]> {
-    const fetchLimit = topK * 2;
+    // Task 2.2: overfetch to supply enough distinct sources after per-source dedup
+    const fetchLimit = topK * FETCH_MULTIPLIER;
 
     let denseResults: Array<{ id: string; score: number }> = [];
     if (this.store.vecAvailable) {
@@ -152,38 +160,72 @@ export class MemoryIndexer {
     }
 
     const bm25Results = this.store.searchBm25(query, fetchLimit);
-    const bm25Ids = new Set(bm25Results.map((result) => result.id));
-    if (bm25Ids.size > 0) {
-      denseResults = denseResults.filter((result) => bm25Ids.has(result.id));
-    }
 
-    const scoreMap = new Map<string, { dense: number; bm25: number }>();
+    // Task 2.1: candidate set = dense ∪ bm25 — no intersection filter
+    const denseIds = new Set(denseResults.map((r) => r.id));
+    const bm25Ids = new Set(bm25Results.map((r) => r.id));
+    const unionIds = new Set([...denseIds, ...bm25Ids]);
+
+    // Task 2.5: preserve raw dense retrieval scores [0,1] for the precision floor check
+    const denseRetrievalScore = new Map<string, number>(denseResults.map((r) => [r.id, r.score]));
+
+    // Task 2.3: fetch all union candidates once — supplies recency mtime AND final content (no second DB call)
+    const unionArray = [...unionIds];
+    const chunks = this.store.getChunksByIds(unionArray);
+    const chunkMap = new Map(chunks.map((c) => [c.id, c]));
+
+    // Task 2.3: recency channel — rank union by fileMtimeAt DESC; stable tiebreak on union insertion order
+    const unionIndexOf = new Map(unionArray.map((id, idx) => [id, idx]));
+    const recencyOrdered = [...unionArray].sort((a, b) => {
+      const mtimeA = chunkMap.get(a)?.fileMtimeAt ?? 0;
+      const mtimeB = chunkMap.get(b)?.fileMtimeAt ?? 0;
+      if (mtimeB !== mtimeA) return mtimeB - mtimeA;
+      return (unionIndexOf.get(a) ?? 0) - (unionIndexOf.get(b) ?? 0);
+    });
+
+    // RRF score accumulation: dense + bm25 + weighted recency channels
+    const scoreMap = new Map<string, { dense: number; bm25: number; recency: number }>();
 
     denseResults.forEach((r, rank) => {
-      scoreMap.set(r.id, { dense: 1 / (RRF_K + rank + 1), bm25: 0 });
+      scoreMap.set(r.id, { dense: 1 / (RRF_K + rank + 1), bm25: 0, recency: 0 });
     });
 
     bm25Results.forEach((r, rank) => {
-      const entry = scoreMap.get(r.id) ?? { dense: 0, bm25: 0 };
+      const entry = scoreMap.get(r.id) ?? { dense: 0, bm25: 0, recency: 0 };
       entry.bm25 = 1 / (RRF_K + rank + 1);
       scoreMap.set(r.id, entry);
     });
 
-    const hasDense = this.store.vecAvailable && denseResults.length > 0;
-    const numRetrievers = hasDense ? 2 : 1;
-    const maxScore = numRetrievers / (RRF_K + 1);
+    recencyOrdered.forEach((id, rank) => {
+      const entry = scoreMap.get(id);
+      if (!entry) return;
+      entry.recency = RECENCY_WEIGHT * (1 / (RRF_K + rank + 1));
+    });
 
+    // Task 2.4: active-channel normalization — maxScore sums weights of channels that produced ≥1 result
+    const denseActive = denseResults.length > 0;
+    const bm25Active = bm25Results.length > 0;
+    const recencyActive = unionIds.size > 0;
+    const maxScore =
+      ((denseActive ? 1 : 0) + (bm25Active ? 1 : 0) + (recencyActive ? RECENCY_WEIGHT : 0)) / (RRF_K + 1);
+
+    // Task 2.5: build ranked list, dropping dense-only candidates below the precision floor
     const ranked = [...scoreMap.entries()]
       .map(([id, scores]) => ({
         id,
-        totalScore: scores.dense + scores.bm25,
+        totalScore: scores.dense + scores.bm25 + scores.recency,
         hasDense: scores.dense > 0,
         hasBm25: scores.bm25 > 0,
+        isDenseOnly: denseIds.has(id) && !bm25Ids.has(id),
       }))
+      .filter((candidate) => {
+        if (!candidate.isDenseOnly) return true;
+        const retrieval = denseRetrievalScore.get(candidate.id);
+        // Only drop when a dense retrieval score exists and is below the floor
+        if (retrieval === undefined) return true;
+        return retrieval >= DENSE_SCORE_FLOOR;
+      })
       .sort((a, b) => b.totalScore - a.totalScore);
-
-    const chunks = this.store.getChunksByIds(ranked.map((r) => r.id));
-    const chunkMap = new Map(chunks.map((c) => [c.id, c]));
 
     const results: SearchResult[] = [];
     const seenSources = new Set<string>();

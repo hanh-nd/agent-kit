@@ -176,6 +176,7 @@ export class MemoryStore {
   }
 
   upsert(chunks: MemoryChunk[], embeddings: Float32Array[]): void {
+    const deleteChunk = this.db.prepare(`DELETE FROM memory_chunks WHERE id = ?`);
     const insertChunk = this.db.prepare(`
       INSERT OR REPLACE INTO memory_chunks
         (id, source, source_type, heading, heading_level, content, line_start, line_end, indexed_at, file_mtime_at, embedding)
@@ -189,7 +190,7 @@ export class MemoryStore {
           const vectorBinding = this.toVectorBinding(embeddings[i]);
 
           // Delete existing row first to get correct rowid
-          this.db.prepare(`DELETE FROM memory_chunks WHERE id = ?`).run(chunk.id);
+          deleteChunk.run(chunk.id);
 
           insertChunk.run(
             chunk.id,
@@ -217,17 +218,14 @@ export class MemoryStore {
     }
   }
 
-  private toVectorBinding(embedding: Float32Array | undefined): string {
+  private toVectorBinding(embedding: Float32Array | undefined): Buffer {
     if (!embedding) throw new Error('missing embedding');
     if (!(embedding instanceof Float32Array)) throw new Error('missing embedding');
     if (embedding.length !== this.config.vectorDimension) throw new Error('embedding dimension mismatch');
-
-    const values = Array.from(embedding, (value) => {
-      if (!Number.isFinite(value)) throw new Error('embedding contains non-finite value');
-      return value;
-    });
-
-    return JSON.stringify(values);
+    for (let i = 0; i < embedding.length; i++) {
+      if (!Number.isFinite(embedding[i])) throw new Error('embedding contains non-finite value');
+    }
+    return Buffer.from(embedding.buffer, embedding.byteOffset, embedding.byteLength);
   }
 
   private normalizeVectorDistance(distance: number): number {
