@@ -1,13 +1,35 @@
-import Database from 'better-sqlite3';
+import Database from 'libsql';
 import * as fs from 'fs';
-import { createRequire } from 'module';
 import * as path from 'path';
 import { eng, removeStopwords } from 'stopword';
 import type { MemoryChunk, MemoryConfig, RecentSource, SourceType } from './types.js';
 
-const require = createRequire(import.meta.url);
+export const SCHEMA_VERSION = 3;
 
-export const SCHEMA_VERSION = 2;
+interface LibsqlRunResult {
+  changes?: number;
+  lastInsertRowid?: number | bigint;
+}
+
+interface LibsqlStatementLike {
+  run(...params: unknown[]): LibsqlRunResult;
+  get(...params: unknown[]): unknown;
+  all(...params: unknown[]): unknown[];
+}
+
+interface LibsqlDatabaseLike {
+  pragma(sql: string, options?: { simple?: boolean }): unknown;
+  exec(sql: string): unknown;
+  prepare(sql: string): LibsqlStatementLike;
+  transaction<T extends (...args: never[]) => unknown>(fn: T): T;
+  close(): void;
+}
+
+interface LibsqlDatabaseConstructor {
+  new (filename: string, options?: { readonly?: boolean }): LibsqlDatabaseLike;
+}
+
+const LibsqlDatabase = Database as LibsqlDatabaseConstructor;
 
 export class StoreError extends Error {
   constructor(message: string, cause?: unknown) {
@@ -18,8 +40,7 @@ export class StoreError extends Error {
 }
 
 export class MemoryStore {
-  private db: Database.Database;
-  private _vecAvailable = false;
+  private db: LibsqlDatabaseLike;
 
   constructor(
     dbPath: string,
@@ -29,12 +50,11 @@ export class MemoryStore {
     this.db = this.openDatabase(dbPath);
   }
 
-  private openDatabase(dbPath: string): Database.Database {
+  private openDatabase(dbPath: string): LibsqlDatabaseLike {
     try {
-      const db = new Database(dbPath);
+      const db = new LibsqlDatabase(dbPath);
       db.pragma('journal_mode = WAL');
       db.pragma('busy_timeout = 5000');
-      this.loadVecExtension(db);
       this.createSchema(db);
       return db;
     } catch (err) {
@@ -44,35 +64,28 @@ export class MemoryStore {
       } catch {
         // ignore
       }
-      const db = new Database(dbPath);
-      db.pragma('journal_mode = WAL');
-      db.pragma('busy_timeout = 5000');
-      this.loadVecExtension(db);
-      this.createSchema(db);
-      return db;
+      try {
+        const db = new LibsqlDatabase(dbPath);
+        db.pragma('journal_mode = WAL');
+        db.pragma('busy_timeout = 5000');
+        this.createSchema(db);
+        return db;
+      } catch (retryErr) {
+        throw new StoreError('database open failed', retryErr);
+      }
     }
   }
 
-  private loadVecExtension(db: Database.Database): void {
+  private createSchema(db: LibsqlDatabaseLike): void {
     try {
-      const sqliteVec = require('sqlite-vec') as { load: (db: Database.Database) => void };
-      sqliteVec.load(db);
-      this._vecAvailable = true;
-    } catch (err) {
-      console.warn('[memory-store] sqlite-vec unavailable, degrading to FTS5-only:', err);
-      this._vecAvailable = false;
-    }
-  }
-
-  private createSchema(db: Database.Database): void {
-    try {
-      const current = Number(db.pragma('user_version', { simple: true }) ?? 0);
+      const current = this.readUserVersion(db);
       if (current < SCHEMA_VERSION) {
         db.exec(`
           DROP TRIGGER IF EXISTS memory_chunks_ai;
           DROP TRIGGER IF EXISTS memory_chunks_ad;
           DROP TABLE IF EXISTS memory_fts;
           DROP TABLE IF EXISTS memory_vec;
+          DROP INDEX IF EXISTS idx_memory_chunks_embedding;
           DROP TABLE IF EXISTS memory_chunks;
         `);
         db.pragma(`user_version = ${SCHEMA_VERSION}`);
@@ -90,7 +103,8 @@ export class MemoryStore {
           line_start    INTEGER NOT NULL,
           line_end      INTEGER NOT NULL,
           indexed_at    INTEGER NOT NULL,
-          file_mtime_at INTEGER NOT NULL DEFAULT 0
+          file_mtime_at INTEGER NOT NULL DEFAULT 0,
+          embedding     F32_BLOB(${this.config.vectorDimension}) NOT NULL
         );
 
         CREATE INDEX IF NOT EXISTS idx_memory_chunks_type_mtime
@@ -115,45 +129,46 @@ export class MemoryStore {
             INSERT INTO memory_fts(memory_fts, rowid, source, heading, content)
               VALUES ('delete', old.rowid, old.source, old.heading, old.content);
           END;
-      `);
 
-      if (this._vecAvailable) {
-        try {
-          db.exec(`
-            CREATE VIRTUAL TABLE IF NOT EXISTS memory_vec USING vec0(
-              embedding FLOAT[${this.config.vectorDimension}]
-            );
-          `);
-        } catch (err) {
-          console.warn('[memory-store] Failed to create memory_vec, disabling vector search:', err);
-          this._vecAvailable = false;
-        }
-      }
+        CREATE INDEX IF NOT EXISTS idx_memory_chunks_embedding
+          ON memory_chunks (libsql_vector_idx(embedding));
+      `);
     } catch (err) {
       throw new StoreError('schema migration failed', err);
     }
   }
 
+  private readUserVersion(db: LibsqlDatabaseLike): number {
+    const value = db.pragma('user_version', { simple: true });
+    if (typeof value === 'number') return value;
+    if (Array.isArray(value)) {
+      const [row] = value as Array<{ user_version?: unknown }>;
+      return typeof row?.user_version === 'number' ? row.user_version : 0;
+    }
+    if (value && typeof value === 'object' && 'user_version' in value) {
+      const row = value as { user_version?: unknown };
+      return typeof row.user_version === 'number' ? row.user_version : 0;
+    }
+    return 0;
+  }
+
   upsert(chunks: MemoryChunk[], embeddings: Float32Array[]): void {
     const insertChunk = this.db.prepare(`
       INSERT OR REPLACE INTO memory_chunks
-        (id, source, source_type, heading, heading_level, content, line_start, line_end, indexed_at, file_mtime_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, source, source_type, heading, heading_level, content, line_start, line_end, indexed_at, file_mtime_at, embedding)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, vector32(?))
     `);
-
-    let insertVec: Database.Statement | null = null;
-    if (this._vecAvailable) {
-      insertVec = this.db.prepare(`INSERT OR REPLACE INTO memory_vec (rowid, embedding) VALUES (?, ?)`);
-    }
 
     const upsertAll = this.db.transaction(() => {
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
         try {
+          const vectorBinding = this.toVectorBinding(embeddings[i]);
+
           // Delete existing row first to get correct rowid
           this.db.prepare(`DELETE FROM memory_chunks WHERE id = ?`).run(chunk.id);
 
-          const info = insertChunk.run(
+          insertChunk.run(
             chunk.id,
             chunk.source,
             chunk.sourceType,
@@ -164,15 +179,8 @@ export class MemoryStore {
             chunk.lineEnd,
             Date.now(),
             chunk.fileMtimeAt,
+            vectorBinding,
           );
-
-          if (insertVec && embeddings[i] && info.lastInsertRowid) {
-            const rowid =
-              typeof info.lastInsertRowid === 'bigint' ? info.lastInsertRowid : BigInt(info.lastInsertRowid);
-            const emb = embeddings[i];
-            const buf = Buffer.from(emb.buffer, emb.byteOffset, emb.byteLength);
-            insertVec.run(rowid, buf);
-          }
         } catch (err) {
           console.warn(`[memory-store] Failed to upsert chunk ${chunk.id}:`, err);
         }
@@ -184,6 +192,24 @@ export class MemoryStore {
     } catch (err) {
       throw new StoreError('Full batch upsert failed', err);
     }
+  }
+
+  private toVectorBinding(embedding: Float32Array | undefined): string {
+    if (!embedding) throw new Error('missing embedding');
+    if (!(embedding instanceof Float32Array)) throw new Error('missing embedding');
+    if (embedding.length !== this.config.vectorDimension) throw new Error('embedding dimension mismatch');
+
+    const values = Array.from(embedding, (value) => {
+      if (!Number.isFinite(value)) throw new Error('embedding contains non-finite value');
+      return value;
+    });
+
+    return JSON.stringify(values);
+  }
+
+  private normalizeVectorDistance(distance: number): number {
+    if (distance <= 0) return 1;
+    return Math.max(0, Math.min(1, 1 - distance));
   }
 
   hashesBySource(source: string): Set<string> {
@@ -218,15 +244,7 @@ export class MemoryStore {
   }
 
   deleteBySource(source: string): void {
-    const rows = this.db.prepare(`SELECT rowid FROM memory_chunks WHERE source = ?`).all(source) as Array<{
-      rowid: number;
-    }>;
-
     const deleteAll = this.db.transaction(() => {
-      if (this._vecAvailable && rows.length > 0) {
-        const placeholders = rows.map(() => '?').join(', ');
-        this.db.prepare(`DELETE FROM memory_vec WHERE rowid IN (${placeholders})`).run(...rows.map((r) => r.rowid));
-      }
       this.db.prepare(`DELETE FROM memory_chunks WHERE source = ?`).run(source);
     });
 
@@ -237,15 +255,8 @@ export class MemoryStore {
     if (ids.length === 0) return;
 
     const placeholders = ids.map(() => '?').join(', ');
-    const rows = this.db.prepare(`SELECT rowid FROM memory_chunks WHERE id IN (${placeholders})`).all(...ids) as Array<{
-      rowid: number;
-    }>;
 
     const deleteAll = this.db.transaction(() => {
-      if (this._vecAvailable && rows.length > 0) {
-        const rPlaceholders = rows.map(() => '?').join(', ');
-        this.db.prepare(`DELETE FROM memory_vec WHERE rowid IN (${rPlaceholders})`).run(...rows.map((r) => r.rowid));
-      }
       this.db.prepare(`DELETE FROM memory_chunks WHERE id IN (${placeholders})`).run(...ids);
     });
 
@@ -253,23 +264,21 @@ export class MemoryStore {
   }
 
   searchDense(embedding: Float32Array, limit: number): Array<{ id: string; score: number }> {
-    if (!this._vecAvailable) return [];
-
     try {
-      const buf = Buffer.from(embedding.buffer);
+      const queryVector = this.toVectorBinding(embedding);
       const rows = this.db
         .prepare(
-          `SELECT mc.id, mv.distance
-           FROM memory_vec mv
-           JOIN memory_chunks mc ON mc.rowid = mv.rowid
-           WHERE mv.embedding MATCH ? AND k = ?
-           ORDER BY mv.distance`,
+          `SELECT mc.id, vector_distance_cos(mc.embedding, vector32(?)) AS distance
+           FROM vector_top_k('idx_memory_chunks_embedding', vector32(?), ?) AS vector_matches
+           JOIN memory_chunks mc ON mc.rowid = vector_matches.id
+           ORDER BY distance
+           LIMIT ?`,
         )
-        .all(buf, limit) as Array<{ id: string; distance: number }>;
+        .all(queryVector, queryVector, limit, limit) as Array<{ id: string; distance: number }>;
 
       return rows.map((r) => ({
         id: r.id,
-        score: Math.max(0, 1 - r.distance),
+        score: this.normalizeVectorDistance(r.distance),
       }));
     } catch (err) {
       console.warn('[memory-store] Dense search failed:', err);
@@ -356,7 +365,7 @@ export class MemoryStore {
   }
 
   get vecAvailable(): boolean {
-    return this._vecAvailable;
+    return true;
   }
 
   close(): void {

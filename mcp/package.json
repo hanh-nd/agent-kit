@@ -1,6 +1,6 @@
 {
   "name": "@hanhnd/agent-kit",
-  "version": "1.0.35",
+  "version": "1.0.36",
   "description": "Agent Kit MCP server for software development agent workflows",
   "type": "module",
   "main": "dist/server.js",
@@ -22,7 +22,7 @@
   },
   "scripts": {
     "build": "rm -rf dist && tsc && npm run bundle",
-    "bundle": "esbuild src/entrypoints/server.ts src/entrypoints/cli.ts --bundle --platform=node --format=esm --outdir=dist --external:node:* --external:better-sqlite3 --external:sqlite-vec --external:fastembed --external:node-llama-cpp",
+    "bundle": "esbuild src/entrypoints/server.ts src/entrypoints/cli.ts --bundle --platform=node --format=esm --outdir=dist --external:node:* --external:libsql --external:fastembed --external:node-llama-cpp",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build",
     "test": "tsc && node --test $(find dist -name '*.test.js' | tr '\\n' ' ')"
@@ -30,15 +30,13 @@
   "dependencies": {
     "node-llama-cpp": "^3.0.0",
     "@modelcontextprotocol/sdk": "^1.13.1",
-    "better-sqlite3": "^11.0.0",
     "dedent": "^1.5.3",
     "fastembed": "^1.14.0",
-    "sqlite-vec": "^0.1.0",
+    "libsql": "^0.5.29",
     "stopword": "^3.1.5",
     "zod": "^3.24.4"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.0",
     "@types/node": "^22.15.21",
     "esbuild": "^0.25.4",
     "typescript": "^5.8.3"

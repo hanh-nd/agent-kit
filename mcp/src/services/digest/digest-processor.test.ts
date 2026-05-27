@@ -1,8 +1,6 @@
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import Database from 'better-sqlite3';
-import { load as loadSqliteVec } from 'sqlite-vec';
 import { afterEach, describe, test } from 'node:test';
 import { createTempDirTracker } from '../../utils/temp-dir.test.js';
 import { DEFAULT_DIGEST_MODEL_ID } from './constants.js';
@@ -62,7 +60,7 @@ describe('digestConversationFile', () => {
     assert.match(path.basename(result.markdown), /^[a-f0-9]{16}-conv\.md$/);
   });
 
-  test('indexes existing provisional digest with real store vector rows when sqlite-vec is available', async () => {
+  test('indexes existing provisional digest with searchable store vector data', async () => {
     const workspace = tempDirs.makeTempDir('digest-processor-index-');
     const inputPath = path.join(workspace, '.agent-kit', 'wiki', 'archive', 'conversations', 'conv.md');
     fs.mkdirSync(path.dirname(inputPath), { recursive: true });
@@ -91,23 +89,13 @@ describe('digestConversationFile', () => {
       assert.equal(result.indexed, true);
       assert.equal(result.markdown, markdownPath);
 
-      if (store.vecAvailable) {
-        const db = new Database(dbPath, { readonly: true });
-        try {
-          loadSqliteVec(db);
-          const row = db
-            .prepare(
-              `SELECT COUNT(*) AS count
-               FROM memory_vec mv
-               JOIN memory_chunks mc ON mc.rowid = mv.rowid
-               WHERE mc.source = ?`,
-            )
-            .get(path.relative(config.wikiDir, markdownPath)) as { count: number };
-          assert.ok(row.count > 0, `Expected vector rows for ${markdownPath}`);
-        } finally {
-          db.close();
-        }
-      }
+      const denseResults = store.searchDense(new Float32Array(384).fill(0.05), 5);
+      const indexedSource = path.relative(config.wikiDir, markdownPath);
+      const indexedChunks = store.getChunksByIds(denseResults.map((denseResult) => denseResult.id));
+      assert.ok(
+        indexedChunks.some((chunk) => chunk.source === indexedSource),
+        `Expected dense search to return a chunk for ${indexedSource}`,
+      );
     } finally {
       store.close();
     }

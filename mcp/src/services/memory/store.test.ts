@@ -1,8 +1,8 @@
+import Database from 'libsql';
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import Database from 'better-sqlite3';
 import { after, before, describe, test } from 'node:test';
 import { MemoryStore, SCHEMA_VERSION } from './store.js';
 import { type MemoryChunk, EmbeddingModelName } from './types.js';
@@ -32,6 +32,26 @@ function makeChunk(overrides: Partial<MemoryChunk> = {}): MemoryChunk {
   };
 }
 
+function makeEmbedding(activeIndex: number, dimension = TEST_CONFIG.vectorDimension): Float32Array {
+  const embedding = new Float32Array(dimension);
+  embedding[activeIndex] = 1;
+  return embedding;
+}
+
+function readUserVersion(db: Database.Database): number {
+  const value = db.pragma('user_version', { simple: true });
+  if (typeof value === 'number') return value;
+  if (Array.isArray(value)) {
+    const [row] = value as Array<{ user_version?: unknown }>;
+    return typeof row?.user_version === 'number' ? row.user_version : 0;
+  }
+  if (value && typeof value === 'object' && 'user_version' in value) {
+    const row = value as { user_version?: unknown };
+    return typeof row.user_version === 'number' ? row.user_version : 0;
+  }
+  return 0;
+}
+
 describe('MemoryStore', () => {
   let tmpDir: string;
   let dbPath: string;
@@ -48,8 +68,59 @@ describe('MemoryStore', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test('vecAvailable is a boolean', () => {
-    assert.equal(typeof store.vecAvailable, 'boolean');
+  test('libsql supports required local driver and vector features', () => {
+    const libsqlDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-libsql-compat-'));
+    const libsqlDb = new Database(path.join(libsqlDir, 'index.db'));
+
+    try {
+      assert.equal(readUserVersion(libsqlDb), 0);
+      libsqlDb.pragma('journal_mode = WAL');
+      libsqlDb.pragma('busy_timeout = 5000');
+      libsqlDb.pragma(`user_version = ${SCHEMA_VERSION}`);
+      assert.equal(readUserVersion(libsqlDb), SCHEMA_VERSION);
+
+      libsqlDb.exec(`
+        CREATE TABLE vector_items (
+          rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          embedding F32_BLOB(3) NOT NULL
+        );
+        CREATE INDEX idx_vector_items_embedding
+          ON vector_items (libsql_vector_idx(embedding));
+      `);
+
+      const insert = libsqlDb.prepare(`INSERT INTO vector_items (name, embedding) VALUES (?, vector32(?))`);
+      const info = insert.run('alpha', '[1,0,0]');
+      assert.equal(info.lastInsertRowid, 1);
+      insert.run('beta', '[0,1,0]');
+
+      const insertGamma = libsqlDb.transaction(() => insert.run('gamma', '[0,0,1]'));
+      insertGamma();
+
+      const distance = libsqlDb
+        .prepare(`SELECT vector_distance_cos(embedding, vector32(?)) AS distance FROM vector_items WHERE name = ?`)
+        .get('[1,0,0]', 'alpha') as { distance: number };
+      assert.equal(distance.distance, 0);
+
+      const rows = libsqlDb
+        .prepare(
+          `SELECT vector_items.name
+           FROM vector_top_k('idx_vector_items_embedding', vector32(?), ?) AS vector_matches
+           JOIN vector_items ON vector_items.rowid = vector_matches.id
+           ORDER BY vector_distance_cos(vector_items.embedding, vector32(?))`,
+        )
+        .all('[1,0,0]', 2, '[1,0,0]') as Array<{ name: string }>;
+
+      assert.equal(rows[0].name, 'alpha');
+      assert.equal(rows.length, 2);
+    } finally {
+      libsqlDb.close();
+      fs.rmSync(libsqlDir, { recursive: true, force: true });
+    }
+  });
+
+  test('vecAvailable is true after schema creation', () => {
+    assert.equal(store.vecAvailable, true);
   });
 
   test('hashesBySource returns empty set for unknown source', () => {
@@ -60,7 +131,7 @@ describe('MemoryStore', () => {
 
   test('upsert stores chunks and hashesBySource returns their ids', () => {
     const chunk = makeChunk({ id: 'upsert-test-0001', source: 'upsert.md', sourceType: 'entity', fileMtimeAt: 2000 });
-    const embedding = new Float32Array(384).fill(0.1);
+    const embedding = makeEmbedding(0);
     store.upsert([chunk], [embedding]);
 
     const hashes = store.hashesBySource('upsert.md');
@@ -82,7 +153,7 @@ describe('MemoryStore', () => {
       source: 'deleteme.md',
       content: 'delete source chunk 2',
     });
-    store.upsert([c1, c2], [new Float32Array(384), new Float32Array(384)]);
+    store.upsert([c1, c2], [makeEmbedding(1), makeEmbedding(2)]);
 
     store.deleteBySource('deleteme.md');
 
@@ -96,7 +167,7 @@ describe('MemoryStore', () => {
       source: 'bm25.md',
       content: 'uniqueKeywordXYZ for BM25 testing',
     });
-    store.upsert([chunk], [new Float32Array(384)]);
+    store.upsert([chunk], [makeEmbedding(3)]);
 
     const results = store.searchBm25('uniqueKeywordXYZ', 5);
     assert.ok(results.length > 0, 'Expected at least one BM25 result');
@@ -120,7 +191,7 @@ describe('MemoryStore', () => {
       heading: 'Open Questions',
       content: 'How should git manage worktree lifecycle decisions?',
     });
-    store.upsert([preference, unrelated], [new Float32Array(384), new Float32Array(384)]);
+    store.upsert([preference, unrelated], [makeEmbedding(4), makeEmbedding(5)]);
 
     const results = store.searchBm25('personal likes and preferences of the user', 5);
 
@@ -145,7 +216,7 @@ describe('MemoryStore', () => {
       lineEnd: 20,
       fileMtimeAt: 3000,
     });
-    store.upsert([chunk], [new Float32Array(384)]);
+    store.upsert([chunk], [makeEmbedding(6)]);
 
     const results = store.getChunksByIds(['get-by-ids-0001']);
     assert.equal(results.length, 1);
@@ -162,7 +233,7 @@ describe('MemoryStore', () => {
 
   test('getChunksByIds returns only found rows for mixed ids', () => {
     const chunk = makeChunk({ id: 'partial-found-0001', source: 'partial.md', content: 'partial' });
-    store.upsert([chunk], [new Float32Array(384)]);
+    store.upsert([chunk], [makeEmbedding(7)]);
 
     const results = store.getChunksByIds(['partial-found-0001', 'does-not-exist-999']);
     assert.equal(results.length, 1);
@@ -175,7 +246,7 @@ describe('MemoryStore', () => {
       source: 'indexed-source.md',
       content: 'indexed',
     });
-    store.upsert([chunk], [new Float32Array(384)]);
+    store.upsert([chunk], [makeEmbedding(8)]);
 
     const sources = store.indexedSources();
     assert.ok(sources.includes('indexed-source.md'), `Expected 'indexed-source.md' in ${sources.join(', ')}`);
@@ -184,7 +255,7 @@ describe('MemoryStore', () => {
   test('deleteByIds removes specific chunks', () => {
     const c1 = makeChunk({ id: 'del-ids-0001', source: 'del-ids.md', content: 'delete by id 1' });
     const c2 = makeChunk({ id: 'del-ids-0002', source: 'del-ids.md', content: 'delete by id 2' });
-    store.upsert([c1, c2], [new Float32Array(384), new Float32Array(384)]);
+    store.upsert([c1, c2], [makeEmbedding(9), makeEmbedding(10)]);
 
     store.deleteByIds(['del-ids-0001']);
 
@@ -200,7 +271,7 @@ describe('MemoryStore', () => {
       source: 'fts5.md',
       content: 'degradedModeTest keyword',
     });
-    store.upsert([chunk], [new Float32Array(384)]);
+    store.upsert([chunk], [makeEmbedding(11)]);
 
     const results = store.searchBm25('degradedModeTest', 5);
     assert.ok(results.length > 0, 'FTS5 search must work regardless of vecAvailable');
@@ -242,7 +313,7 @@ describe('MemoryStore', () => {
             content: 'entity',
           }),
         ],
-        [new Float32Array(384), new Float32Array(384), new Float32Array(384), new Float32Array(384)],
+        [makeEmbedding(12), makeEmbedding(13), makeEmbedding(14), makeEmbedding(15)],
       );
 
       const allRows = recentStore.getRecentSources({ limit: 10 });
@@ -267,7 +338,53 @@ describe('MemoryStore', () => {
     }
   });
 
-  test('schema migration recreates versioned schema with new columns and recency index', () => {
+  test('searchDense returns nearest vector with bounded scores', () => {
+    const denseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-dense-store-'));
+    const denseStore = new MemoryStore(path.join(denseDir, 'index.db'), { ...TEST_CONFIG, wikiDir: denseDir });
+
+    try {
+      denseStore.upsert(
+        [
+          makeChunk({ id: 'dense-alpha', source: 'dense.md', content: 'alpha vector' }),
+          makeChunk({ id: 'dense-beta', source: 'dense.md', content: 'beta vector' }),
+          makeChunk({ id: 'dense-gamma', source: 'dense.md', content: 'gamma vector' }),
+        ],
+        [makeEmbedding(21), makeEmbedding(22), makeEmbedding(23)],
+      );
+
+      const results = denseStore.searchDense(makeEmbedding(22), 3);
+      assert.ok(results.length > 0, 'Expected dense search results');
+      assert.equal(results[0].id, 'dense-beta');
+      assert.ok(results.every((result) => result.score >= 0 && result.score <= 1));
+    } finally {
+      denseStore.close();
+      fs.rmSync(denseDir, { recursive: true, force: true });
+    }
+  });
+
+  test('searchDense returns empty array for invalid query embedding', () => {
+    assert.deepEqual(store.searchDense(new Float32Array(3), 5), []);
+  });
+
+  test('upsert skips invalid embeddings while persisting valid chunks', () => {
+    const validChunk = makeChunk({ id: 'valid-embedding-0001', source: 'embedding-validation.md' });
+    const invalidChunk = makeChunk({ id: 'invalid-embedding-0001', source: 'embedding-validation.md' });
+    const nonFiniteChunk = makeChunk({ id: 'non-finite-embedding-0001', source: 'embedding-validation.md' });
+    const nonFiniteEmbedding = makeEmbedding(24);
+    nonFiniteEmbedding[25] = Number.NaN;
+
+    store.upsert(
+      [validChunk, invalidChunk, nonFiniteChunk],
+      [makeEmbedding(24), new Float32Array(3), nonFiniteEmbedding],
+    );
+
+    const hashes = store.hashesBySource('embedding-validation.md');
+    assert.ok(hashes.has('valid-embedding-0001'));
+    assert.ok(!hashes.has('invalid-embedding-0001'));
+    assert.ok(!hashes.has('non-finite-embedding-0001'));
+  });
+
+  test('schema migration recreates versioned schema with new columns, vector index, and working BM25', () => {
     const migrationDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-migration-'));
     const migrationDbPath = path.join(migrationDir, 'index.db');
     const db = new Database(migrationDbPath);
@@ -313,17 +430,28 @@ describe('MemoryStore', () => {
     try {
       const verifyDb = new Database(migrationDbPath, { readonly: true });
       try {
-        assert.equal(verifyDb.pragma('user_version', { simple: true }), SCHEMA_VERSION);
+        assert.equal(readUserVersion(verifyDb), SCHEMA_VERSION);
         const columns = verifyDb.prepare(`PRAGMA table_info(memory_chunks)`).all() as Array<{ name: string }>;
         assert.ok(columns.some((column) => column.name === 'source_type'));
         assert.ok(columns.some((column) => column.name === 'file_mtime_at'));
+        assert.ok(columns.some((column) => column.name === 'embedding'));
         const indexes = verifyDb.prepare(`PRAGMA index_list(memory_chunks)`).all() as Array<{ name: string }>;
         assert.ok(indexes.some((index) => index.name === 'idx_memory_chunks_type_mtime'));
+        assert.ok(indexes.some((index) => index.name === 'idx_memory_chunks_embedding'));
         const rowCount = verifyDb.prepare(`SELECT COUNT(*) AS count FROM memory_chunks`).get() as { count: number };
         assert.equal(rowCount.count, 0);
       } finally {
         verifyDb.close();
       }
+
+      const migratedChunk = makeChunk({
+        id: 'migrated-bm25-0001',
+        source: 'migrated.md',
+        content: 'postMigrationKeyword is searchable after migration',
+      });
+      migratedStore.upsert([migratedChunk], [makeEmbedding(16)]);
+      const results = migratedStore.searchBm25('postMigrationKeyword', 5);
+      assert.ok(results.some((result) => result.id === 'migrated-bm25-0001'));
     } finally {
       migratedStore.close();
       fs.rmSync(migrationDir, { recursive: true, force: true });
