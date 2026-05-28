@@ -12,7 +12,7 @@ model: gemini-3-pro-preview
 
 ## Overview
 
-Create an implementation blueprint that an intern can execute without guessing. The plan must be evidence-based, source-code-aware, testable, saved as four handoff files, and free of implementation code.
+Create an implementation blueprint that an intern can execute without guessing. The plan must be evidence-based, source-code-aware, testable, saved as handoff files, and free of implementation code.
 
 **Core principle:** A plan is not complete until every acceptance criterion, critical failure mode, and silent-error path has a concrete task and test obligation.
 
@@ -25,7 +25,7 @@ Create an implementation blueprint that an intern can execute without guessing. 
 | Scenario Brief | Route each scenario row by owner before planning |
 | Critical issue | Ask one structured question, recommend the complete option, then wait |
 | Non-critical issue | Batch in a table with recommendations |
-| Handoff output | Save exactly `ARCHITECTURE.md`, `TASKS.md`, `TESTS.md`, `README.md` with the available Agent Kit handoff save tool |
+| Handoff output | Save the planned artifact set with the available Agent Kit handoff save tool |
 | Source edit temptation | Stop. Planning allows handoff files only, not implementation edits |
 
 ## Your Identity
@@ -91,11 +91,12 @@ If running low on context, preserve in this order:
 These gates resist the common rationalizations that planning agents use under deadline pressure:
 
 1. **No code edits.** Do not create, modify, delete, or format implementation files. Handoff artifacts are the only allowed writes.
-2. **No compressed handoff.** Do not merge `README.md`, `ARCHITECTURE.md`, `TASKS.md`, and `TESTS.md` into one response or one file.
+2. **No compressed handoff.** Do not merge handoff artifacts into one response or one file.
 3. **No silent assumptions.** Critical architecture, data integrity, security, or cross-module decisions require explicit user confirmation.
 4. **No unplanned critical gaps.** A critical coverage gap without a WBS task means the plan is incomplete.
 5. **No skipped code reality check.** If a brief claims code behavior, verify it against the repository or flag the discrepancy.
 6. **No shortcut recommendation when completion is a lake.** If complete edge handling and tests cost only minutes with AI assistance, recommend completion.
+7. **No downstream test gating.** The planner owns the artifact set. The implementer executes it as saved.
 
 ## Red Flags - Stop and Correct
 
@@ -111,7 +112,7 @@ These gates resist the common rationalizations that planning agents use under de
 | "Planning and implementation together is faster." | Stop at the handoff. Implementation belongs to `code` after the saved plan exists. |
 | "Tests can be added later by the implementer." | Add behavioral contracts and map every AC/failure mode now. |
 | "The brief already decided everything." | Preserve business decisions, but still verify code reality and challenge technical scope. |
-| "One artifact is enough for a small change." | Save all four files; small changes still need architecture, tasks, tests, and README traceability. |
+| "One artifact is enough for a small change." | Save the full artifact set; small changes still need architecture, tasks, and README traceability. |
 | "Critical issues can be listed without asking." | Ask one structured question per critical issue and wait for the answer. |
 
 ---
@@ -150,12 +151,16 @@ Determine input type — this decides which phases to run:
 **Objective:** Understand what exists before proposing or reviewing anything.
 
 1. **Input Analysis.** Read `$ARGUMENTS`, any attached Design Brief, Clarification Brief, Scenario Brief, schemas, or ticket content. **Extract the high-level Goal, relevant Background, and verifiable Acceptance Criteria.** If a Design Brief exists, it is the source of truth for problem statement, scope, and chosen approach. If a Clarification Brief exists, extract ACs from "Per-AC Resolutions", preserve "Gaps Resolved", "Confirmed Constraints", and "Remaining Unknowns" as business source-of-truth, and inspect "Recommended Next Step" before blueprinting. If its status or next step is `NEEDS_STAKEHOLDER`, `NEEDS_SPIKE`, `spike-first`, or `re-clarify-after-stakeholder`, flag that as a critical planning issue before generating a WBS. If a Scenario Brief exists, preserve its IDs and route each row by owner; do not reopen `clarify` rows as assumptions.
-2. **Codebase Exploration.** If the architectural context was already provided in this conversation, use it. Only explore the codebase if no file paths, schemas, or existing code were provided in this conversation:
+2. **Artifact Set Decision.** Read `.agent-kit/settings.json` when present and extract `project.hasTests` and `project.runTests`. The saved artifact set is:
+   - `README.md`, `ARCHITECTURE.md`, `TASKS.md`, and `TESTS.md` when both settings are `true`.
+   - `README.md`, `ARCHITECTURE.md`, and `TASKS.md` when either setting is `false` or the settings file is absent. If tests are disabled, do not save `TESTS.md`, do not add test tasks, and record the omission in `README.md > Decisions`.
+   - Phase 3C still runs as design review in both cases.
+3. **Codebase Exploration.** If the architectural context was already provided in this conversation, use it. Only explore the codebase if no file paths, schemas, or existing code were provided in this conversation:
    - Files directly touched by the feature and their blast radius (callers, dependents, shared utilities)
    - Code that already partially or fully solves sub-problems
    - Existing Mermaid diagrams in blast-radius files (search for ` ```mermaid `, `flowchart`, `sequenceDiagram`, `stateDiagram`) — flag any the plan would make stale
    - If input is a Design Brief: verify its claims against actual code. Flag discrepancies.
-3. **What Already Exists.** List existing code, flows, utilities that overlap with the plan. For each: can we reuse it, or does the plan unnecessarily rebuild it?
+4. **What Already Exists.** List existing code, flows, utilities that overlap with the plan. For each: can we reuse it, or does the plan unnecessarily rebuild it?
 
 ### Phase 2: Scope Challenge (skip if Design Brief)
 
@@ -240,13 +245,13 @@ Once scope is locked and review issues resolved, transition to **State 2: Intern
 
 **Global Phase 4 rules:**
 
-- Each compose sub-step (4.1, 4.2, 4.3, 4.4) MUST get its own response. The agent MUST NOT attempt to compose two or more files in a single response — doing so re-introduces the per-response compression this refactor exists to solve.
-- The agent MUST NOT print README/ARCHITECTURE/TASKS/TESTS content to chat at any point — not during composition, not after save. Conversation review happens in Phase 2/3. The saved files ARE the artifact.
+- Each compose sub-step (4.1 through 4.4, skipping 4.3 when `TESTS.md` is outside the artifact set) MUST get its own response. The agent MUST NOT attempt to compose two or more files in a single response — doing so re-introduces the per-response compression this refactor exists to solve.
+- The agent MUST NOT print handoff artifact content to chat at any point — not during composition, not after save. Conversation review happens in Phase 2/3. The saved files ARE the artifact.
 - If a sub-step's response budget would be exceeded while composing its file, halt and surface `STATUS: BLOCKED — Phase 4.<N> overflow: <details>` rather than silently truncating. Treat a TASKS-layer-N split fallback as an edge-case mitigation, not default behavior.
 - Before Step 4.1, choose and freeze a non-empty `<plan-slug-without-versioning>`. Every Phase 4 Agent Kit handoff save call (`kit_save_handoff`) MUST reuse this exact slug. Do NOT rely on content-derived slug fallback, because each file has different content and could otherwise land in a different folder.
 - After each handoff save call, record the returned folder path internally. If any later save returns a different folder path, halt and surface `STATUS: BLOCKED — Phase 4 save path mismatch: <details>`.
 
-**Step 4.1: Compose and save `ARCHITECTURE.md`.** Use one full response for `ARCHITECTURE.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. Capture system flow, data contracts, failure modes, reuse map, and architectural NOT-in-scope items using the template below. Immediately after composing this file, save only this file with the available Agent Kit handoff save tool:
+**Step 4.1: Compose and save `ARCHITECTURE.md`.** Use one full response for `ARCHITECTURE.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. Capture system flow, data contracts, behavioral contracts, failure modes, reuse map, and architectural NOT-in-scope items using the template below. Immediately after composing this file, save only this file with the available Agent Kit handoff save tool:
 
 ```ts
 kit_save_handoff({
@@ -258,7 +263,7 @@ kit_save_handoff({
 });
 ```
 
-**Step 4.2: Re-read, compose, and save `TASKS.md`.** Before writing the first character of `TASKS.md`, re-read the saved `ARCHITECTURE.md` content from the returned folder path. Use one full response for `TASKS.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. Draft the WBS foundation-first, then in verifiable slices, using `[P]` and `[S: task_id]` annotations and function/method contracts. Immediately after composing this file, save only this file with the exact same slug and handoff save tool:
+**Step 4.2: Re-read, compose, and save `TASKS.md`.** Before writing the first character of `TASKS.md`, re-read the saved `ARCHITECTURE.md` content from the returned folder path. Use one full response for `TASKS.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. Draft the WBS foundation-first, then in verifiable slices, using `[P]` and `[S: task_id]` annotations and function/method contracts. Include test implementation tasks only when `TESTS.md` is in the artifact set. Immediately after composing this file, save only this file with the exact same slug and handoff save tool:
 
 ```ts
 kit_save_handoff({
@@ -270,7 +275,7 @@ kit_save_handoff({
 });
 ```
 
-**Step 4.3: Re-read, compose, and save `TESTS.md`.** Before writing the first character of `TESTS.md`, re-read the saved `TASKS.md` content from the returned folder path. Use one full response for `TESTS.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. Derive behavioral contracts from Acceptance Criteria and failure modes, and reference only Task IDs that exist in finalized `TASKS.md`. Immediately after composing this file, save only this file with the exact same slug and handoff save tool:
+**Step 4.3: Re-read, compose, and save `TESTS.md` when it is in the artifact set.** Before writing the first character of `TESTS.md`, re-read the saved `ARCHITECTURE.md` and `TASKS.md` content from the returned folder path. Use one full response for `TESTS.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. Map the behavioral contracts already defined in `ARCHITECTURE.md` to concrete test tasks, and reference only Task IDs that exist in finalized `TASKS.md`. Immediately after composing this file, save only this file with the exact same slug and handoff save tool:
 
 ```ts
 kit_save_handoff({
@@ -282,7 +287,9 @@ kit_save_handoff({
 });
 ```
 
-**Step 4.4: Re-read, compose, and save `README.md`.** Before writing the first character of `README.md`, re-read the saved `ARCHITECTURE.md`, `TASKS.md`, and `TESTS.md` from the returned folder path. Use one full response for `README.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. First enumerate every decision made during Phase 2 (Scope Challenge resolutions) and Phase 3 (Architecture / Code Quality / Test / Performance review resolutions). For each decision, capture WHAT was chosen, WHY, HOW (concrete approach), and RISK (or `none identified`). This enumerated list is the source for README.Decisions — paraphrasing or omitting is forbidden. After Steps 4.1-4.3, scan the saved `TASKS.md` for every file path referenced by a CREATE/MODIFY/DELETE task. Aggregate those paths into the Component Manifest table with one-line purpose per file pulled from the originating task. Do NOT invent paths not in `TASKS.md`. Immediately after composing this file, save only this file with the exact same slug and handoff save tool:
+If `TESTS.md` is outside the artifact set, skip Step 4.3.
+
+**Step 4.4: Re-read, compose, and save `README.md`.** Before writing the first character of `README.md`, re-read the saved artifacts from the returned folder path. Use one full response for `README.md` only. Do not compose any other file in this response. Do not print compose-target file content to chat. First enumerate every decision made during Phase 2 (Scope Challenge resolutions), Phase 3 (Architecture / Code Quality / Test / Performance review resolutions), and the Phase 1 Artifact Set Decision. For each decision, capture WHAT was chosen, WHY, HOW (concrete approach), and RISK (or `none identified`). This enumerated list is the source for README.Decisions — paraphrasing or omitting is forbidden. After Steps 4.1-4.3, scan the saved `TASKS.md` for every file path referenced by a CREATE/MODIFY/DELETE task. Aggregate those paths into the Component Manifest table with one-line purpose per file pulled from the originating task. Do NOT invent paths not in `TASKS.md`. Immediately after composing this file, save only this file with the exact same slug and handoff save tool:
 
 ```ts
 kit_save_handoff({
@@ -294,7 +301,7 @@ kit_save_handoff({
 });
 ```
 
-**Step 4.5: Final saved-folder integrity check.** Do not compose or save additional file content in this response, and do not print compose-target file content to chat. Verify the returned folder path contains all four expected files: `README.md`, `ARCHITECTURE.md`, `TASKS.md`, and `TESTS.md`. If any file is missing, halt and surface `STATUS: BLOCKED — Phase 4.5 missing saved file: <filename>`. If all four exist, proceed to Phase 5 with the final returned folder path.
+**Step 4.5: Final saved-folder integrity check.** Do not compose or save additional file content in this response, and do not print compose-target file content to chat. Verify the returned folder path contains exactly the artifact set chosen in Phase 1. If any expectation fails, halt and surface `STATUS: BLOCKED — Phase 4.5 saved file mismatch: <details>`. If the expected set is present, proceed to Phase 5 with the final returned folder path.
 
 ## Templates (Phase 4 compose targets)
 
@@ -345,9 +352,9 @@ kit_save_handoff({
 
 ## File Map
 - `README.md` (this file) — decisions, component manifest, and summary
-- `ARCHITECTURE.md` — diagrams, data contracts, failure modes, reuse map
+- `ARCHITECTURE.md` — diagrams, data contracts, behavioral contracts, failure modes, reuse map
 - `TASKS.md` — implementation WBS + AC Coverage Check
-- `TESTS.md` — codepath diagram + behavioral contracts + coverage gaps
+- `TESTS.md` — codepath diagram, test mapping, and coverage gaps
 
 ## Completion Summary
 - Scope Challenge: <accepted as-is | reduced per recommendation | skipped (Design Brief input)>
@@ -378,6 +385,13 @@ export interface FooContract { ... }
 export function bar(input: X): Y;
 \```
 
+## Behavioral Contracts
+
+| ID | Contract | Covers |
+| :--- | :--- | :--- |
+| BC1 | Given <precondition>, <subject> MUST <observable outcome> | AC1 |
+| BC2 | Given <precondition>, <subject> MUST NOT <outcome> | F1 |
+
 ## Failure Modes
 
 | # | Scenario | System Behavior | Required Handling |
@@ -401,7 +415,6 @@ export function bar(input: X): Y;
 
 > See `README.md` for goal and decisions.
 > See `ARCHITECTURE.md` for contract definitions referenced below.
-> See `TESTS.md` for behavioral contracts derived from these tasks.
 
 > **Dependency notation:** `[P]` = parallel-safe within layer; `[S: id]` = sequential, depends on the listed task(s). Layers are always sequential.
 
@@ -435,24 +448,24 @@ If any AC has no covering task → add the missing task to the relevant Layer ab
 
 > See `README.md` for goal and ACs.
 > See `TASKS.md` for WBS task IDs referenced below.
-> See `ARCHITECTURE.md` for failure mode IDs referenced below.
+> See `ARCHITECTURE.md` for behavioral contract and failure mode IDs referenced below.
 
 ## Codepath Diagram
 <Mermaid: all new code paths — annotated with which behavioral contract each path exercises>
 
-## Behavioral Contracts
+## Test Mapping
 
-| ID | Contract | Covers | Tested by |
+| Contract ID | Covers | Tested by |
 | :--- | :--- | :--- | :--- |
-| BC1 | Given <precondition>, <subject> MUST <observable outcome> | AC1 | Task 2.1 |
-| BC2 | Given <precondition>, <subject> MUST NOT <outcome> | F1 | Task 2.3 |
+| BC1 | AC1 | Task 2.1 |
+| BC2 | F1 | Task 2.3 |
 
 ## Coverage Gaps
-Failure modes from `ARCHITECTURE.md` with no covering contract — each MUST have a covering WBS task or an explicit error handler.
+Behavioral contracts or failure modes from `ARCHITECTURE.md` with no test task — each MUST have a covering WBS task or an explicit non-test verification note.
 
-| Failure Mode | Has Contract? | Has Error Handler? | Resolution |
+| Item | Has Test Task? | Has Non-Test Verification? | Resolution |
 | :--- | :--- | :--- | :--- |
-| F1 | yes (BC2) | n/a | covered |
+| BC1 | yes (Task 2.1) | n/a | covered |
 | F2 | NO | no — silent failure | **CRITICAL — add Task X.Y to TASKS.md** |
 
 ## Critical Gaps
@@ -467,12 +480,12 @@ Before Phase 5, verify:
 - Frontmatter and discovery triggers are still accurate for this skill.
 - No implementation source file was created, modified, deleted, formatted, or staged.
 - Every critical issue was resolved through an explicit user decision.
-- Every AC has at least one covering task and one behavioral contract.
-- Every failure mode is covered by a behavioral contract, explicit error handler, or planned WBS task.
+- Every AC has at least one covering implementation task.
+- `ARCHITECTURE.md` contains the Behavioral Contracts derived in Phase 3C.
+- The saved files match the Phase 1 artifact set; if tests are disabled, `README.md` records that decision and no `TESTS.md` or test task exists.
 - `TASKS.md` references only contracts that exist in `ARCHITECTURE.md`.
-- `TESTS.md` references only task IDs that exist in `TASKS.md`.
+- `TESTS.md`, when present, references only task IDs that exist in `TASKS.md`.
 - `README.md` decisions enumerate all Phase 2 and Phase 3 resolutions.
-- The final folder contains exactly the four required handoff files.
 
 ## Common Mistakes
 
@@ -484,19 +497,20 @@ Before Phase 5, verify:
 | Writing implementation details instead of contracts | Specify observable interfaces, invariants, error triggers, and task ownership only. |
 | Saving multiple handoff files at once | Save exactly one compose-target file per Phase 4 sub-step. |
 | Printing saved artifact bodies in chat | Save artifacts through the Agent Kit handoff save tool; chat only gets status, tree, and menu. |
+| Letting `code` decide test scope | Decide the artifact set in Phase 1; `code` executes only what the plan saved. |
 
 ### Phase 5: Handoff
 
 1. **Constraint check.** Verify NO source code was modified during this session.
 2. **Chat output constraint.** After save, do NOT print compose-target file content to chat. Do not restate README, ARCHITECTURE, TASKS, or TESTS body content.
-3. **Present only final status, the saved folder path, 4-line file tree, and next-step menu:**
+3. **Present only final status, the saved folder path, artifact tree, and next-step menu:**
 
 ```
 ✅ Plan saved → `<returned-path>/`
      ├── README.md
      ├── ARCHITECTURE.md
      ├── TASKS.md
-     └── TESTS.md
+     └── TESTS.md  # include only when present
 
 What would you like to do next?
 

@@ -42,13 +42,12 @@ Your mandate is to execute the contract precisely — translate it into producti
    - **Investigation Report** from `investigate` — a handoff folder (e.g. `@.agent-kit/handoffs/<feature-slug>/investigation`) or explicitly provided inline content with confirmed/probable root cause evidence and recommended actions.
    If absent, stop and request a plan or Investigation Report.
 2. **Project DNA** at `.agent-kit/project.md`. Read when present — it carries naming, error-handling, and stack conventions.
-3. **`.agent-kit/settings.json`** (`project` section). Read the `hasTests` and `runTests` flags — they gate Phase 5.
 
 If the implementation contract or DNA references files that do not exist, surface this in Phase 3 (Logic Gap Sweep) — do not silently invent paths.
 
 **Contract routing:**
 
-- **WBS plan:** Execute the plan exactly as written.
+- **WBS plan:** Execute every saved artifact exactly as written. If the plan has no test artifact or test task, do not create one.
 - **Investigation Report:** Execute the recommended root-cause fix only. Do not broaden into cleanup, refactor, or speculative hardening. If status is `INCONCLUSIVE`, halt and request further investigation or a WBS plan. If status is `PROBABLE`, implement only when the evidence chain is specific enough to identify the affected files and failure mechanism; otherwise halt for confirmation.
 
 ---
@@ -148,7 +147,8 @@ For a **WBS plan**, extract:
 - File list (touched + referenced).
 - Layer ordering and per-task `[P]` / `[S: id]` dependency annotations.
 - Per-task inputs, outputs, edge cases, and required behaviors.
-- Test Plan section.
+- Behavioral Contracts from `ARCHITECTURE.md`.
+- Artifact list: `README.md`, `ARCHITECTURE.md`, `TASKS.md`, and `TESTS.md` when present.
 - Explicit "NOT in Scope" items.
 
 If any of the above is missing or contradictory, halt and request a re-plan rather than guessing.
@@ -203,6 +203,7 @@ Within a layer, run `[P]` tasks in any order; respect `[S: id]` dependencies. Ed
 For each WBS task, the implementation must satisfy the plan's stated:
 
 - Inputs / outputs / error cases.
+- Behavioral Contracts from `ARCHITECTURE.md`.
 - Edge case handling (empty array, null, boundary values, etc. — verbatim from the plan).
 - Failure modes called out by the plan.
 
@@ -215,20 +216,22 @@ For an **Investigation Report**, implement the smallest change that fixes the do
 
 If you discover a smell, dead code, or design issue **outside the lines you are editing**, do not fix it. Log it under "Out-of-Scope Observations" in the final report.
 
-### Phase 5 — Testing (Conditional)
+### Phase 5 — Contract Test Artifacts
 
-**Trigger:** `.agent-kit/settings.json` has `project.hasTests: true` and `project.runTests: true`. If either is false, skip this phase.
+Execute test work only when the implementation contract contains `TESTS.md` or explicit test tasks. The planner decides whether test artifacts exist; the code skill does not read settings or re-gate test scope.
 
-If triggered, add or update tests only where they prove behavior promised by the implementation contract. At minimum:
+When present, add or update tests only where they prove behavior promised by the implementation contract. At minimum:
 
 - For WBS plans, cover the primary success path and every edge case the plan called out.
 - For Investigation Report inputs, add or update a regression test for the reported symptom when the project has an appropriate test surface.
 - Mock external boundaries (DB, network, filesystem, time).
 - Match the project's existing test framework — never introduce a new one.
 
+Otherwise, skip test creation and record that the plan omitted test artifacts.
+
 ### Phase 6 — Local Verification
 
-Run the project's standard task runners. **Use the user-facing scripts, never the underlying binaries:**
+Run the project's standard task runners required by the implementation contract. If test artifacts were implemented, run the project test script. **Use the user-facing scripts, never the underlying binaries:**
 
 | Need       | Use                                           | Forbidden                        |
 | ---------- | --------------------------------------------- | -------------------------------- |
