@@ -2,7 +2,15 @@ import Database from 'libsql';
 import * as fs from 'fs';
 import * as path from 'path';
 import { eng, removeStopwords } from 'stopword';
-import type { MemoryChunk, MemoryConfig, RecentSource, SourceType } from './types.js';
+import type {
+  HybridRankDebug,
+  HybridSearchOptions,
+  HybridSearchRow,
+  MemoryChunk,
+  MemoryConfig,
+  RecentSource,
+  SourceType,
+} from './types.js';
 
 export const SCHEMA_VERSION = 4;
 
@@ -228,11 +236,6 @@ export class MemoryStore {
     return Buffer.from(embedding.buffer, embedding.byteOffset, embedding.byteLength);
   }
 
-  private normalizeVectorDistance(distance: number): number {
-    if (distance <= 0) return 1;
-    return Math.max(0, Math.min(1, 1 - distance));
-  }
-
   hashesBySource(source: string): Set<string> {
     const rows = this.db.prepare(`SELECT id FROM memory_chunks WHERE source = ?`).all(source) as Array<{ id: string }>;
     return new Set(rows.map((r) => r.id));
@@ -284,95 +287,30 @@ export class MemoryStore {
     deleteAll();
   }
 
-  searchDense(embedding: Float32Array, limit: number): Array<{ id: string; score: number }> {
-    try {
-      const queryVector = this.toVectorBinding(embedding);
-      const rows = this.db
-        .prepare(
-          `SELECT mc.id, vector_distance_cos(mc.embedding, vector32(?)) AS distance
-           FROM vector_top_k('idx_memory_chunks_embedding', vector32(?), ?) AS vector_matches
-           JOIN memory_chunks mc ON mc.rowid = vector_matches.id
-           ORDER BY distance
-           LIMIT ?`,
-        )
-        .all(queryVector, queryVector, limit, limit) as Array<{ id: string; distance: number }>;
-
-      return rows.map((r) => ({
-        id: r.id,
-        score: this.normalizeVectorDistance(r.distance),
-      }));
-    } catch (err) {
-      console.warn('[memory-store] Dense search failed:', err);
-      return [];
-    }
-  }
-
-  searchBm25(query: string, limit: number): Array<{ id: string; score: number }> {
-    if (!query.trim()) return [];
-
+  private buildFtsQuery(query: string): string {
     const tokens = query
       .trim()
       .split(/\s+/)
       .map((t) => t.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase())
       .filter((t) => t.length > 1);
 
-    const ftsQuery = removeStopwords(tokens, eng)
+    return removeStopwords(tokens, eng)
       .map((t) => `${t.replace(/s$/, '')}*`)
       .join(' OR ');
-    if (!ftsQuery) return [];
-
-    try {
-      const rows = this.db
-        .prepare(
-          `SELECT mc.id, bm25(memory_fts, 0.2, 2.0, 5.0) AS rank
-           FROM memory_fts
-           JOIN memory_chunks mc ON mc.rowid = memory_fts.rowid
-           WHERE memory_fts MATCH ?
-           ORDER BY rank
-           LIMIT ?`,
-        )
-        .all(ftsQuery, limit) as Array<{ id: string; rank: number }>;
-
-      if (rows.length === 0) return [];
-
-      // BM25 rank is negative in SQLite FTS5 (lower = more relevant)
-      const ranks = rows.map((r) => r.rank);
-      const minRank = Math.min(...ranks);
-      const maxRank = Math.max(...ranks);
-      const range = maxRank - minRank;
-
-      return rows.map((r) => ({
-        id: r.id,
-        score: range > 0 ? (maxRank - r.rank) / range : 1,
-      }));
-    } catch (err) {
-      console.warn('[memory-store] BM25 search failed:', err);
-      return [];
-    }
   }
 
-  getChunksByIds(ids: string[]): MemoryChunk[] {
-    if (ids.length === 0) return [];
-
-    const placeholders = ids.map(() => '?').join(', ');
-    const rows = this.db
-      .prepare(
-        `SELECT id, source, source_type, heading, heading_level, content, line_start, line_end, file_mtime_at
-         FROM memory_chunks WHERE id IN (${placeholders})`,
-      )
-      .all(...ids) as Array<{
-      id: string;
-      source: string;
-      source_type: SourceType;
-      heading: string;
-      heading_level: number;
-      content: string;
-      line_start: number;
-      line_end: number;
-      file_mtime_at: number;
-    }>;
-
-    return rows.map((r) => ({
+  private mapMemoryChunkRow(r: {
+    id: string;
+    source: string;
+    source_type: SourceType;
+    heading: string;
+    heading_level: number;
+    content: string;
+    line_start: number;
+    line_end: number;
+    file_mtime_at: number;
+  }): MemoryChunk {
+    return {
       id: r.id,
       source: r.source,
       sourceType: r.source_type,
@@ -382,7 +320,248 @@ export class MemoryStore {
       lineStart: r.line_start,
       lineEnd: r.line_end,
       fileMtimeAt: r.file_mtime_at,
-    }));
+    };
+  }
+
+  searchHybrid(options: HybridSearchOptions): HybridSearchRow[] {
+    const {
+      query,
+      embedding,
+      topK,
+      fetchLimit,
+      denseScoreFloor,
+      recencyWeight,
+      rrfK,
+      sourceType,
+      sinceMtimeAt,
+      includeDebug,
+    } = options;
+
+    const ftsQuery = this.buildFtsQuery(query);
+    const hasDense = embedding !== undefined;
+    const hasBm25 = ftsQuery.length > 0;
+
+    if (!hasDense && !hasBm25) return [];
+
+    const hasFilters = sourceType !== undefined || sinceMtimeAt !== undefined;
+
+    interface RawRow {
+      id: string;
+      source: string;
+      source_type: SourceType;
+      file_mtime_at: number;
+      heading: string;
+      heading_level: number;
+      content: string;
+      line_start: number;
+      line_end: number;
+      dense_rank: number | null;
+      dense_dist: number | null;
+      bm25_rank: number | null;
+      recency_rank: number;
+      total_score: number;
+      retriever: 'dense' | 'bm25' | 'both';
+    }
+
+    try {
+      const params: unknown[] = [];
+
+      let denseCte = '';
+      let denseRankedCte = '';
+
+      if (hasDense) {
+        const queryBuf = this.toVectorBinding(embedding);
+
+        if (hasFilters) {
+          // Exact filtered scan — avoids losing candidates due to ANN post-filtering
+          const filterClauses: string[] = [];
+          if (sourceType) {
+            filterClauses.push('mc.source_type = ?');
+            params.push(sourceType);
+          }
+          if (sinceMtimeAt !== undefined) {
+            filterClauses.push('mc.file_mtime_at >= ?');
+            params.push(sinceMtimeAt);
+          }
+          const whereClause = filterClauses.length > 0 ? `WHERE ${filterClauses.join(' AND ')}` : '';
+          params.push(queryBuf); // vector_distance_cos arg
+          params.push(fetchLimit);
+
+          denseCte = `dense_data AS (
+            SELECT mc.id, mc.source, mc.source_type, mc.file_mtime_at,
+                   mc.heading, mc.heading_level, mc.content, mc.line_start, mc.line_end,
+                   vector_distance_cos(mc.embedding, vector32(?)) AS dense_dist
+            FROM memory_chunks mc
+            ${whereClause}
+            ORDER BY dense_dist
+            LIMIT ?
+          )`;
+        } else {
+          params.push(queryBuf); // vector_distance_cos arg
+          params.push(queryBuf); // vector_top_k arg
+          params.push(fetchLimit);
+
+          denseCte = `dense_data AS (
+            SELECT mc.id, mc.source, mc.source_type, mc.file_mtime_at,
+                   mc.heading, mc.heading_level, mc.content, mc.line_start, mc.line_end,
+                   vector_distance_cos(mc.embedding, vector32(?)) AS dense_dist
+            FROM vector_top_k('idx_memory_chunks_embedding', vector32(?), ?) AS vtk
+            JOIN memory_chunks mc ON mc.rowid = vtk.id
+          )`;
+        }
+
+        denseRankedCte = `dense_ranked AS (
+          SELECT *, ROW_NUMBER() OVER (ORDER BY dense_dist, id) AS dense_rank
+          FROM dense_data
+        )`;
+      }
+
+      let bm25Cte = '';
+      let bm25RankedCte = '';
+
+      if (hasBm25) {
+        const bm25FilterClauses: string[] = [];
+        if (sourceType) bm25FilterClauses.push('mc.source_type = ?');
+        if (sinceMtimeAt !== undefined) bm25FilterClauses.push('mc.file_mtime_at >= ?');
+        const bm25WhereExtra = bm25FilterClauses.length > 0 ? ` AND ${bm25FilterClauses.join(' AND ')}` : '';
+
+        params.push(ftsQuery);
+        if (sourceType) params.push(sourceType);
+        if (sinceMtimeAt !== undefined) params.push(sinceMtimeAt);
+        params.push(fetchLimit);
+
+        bm25Cte = `bm25_data AS (
+          SELECT mc.id, mc.source, mc.source_type, mc.file_mtime_at,
+                 mc.heading, mc.heading_level, mc.content, mc.line_start, mc.line_end,
+                 bm25(memory_fts, 0.2, 2.0, 5.0) AS bm25_neg
+          FROM memory_fts
+          JOIN memory_chunks mc ON mc.rowid = memory_fts.rowid
+          WHERE memory_fts MATCH ?${bm25WhereExtra}
+          LIMIT ?
+        )`;
+
+        bm25RankedCte = `bm25_ranked AS (
+          SELECT *, ROW_NUMBER() OVER (ORDER BY bm25_neg, id) AS bm25_rank
+          FROM bm25_data
+        )`;
+      }
+
+      let candidatesCte = '';
+
+      if (hasDense && hasBm25) {
+        candidatesCte = `all_candidates AS (
+          SELECT d.id, d.source, d.source_type, d.file_mtime_at,
+                 d.heading, d.heading_level, d.content, d.line_start, d.line_end,
+                 CAST(d.dense_rank AS INTEGER) AS dense_rank, d.dense_dist,
+                 b.bm25_rank,
+                 CASE WHEN b.id IS NOT NULL THEN 'both' ELSE 'dense' END AS retriever
+          FROM dense_ranked d
+          LEFT JOIN bm25_ranked b ON b.id = d.id
+          UNION ALL
+          SELECT b.id, b.source, b.source_type, b.file_mtime_at,
+                 b.heading, b.heading_level, b.content, b.line_start, b.line_end,
+                 NULL AS dense_rank, NULL AS dense_dist,
+                 CAST(b.bm25_rank AS INTEGER) AS bm25_rank,
+                 'bm25' AS retriever
+          FROM bm25_ranked b
+          LEFT JOIN dense_ranked d ON d.id = b.id
+          WHERE d.id IS NULL
+        )`;
+      } else if (hasDense) {
+        candidatesCte = `all_candidates AS (
+          SELECT id, source, source_type, file_mtime_at,
+                 heading, heading_level, content, line_start, line_end,
+                 CAST(dense_rank AS INTEGER) AS dense_rank, dense_dist,
+                 NULL AS bm25_rank, 'dense' AS retriever
+          FROM dense_ranked
+        )`;
+      } else {
+        candidatesCte = `all_candidates AS (
+          SELECT id, source, source_type, file_mtime_at,
+                 heading, heading_level, content, line_start, line_end,
+                 NULL AS dense_rank, NULL AS dense_dist,
+                 CAST(bm25_rank AS INTEGER) AS bm25_rank, 'bm25' AS retriever
+          FROM bm25_ranked
+        )`;
+      }
+
+      // Scoring: RRF over active channels + recency, dense floor, source dedup
+      params.push(rrfK, rrfK, recencyWeight, rrfK, denseScoreFloor, topK);
+
+      const sql = `
+        WITH
+          ${[denseCte, denseRankedCte, bm25Cte, bm25RankedCte, candidatesCte].filter(Boolean).join(',\n')}
+        ,
+        recency_ranked AS (
+          SELECT id, ROW_NUMBER() OVER (ORDER BY file_mtime_at DESC, source, id) AS recency_rank
+          FROM all_candidates
+        ),
+        scored AS (
+          SELECT c.id, c.source, c.source_type, c.file_mtime_at,
+                 c.heading, c.heading_level, c.content, c.line_start, c.line_end,
+                 c.dense_rank, c.dense_dist, c.bm25_rank, r.recency_rank,
+                 c.retriever,
+                 COALESCE(1.0 / (? + c.dense_rank), 0.0) +
+                 COALESCE(1.0 / (? + c.bm25_rank), 0.0) +
+                 ? * (1.0 / (? + r.recency_rank)) AS total_score
+          FROM all_candidates c
+          JOIN recency_ranked r ON r.id = c.id
+          WHERE c.retriever != 'dense' OR (1.0 - c.dense_dist) >= ?
+        ),
+        best_per_source AS (
+          SELECT *,
+                 ROW_NUMBER() OVER (PARTITION BY source ORDER BY total_score DESC, source, id) AS source_rank
+          FROM scored
+        )
+        SELECT id, source, source_type, file_mtime_at, heading, heading_level, content, line_start, line_end,
+               dense_rank, dense_dist, bm25_rank, recency_rank, total_score, retriever
+        FROM best_per_source
+        WHERE source_rank = 1
+        ORDER BY total_score DESC, source, id
+        LIMIT ?
+      `;
+
+      const rows = this.db.prepare(sql).all(...params) as RawRow[];
+      if (rows.length === 0) return [];
+
+      const denseActive = hasDense;
+      const bm25Active = hasBm25;
+      const recencyActive = rows.length > 0;
+      const maxScore =
+        ((denseActive ? 1 : 0) + (bm25Active ? 1 : 0) + (recencyActive ? recencyWeight : 0)) / (rrfK + 1);
+
+      return rows.map((r) => {
+        const chunk = this.mapMemoryChunkRow(r);
+        const normalizedScore = maxScore > 0 ? r.total_score / maxScore : 0;
+
+        const row: HybridSearchRow = {
+          chunk,
+          score: normalizedScore,
+          retriever: r.retriever,
+        };
+
+        if (includeDebug) {
+          const denseScore = r.dense_dist !== null ? Math.max(0, Math.min(1, 1 - r.dense_dist)) : undefined;
+          const bm25Score = r.bm25_rank !== null ? 1 / (rrfK + r.bm25_rank) : undefined;
+          const recencyScore = recencyWeight * (1 / (rrfK + r.recency_rank));
+          const debug: HybridRankDebug = {
+            denseRank: r.dense_rank ?? undefined,
+            denseScore,
+            bm25Rank: r.bm25_rank ?? undefined,
+            bm25Score,
+            recencyRank: r.recency_rank,
+            recencyScore,
+            totalScore: r.total_score,
+          };
+          row.debug = debug;
+        }
+
+        return row;
+      });
+    } catch (err) {
+      console.warn('[memory-store] Hybrid search failed:', err);
+      return [];
+    }
   }
 
   get vecAvailable(): boolean {

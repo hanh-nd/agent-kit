@@ -78,7 +78,7 @@ function registerMemoryToolHandlers(
         const blocks: string[] = [];
         for (const row of rows) {
           try {
-            const content = fs.readFileSync(path.join(config.wikiDir, row.source), 'utf8');
+            const content = await fs.promises.readFile(path.join(config.wikiDir, row.source), 'utf8');
             const displaySource = row.source.replace(/^compiled\//, '');
             blocks.push(`### ${displaySource}\n${content}`);
           } catch (err) {

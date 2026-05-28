@@ -28,6 +28,37 @@ export interface SearchResult {
   contentSource: 'file' | 'fallback';
 }
 
+export interface HybridSearchOptions {
+  query: string;
+  embedding?: Float32Array;
+  topK: number;
+  fetchLimit: number;
+  denseScoreFloor: number;
+  recencyWeight: number;
+  rrfK: number;
+  sourceType?: SourceType;
+  sinceMtimeAt?: number;
+  includeDebug?: boolean;
+}
+
+export interface HybridRankDebug {
+  denseRank?: number;
+  denseScore?: number;
+  bm25Rank?: number;
+  bm25Score?: number;
+  recencyRank: number;
+  recencyScore: number;
+  totalScore: number;
+  droppedReason?: string;
+}
+
+export interface HybridSearchRow {
+  chunk: MemoryChunk;
+  score: number;
+  retriever: 'dense' | 'bm25' | 'both';
+  debug?: HybridRankDebug;
+}
+
 export interface MemoryConfig {
   enabled: boolean;
   wikiDir: string;

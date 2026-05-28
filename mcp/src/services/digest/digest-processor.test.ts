@@ -89,12 +89,10 @@ describe('digestConversationFile', () => {
       assert.equal(result.indexed, true);
       assert.equal(result.markdown, markdownPath);
 
-      const denseResults = store.searchDense(new Float32Array(384).fill(0.05), 5);
       const indexedSource = path.relative(config.wikiDir, markdownPath);
-      const indexedChunks = store.getChunksByIds(denseResults.map((denseResult) => denseResult.id));
       assert.ok(
-        indexedChunks.some((chunk) => chunk.source === indexedSource),
-        `Expected dense search to return a chunk for ${indexedSource}`,
+        store.hashesBySource(indexedSource).size > 0,
+        `Expected source ${indexedSource} to be indexed in store`,
       );
     } finally {
       store.close();

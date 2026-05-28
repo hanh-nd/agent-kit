@@ -5,7 +5,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { MemoryStore, SCHEMA_VERSION } from './store.js';
-import { type MemoryChunk, EmbeddingModelName } from './types.js';
+import { type HybridSearchOptions, type MemoryChunk, EmbeddingModelName } from './types.js';
+import { DENSE_SCORE_FLOOR, FETCH_MULTIPLIER, RECENCY_WEIGHT, RRF_K } from './constants.js';
 
 const TEST_CONFIG = {
   enabled: true,
@@ -119,6 +120,116 @@ describe('MemoryStore', () => {
     }
   });
 
+  // BC22: Task 1.3 — prove hybrid SQL shape (CTEs + ROW_NUMBER OVER + UNION + PARTITION BY + vector_top_k + FTS)
+  test('BC22: libsql supports hybrid SQL primitives — CTEs, ROW_NUMBER OVER, UNION, PARTITION BY, vector_top_k, bm25', () => {
+    const compatDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-hybrid-compat-'));
+    const db = new Database(path.join(compatDir, 'compat.db'));
+
+    try {
+      db.pragma('journal_mode = WAL');
+      db.exec(`
+        CREATE TABLE items (
+          rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+          id TEXT NOT NULL UNIQUE,
+          src TEXT NOT NULL,
+          embedding F32_BLOB(3) NOT NULL
+        );
+        CREATE INDEX idx_items_embedding ON items (libsql_vector_idx(embedding));
+        CREATE VIRTUAL TABLE items_fts USING fts5(id, src, content='items', content_rowid='rowid');
+        CREATE TRIGGER items_ai AFTER INSERT ON items BEGIN
+          INSERT INTO items_fts(rowid, id, src) VALUES (new.rowid, new.id, new.src);
+        END;
+      `);
+
+      const ins = db.prepare(`INSERT INTO items (id, src, embedding) VALUES (?, ?, vector32(?))`);
+      ins.run('a', 'source-alpha.md', '[1,0,0]');
+      ins.run('b', 'source-alpha.md', '[0,1,0]');
+      ins.run('c', 'source-beta.md', '[0,0,1]');
+
+      // Full hybrid SQL shape: CTEs + ROW_NUMBER OVER + UNION + PARTITION BY + vector_top_k + bm25
+      const queryVec = Buffer.from(new Float32Array([1, 0, 0]).buffer);
+      const rows = db
+        .prepare(
+          `
+        WITH
+        dense_data AS (
+          SELECT items.id, items.src,
+                 vector_distance_cos(items.embedding, vector32(?)) AS dense_dist
+          FROM vector_top_k('idx_items_embedding', vector32(?), ?) AS vtk
+          JOIN items ON items.rowid = vtk.id
+        ),
+        dense_ranked AS (
+          SELECT *, ROW_NUMBER() OVER (ORDER BY dense_dist, id) AS dense_rank
+          FROM dense_data
+        ),
+        bm25_data AS (
+          SELECT items.id, items.src,
+                 bm25(items_fts, 1.0, 1.0) AS bm25_neg
+          FROM items_fts
+          JOIN items ON items.rowid = items_fts.rowid
+          WHERE items_fts MATCH ?
+          LIMIT ?
+        ),
+        bm25_ranked AS (
+          SELECT *, ROW_NUMBER() OVER (ORDER BY bm25_neg, id) AS bm25_rank
+          FROM bm25_data
+        ),
+        all_candidates AS (
+          SELECT d.id, d.src, d.dense_rank, d.dense_dist, b.bm25_rank,
+                 CASE WHEN b.id IS NOT NULL THEN 'both' ELSE 'dense' END AS retriever
+          FROM dense_ranked d LEFT JOIN bm25_ranked b ON b.id = d.id
+          UNION ALL
+          SELECT b.id, b.src, NULL, NULL, b.bm25_rank, 'bm25' AS retriever
+          FROM bm25_ranked b LEFT JOIN dense_ranked d ON d.id = b.id
+          WHERE d.id IS NULL
+        ),
+        recency_ranked AS (
+          SELECT id, ROW_NUMBER() OVER (ORDER BY id) AS recency_rank
+          FROM all_candidates
+        ),
+        scored AS (
+          SELECT c.id, c.src, c.dense_rank, c.bm25_rank, c.retriever,
+                 COALESCE(1.0 / (60 + c.dense_rank), 0.0) +
+                 COALESCE(1.0 / (60 + c.bm25_rank), 0.0) AS total_score
+          FROM all_candidates c
+          JOIN recency_ranked r ON r.id = c.id
+          WHERE c.retriever != 'dense' OR (1.0 - c.dense_dist) >= 0.1
+        ),
+        best_per_source AS (
+          SELECT *, ROW_NUMBER() OVER (PARTITION BY src ORDER BY total_score DESC, id) AS src_rank
+          FROM scored
+        )
+        SELECT id, src, retriever, total_score
+        FROM best_per_source
+        WHERE src_rank = 1
+        ORDER BY total_score DESC, src, id
+        LIMIT 5
+      `,
+        )
+        .all(queryVec, queryVec, 3, 'source*', 3) as Array<{
+        id: string;
+        src: string;
+        retriever: string;
+        total_score: number;
+      }>;
+
+      // Should return at most one row per src, 'a' (dense=0 dist → score=1) should be top
+      assert.ok(rows.length > 0, 'Hybrid query must return results');
+      assert.equal(rows[0].id, 'a', 'Nearest dense candidate must rank first');
+
+      // Verify distinct sources
+      const srcs = rows.map((r) => r.src);
+      const uniqueSrcs = new Set(srcs);
+      assert.equal(srcs.length, uniqueSrcs.size, 'Each src must appear at most once (PARTITION BY dedup)');
+
+      // 'a' matched both dense (top) and BM25 (src matches 'source*')
+      assert.equal(rows[0].retriever, 'both', "'a' must be retriever=both");
+    } finally {
+      db.close();
+      fs.rmSync(compatDir, { recursive: true, force: true });
+    }
+  });
+
   test('vecAvailable is true after schema creation', () => {
     assert.equal(store.vecAvailable, true);
   });
@@ -131,15 +242,10 @@ describe('MemoryStore', () => {
 
   test('upsert stores chunks and hashesBySource returns their ids', () => {
     const chunk = makeChunk({ id: 'upsert-test-0001', source: 'upsert.md', sourceType: 'entity', fileMtimeAt: 2000 });
-    const embedding = makeEmbedding(0);
-    store.upsert([chunk], [embedding]);
+    store.upsert([chunk], [makeEmbedding(0)]);
 
     const hashes = store.hashesBySource('upsert.md');
     assert.ok(hashes.has('upsert-test-0001'));
-
-    const [stored] = store.getChunksByIds(['upsert-test-0001']);
-    assert.equal(stored.sourceType, 'entity');
-    assert.equal(stored.fileMtimeAt, 2000);
   });
 
   test('deleteBySource removes all chunks for that source', () => {
@@ -159,85 +265,6 @@ describe('MemoryStore', () => {
 
     const hashes = store.hashesBySource('deleteme.md');
     assert.equal(hashes.size, 0);
-  });
-
-  test('searchBm25 returns matching result after upsert', () => {
-    const chunk = makeChunk({
-      id: 'bm25-search-0001',
-      source: 'bm25.md',
-      content: 'uniqueKeywordXYZ for BM25 testing',
-    });
-    store.upsert([chunk], [makeEmbedding(3)]);
-
-    const results = store.searchBm25('uniqueKeywordXYZ', 5);
-    assert.ok(results.length > 0, 'Expected at least one BM25 result');
-    assert.ok(
-      results.some((r) => r.id === 'bm25-search-0001'),
-      `Expected chunk id in results, got: ${results.map((r) => r.id).join(', ')}`,
-    );
-  });
-
-  test('searchBm25 ignores filler words and matches preference source/content terms', () => {
-    const preference = makeChunk({
-      id: 'preference-search-0001',
-      source: 'compiled/preferences.md',
-      heading: '',
-      headingLevel: 0,
-      content: 'I like fish',
-    });
-    const unrelated = makeChunk({
-      id: 'preference-search-0002',
-      source: 'compiled/entities/worktree.md',
-      heading: 'Open Questions',
-      content: 'How should git manage worktree lifecycle decisions?',
-    });
-    store.upsert([preference, unrelated], [makeEmbedding(4), makeEmbedding(5)]);
-
-    const results = store.searchBm25('personal likes and preferences of the user', 5);
-
-    assert.ok(results.length > 0, 'Expected preference query to return results');
-    assert.equal(results[0].id, 'preference-search-0001');
-  });
-
-  test('searchBm25 returns empty array for empty query', () => {
-    const results = store.searchBm25('   ', 5);
-    assert.deepEqual(results, []);
-  });
-
-  test('getChunksByIds returns correct metadata for stored chunk', () => {
-    const chunk = makeChunk({
-      id: 'get-by-ids-0001',
-      source: 'metadata.md',
-      sourceType: 'concept',
-      heading: 'Metadata Section',
-      headingLevel: 2,
-      content: 'Content for metadata test',
-      lineStart: 10,
-      lineEnd: 20,
-      fileMtimeAt: 3000,
-    });
-    store.upsert([chunk], [makeEmbedding(6)]);
-
-    const results = store.getChunksByIds(['get-by-ids-0001']);
-    assert.equal(results.length, 1);
-    const [r] = results;
-    assert.equal(r.id, 'get-by-ids-0001');
-    assert.equal(r.source, 'metadata.md');
-    assert.equal(r.sourceType, 'concept');
-    assert.equal(r.heading, 'Metadata Section');
-    assert.equal(r.headingLevel, 2);
-    assert.equal(r.lineStart, 10);
-    assert.equal(r.lineEnd, 20);
-    assert.equal(r.fileMtimeAt, 3000);
-  });
-
-  test('getChunksByIds returns only found rows for mixed ids', () => {
-    const chunk = makeChunk({ id: 'partial-found-0001', source: 'partial.md', content: 'partial' });
-    store.upsert([chunk], [makeEmbedding(7)]);
-
-    const results = store.getChunksByIds(['partial-found-0001', 'does-not-exist-999']);
-    assert.equal(results.length, 1);
-    assert.equal(results[0].id, 'partial-found-0001');
   });
 
   test('indexedSources includes source after upsert', () => {
@@ -262,19 +289,6 @@ describe('MemoryStore', () => {
     const hashes = store.hashesBySource('del-ids.md');
     assert.ok(!hashes.has('del-ids-0001'), 'Deleted chunk id must be gone');
     assert.ok(hashes.has('del-ids-0002'), 'Non-deleted chunk id must remain');
-  });
-
-  test('searchBm25 still works regardless of vecAvailable', () => {
-    // This verifies FTS5 degraded mode is always functional
-    const chunk = makeChunk({
-      id: 'fts5-degraded-0001',
-      source: 'fts5.md',
-      content: 'degradedModeTest keyword',
-    });
-    store.upsert([chunk], [makeEmbedding(11)]);
-
-    const results = store.searchBm25('degradedModeTest', 5);
-    assert.ok(results.length > 0, 'FTS5 search must work regardless of vecAvailable');
   });
 
   test('getRecentSources returns distinct sources ordered by newest chunk mtime', () => {
@@ -336,34 +350,6 @@ describe('MemoryStore', () => {
       recentStore.close();
       fs.rmSync(recentDir, { recursive: true, force: true });
     }
-  });
-
-  test('searchDense returns nearest vector with bounded scores', () => {
-    const denseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-dense-store-'));
-    const denseStore = new MemoryStore(path.join(denseDir, 'index.db'), { ...TEST_CONFIG, wikiDir: denseDir });
-
-    try {
-      denseStore.upsert(
-        [
-          makeChunk({ id: 'dense-alpha', source: 'dense.md', content: 'alpha vector' }),
-          makeChunk({ id: 'dense-beta', source: 'dense.md', content: 'beta vector' }),
-          makeChunk({ id: 'dense-gamma', source: 'dense.md', content: 'gamma vector' }),
-        ],
-        [makeEmbedding(21), makeEmbedding(22), makeEmbedding(23)],
-      );
-
-      const results = denseStore.searchDense(makeEmbedding(22), 3);
-      assert.ok(results.length > 0, 'Expected dense search results');
-      assert.equal(results[0].id, 'dense-beta');
-      assert.ok(results.every((result) => result.score >= 0 && result.score <= 1));
-    } finally {
-      denseStore.close();
-      fs.rmSync(denseDir, { recursive: true, force: true });
-    }
-  });
-
-  test('searchDense returns empty array for invalid query embedding', () => {
-    assert.deepEqual(store.searchDense(new Float32Array(3), 5), []);
   });
 
   test('upsert skips invalid embeddings while persisting valid chunks', () => {
@@ -450,12 +436,316 @@ describe('MemoryStore', () => {
         content: 'postMigrationKeyword is searchable after migration',
       });
       migratedStore.upsert([migratedChunk], [makeEmbedding(16)]);
-      const results = migratedStore.searchBm25('postMigrationKeyword', 5);
-      assert.ok(results.some((result) => result.id === 'migrated-bm25-0001'));
+      const results = migratedStore.searchHybrid({
+        query: 'postMigrationKeyword',
+        topK: 5,
+        fetchLimit: 20,
+        denseScoreFloor: 0,
+        recencyWeight: RECENCY_WEIGHT,
+        rrfK: RRF_K,
+      });
+      assert.ok(results.some((r) => r.chunk.id === 'migrated-bm25-0001'));
     } finally {
       migratedStore.close();
       fs.rmSync(migrationDir, { recursive: true, force: true });
     }
+  });
+
+  // Task 3.4: Store-level hybrid ranking tests (BC1–BC12)
+  describe('searchHybrid', () => {
+    let hybridDir: string;
+    let hybridStore: MemoryStore;
+
+    function makeHybridOpts(overrides: Partial<HybridSearchOptions> = {}): HybridSearchOptions {
+      return {
+        query: 'test query',
+        topK: 10,
+        fetchLimit: 10 * FETCH_MULTIPLIER,
+        denseScoreFloor: DENSE_SCORE_FLOOR,
+        recencyWeight: RECENCY_WEIGHT,
+        rrfK: RRF_K,
+        ...overrides,
+      };
+    }
+
+    before(() => {
+      hybridDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-hybrid-store-'));
+      hybridStore = new MemoryStore(path.join(hybridDir, 'index.db'), { ...TEST_CONFIG, wikiDir: hybridDir });
+
+      // Insert test chunks with controlled embeddings:
+      // Embedding dims 40-49 for orthogonal test vectors (dimension 384)
+      // Each chunk at a unique dimension → query at dim 40 = nearest to 'alpha'
+      hybridStore.upsert(
+        [
+          // alpha: dense-only candidate, content has no keywords
+          makeChunk({
+            id: 'h-alpha',
+            source: 'source-alpha.md',
+            content: 'semantic content with no matching keywords',
+            fileMtimeAt: 1000,
+            sourceType: 'wiki',
+          }),
+          // beta: BM25-only candidate (keywords match, embedding far)
+          makeChunk({
+            id: 'h-beta',
+            source: 'source-beta.md',
+            content: 'hybridKeyword search text retrieval',
+            fileMtimeAt: 2000,
+            sourceType: 'concept',
+          }),
+          // gamma: dual-channel candidate (keywords + near embedding)
+          makeChunk({
+            id: 'h-gamma',
+            source: 'source-gamma.md',
+            content: 'hybridKeyword semantic content',
+            fileMtimeAt: 3000,
+            sourceType: 'wiki',
+          }),
+          // delta: below-floor dense-only (far from alpha query, no keywords)
+          makeChunk({
+            id: 'h-delta',
+            source: 'source-delta.md',
+            content: 'unrelated content with no relevant terms',
+            fileMtimeAt: 500,
+            sourceType: 'entity',
+          }),
+          // epsilon: same source as alpha (multi-chunk source for dedup test)
+          makeChunk({
+            id: 'h-epsilon',
+            source: 'source-alpha.md',
+            content: 'second chunk of alpha source, different content',
+            fileMtimeAt: 1000,
+            sourceType: 'wiki',
+          }),
+          // zeta: concept source for filter tests, has keywords
+          makeChunk({
+            id: 'h-zeta',
+            source: 'source-zeta.md',
+            content: 'hybridKeyword concept data for filtering',
+            fileMtimeAt: 4000,
+            sourceType: 'concept',
+          }),
+        ],
+        [
+          makeEmbedding(40), // alpha — at dim 40 (will match query at dim 40)
+          makeEmbedding(41), // beta  — orthogonal to dim-40 query
+          makeEmbedding(40), // gamma — same embedding as alpha (near query)
+          makeEmbedding(45), // delta — orthogonal to dim-40 query
+          makeEmbedding(40), // epsilon — same source as alpha
+          makeEmbedding(41), // zeta  — orthogonal to dim-40 query
+        ],
+      );
+    });
+
+    after(() => {
+      hybridStore.close();
+      fs.rmSync(hybridDir, { recursive: true, force: true });
+    });
+
+    // BC2: stopword-only query returns [] without malformed FTS SQL
+    test('BC2: stopword-only query returns empty array without malformed FTS SQL', () => {
+      const results = hybridStore.searchHybrid(makeHybridOpts({ query: 'the and or is' }));
+      assert.deepEqual(results, []);
+    });
+
+    // BC4: BM25-only (no embedding) — returns finite normalized scores
+    test('BC4: BM25-only search returns results with finite scores when no embedding provided', () => {
+      const results = hybridStore.searchHybrid(makeHybridOpts({ query: 'hybridKeyword', embedding: undefined }));
+      assert.ok(results.length > 0, 'Expected BM25-only results');
+      for (const r of results) {
+        assert.ok(Number.isFinite(r.score), `Score must be finite, got ${r.score}`);
+        assert.ok(r.score >= 0, 'Score must be >= 0');
+        assert.equal(r.retriever, 'bm25', 'retriever must be bm25 when no embedding');
+      }
+    });
+
+    // BC1 + BC3: dense+BM25 — returns topK ranked rows with correct retriever attribution
+    test('BC1/BC3: dual-channel search returns ranked rows with retriever attribution', () => {
+      const queryEmbed = makeEmbedding(40);
+      const results = hybridStore.searchHybrid(
+        makeHybridOpts({
+          query: 'hybridKeyword',
+          embedding: queryEmbed,
+          topK: 5,
+        }),
+      );
+
+      assert.ok(results.length > 0, 'Expected results from dual-channel search');
+      assert.ok(results.length <= 5, 'Must not exceed topK');
+      for (const r of results) {
+        assert.ok(r.chunk, 'Each row must have a chunk');
+        assert.ok(Number.isFinite(r.score), 'Score must be finite');
+        assert.ok(['dense', 'bm25', 'both'].includes(r.retriever), 'retriever must be valid');
+      }
+
+      // gamma matches both channels (embedding at 40 + hybridKeyword content)
+      const gammaResult = results.find((r) => r.chunk.id === 'h-gamma');
+      assert.ok(gammaResult, 'h-gamma must be in results');
+      assert.equal(gammaResult?.retriever, 'both', 'gamma must have retriever=both');
+    });
+
+    // BC5: dual-channel candidate ranks above single-channel candidate
+    test('BC5: dual-channel candidate ranks above single-channel with same RRF weights', () => {
+      const queryEmbed = makeEmbedding(40);
+      const results = hybridStore.searchHybrid(
+        makeHybridOpts({
+          query: 'hybridKeyword',
+          embedding: queryEmbed,
+          topK: 10,
+        }),
+      );
+
+      const gammaIdx = results.findIndex((r) => r.chunk.id === 'h-gamma');
+      const alphaIdx = results.findIndex((r) => r.chunk.id === 'h-alpha');
+
+      assert.ok(gammaIdx !== -1, 'gamma must be in results');
+      assert.ok(alphaIdx !== -1, 'alpha must be in results (above-floor dense)');
+      // gamma has both channels (higher RRF sum) so it should rank >= alpha (dense-only)
+      assert.ok(
+        gammaIdx <= alphaIdx,
+        `dual-channel gamma (idx ${gammaIdx}) must rank at or above dense-only alpha (idx ${alphaIdx})`,
+      );
+    });
+
+    // BC6: dense-only candidate below floor is dropped
+    test('BC6: dense-only candidate with score below denseScoreFloor is dropped', () => {
+      // delta is at dim 45, query at dim 40 → orthogonal → distance=1 → score=0 < 0.2
+      const queryEmbed = makeEmbedding(40);
+      const results = hybridStore.searchHybrid(
+        makeHybridOpts({
+          query: 'hybridKeyword',
+          embedding: queryEmbed,
+          topK: 10,
+          denseScoreFloor: 0.5, // Higher floor to guarantee delta drops
+        }),
+      );
+
+      const deltaResult = results.find((r) => r.chunk.id === 'h-delta');
+      assert.ok(!deltaResult, 'h-delta (orthogonal, dense-only) must be dropped below floor');
+    });
+
+    // BC7: source dedup — at most one result per source (best chunk wins)
+    test('BC7: source dedup returns at most one result per source', () => {
+      const queryEmbed = makeEmbedding(40);
+      const results = hybridStore.searchHybrid(
+        makeHybridOpts({
+          query: 'hybridKeyword',
+          embedding: queryEmbed,
+          topK: 10,
+        }),
+      );
+
+      const sources = results.map((r) => r.chunk.source);
+      const uniqueSources = new Set(sources);
+      assert.equal(sources.length, uniqueSources.size, 'Each source must appear at most once');
+
+      // source-alpha.md has two chunks (alpha + epsilon) — only one should surface
+      const alphaCount = sources.filter((s) => s === 'source-alpha.md').length;
+      assert.ok(alphaCount <= 1, `source-alpha.md must appear at most once, got ${alphaCount}`);
+    });
+
+    // BC8: deterministic order for tied candidates
+    test('BC8: repeated searchHybrid calls produce identical ordering', () => {
+      const queryEmbed = makeEmbedding(40);
+      const opts = makeHybridOpts({ query: 'hybridKeyword', embedding: queryEmbed, topK: 10 });
+
+      const first = hybridStore.searchHybrid(opts);
+      const second = hybridStore.searchHybrid(opts);
+
+      assert.equal(first.length, second.length, 'Result count must be stable');
+      for (let i = 0; i < first.length; i++) {
+        assert.equal(first[i].chunk.id, second[i].chunk.id, `Position ${i} must be deterministic`);
+      }
+    });
+
+    // BC9: sourceType filter applies to both channels
+    test('BC9: sourceType filter restricts results to matching source type', () => {
+      const queryEmbed = makeEmbedding(40);
+      const results = hybridStore.searchHybrid(
+        makeHybridOpts({
+          query: 'hybridKeyword',
+          embedding: queryEmbed,
+          sourceType: 'concept',
+          topK: 10,
+        }),
+      );
+
+      assert.ok(results.length > 0, 'Filtered results must include concept sources');
+      for (const r of results) {
+        assert.equal(r.chunk.sourceType, 'concept', `All results must be concept type, got ${r.chunk.sourceType}`);
+      }
+    });
+
+    // BC9b: sinceMtimeAt filter restricts to recent sources
+    test('BC9b: sinceMtimeAt filter restricts results to sources newer than threshold', () => {
+      const results = hybridStore.searchHybrid(
+        makeHybridOpts({
+          query: 'hybridKeyword',
+          sinceMtimeAt: 3000,
+          topK: 10,
+        }),
+      );
+
+      for (const r of results) {
+        assert.ok(r.chunk.fileMtimeAt >= 3000, `All results must have mtime >= 3000, got ${r.chunk.fileMtimeAt}`);
+      }
+    });
+
+    // BC11: debug fields present when includeDebug=true
+    test('BC11: debug fields are present on rows when includeDebug is true', () => {
+      const queryEmbed = makeEmbedding(40);
+      const results = hybridStore.searchHybrid(
+        makeHybridOpts({
+          query: 'hybridKeyword',
+          embedding: queryEmbed,
+          includeDebug: true,
+          topK: 10,
+        }),
+      );
+
+      assert.ok(results.length > 0, 'Expected results with debug');
+      for (const r of results) {
+        assert.ok(r.debug, 'debug must be present when includeDebug=true');
+        assert.ok(Number.isFinite(r.debug!.recencyRank), 'recencyRank must be finite');
+        assert.ok(Number.isFinite(r.debug!.recencyScore), 'recencyScore must be finite');
+        assert.ok(Number.isFinite(r.debug!.totalScore), 'totalScore must be finite');
+      }
+    });
+
+    // BC11b: debug fields absent when includeDebug is false/undefined
+    test('BC11b: debug fields are absent when includeDebug is not set', () => {
+      const results = hybridStore.searchHybrid(makeHybridOpts({ query: 'hybridKeyword' }));
+      for (const r of results) {
+        assert.equal(r.debug, undefined, 'debug must be absent when includeDebug is not set');
+      }
+    });
+
+    // Empty channel: both dense and BM25 empty → []
+    test('empty channels: both channels return empty — searchHybrid returns []', () => {
+      // Query with no matching BM25 terms and embedding pointing to unmapped dimension
+      const results = hybridStore.searchHybrid(
+        makeHybridOpts({
+          query: 'the and or', // stopwords → empty FTS
+          embedding: undefined,
+        }),
+      );
+      assert.deepEqual(results, []);
+    });
+
+    // Score range: normalized scores must be in [0, 1]
+    test('normalized scores are bounded in [0, 1]', () => {
+      const results = hybridStore.searchHybrid(
+        makeHybridOpts({
+          query: 'hybridKeyword',
+          embedding: makeEmbedding(40),
+          topK: 10,
+        }),
+      );
+
+      for (const r of results) {
+        assert.ok(r.score >= 0 && r.score <= 1, `Score out of range [0,1]: ${r.score}`);
+      }
+    });
   });
 
   test('recreates schema when existing vector dimension differs from config', () => {
@@ -498,8 +788,15 @@ describe('MemoryStore', () => {
       });
       largeStore.upsert([chunk], [makeEmbedding(18, 768)]);
 
-      const results = largeStore.searchBm25('large dimension vector', 5);
-      assert.ok(results.some((result) => result.id === 'new-dimension-row'));
+      const results = largeStore.searchHybrid({
+        query: 'large dimension vector',
+        topK: 5,
+        fetchLimit: 20,
+        denseScoreFloor: 0,
+        recencyWeight: RECENCY_WEIGHT,
+        rrfK: RRF_K,
+      });
+      assert.ok(results.some((r) => r.chunk.id === 'new-dimension-row'));
     } finally {
       largeStore.close();
       fs.rmSync(dimensionDir, { recursive: true, force: true });

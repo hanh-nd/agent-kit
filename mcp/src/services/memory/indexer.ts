@@ -45,7 +45,7 @@ export class MemoryIndexer {
 
     let text: string;
     try {
-      text = fs.readFileSync(absolutePath, 'utf8');
+      text = await fs.promises.readFile(absolutePath, 'utf8');
     } catch (err) {
       console.warn(`[memory-indexer] Cannot read file ${absolutePath}:`, err);
       return { indexed: 0, deleted: 0, skipped: existingChunkIds.size };
@@ -53,7 +53,7 @@ export class MemoryIndexer {
 
     let fileMtimeAt: number;
     try {
-      fileMtimeAt = fs.statSync(absolutePath).mtimeMs;
+      fileMtimeAt = (await fs.promises.stat(absolutePath)).mtimeMs;
     } catch (err) {
       console.warn(`[memory-indexer] Cannot stat file ${absolutePath}:`, err);
       fileMtimeAt = Date.now();
@@ -96,25 +96,35 @@ export class MemoryIndexer {
   ): Promise<IndexStats> {
     const totals: IndexStats = { indexed: 0, deleted: 0, skipped: 0 };
 
-    if (!fs.existsSync(rootDir)) return totals;
+    let rootExists: boolean;
+    try {
+      await fs.promises.stat(rootDir);
+      rootExists = true;
+    } catch {
+      rootExists = false;
+    }
+    if (!rootExists) return totals;
 
     const relativeBase = opts.relativeBase ?? this.config.wikiDir;
     const excludeFiles = new Set(opts.excludeFiles ?? []);
     const files: string[] = [];
 
-    const walk = (dirPath: string): void => {
+    const walk = async (dirPath: string): Promise<void> => {
       let entries: fs.Dirent[];
       try {
-        entries = fs.readdirSync(dirPath, { withFileTypes: true });
+        entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
       } catch (err) {
         console.warn(`[memory-indexer] Cannot scan directory ${dirPath}:`, err);
         return;
       }
 
+      // Sort for deterministic traversal order
+      entries.sort((a, b) => a.name.localeCompare(b.name));
+
       for (const entry of entries) {
         const entryPath = path.join(dirPath, entry.name);
         if (entry.isDirectory()) {
-          walk(entryPath);
+          await walk(entryPath);
           continue;
         }
         if (entry.isFile() && /\.md$/i.test(entry.name) && !excludeFiles.has(entry.name)) {
@@ -123,7 +133,7 @@ export class MemoryIndexer {
       }
     };
 
-    walk(rootDir);
+    await walk(rootDir);
 
     const currentSources = new Set(files.map((file) => path.relative(relativeBase, file)));
 
@@ -146,107 +156,39 @@ export class MemoryIndexer {
   }
 
   async search(query: string, topK: number): Promise<SearchResult[]> {
-    // Task 2.2: overfetch to supply enough distinct sources after per-source dedup
     const fetchLimit = topK * FETCH_MULTIPLIER;
 
-    let denseResults: Array<{ id: string; score: number }> = [];
+    let embedding: Float32Array | undefined;
     if (this.store.vecAvailable) {
       try {
-        const queryEmbedding = await this.embedder.embed([query]);
-        denseResults = this.store.searchDense(queryEmbedding[0], fetchLimit);
+        const embeddings = await this.embedder.embed([query]);
+        embedding = embeddings[0];
       } catch (err) {
         console.warn('[memory-indexer] Dense search embedding failed:', err);
       }
     }
 
-    const bm25Results = this.store.searchBm25(query, fetchLimit);
-
-    // Task 2.1: candidate set = dense ∪ bm25 — no intersection filter
-    const denseIds = new Set(denseResults.map((r) => r.id));
-    const bm25Ids = new Set(bm25Results.map((r) => r.id));
-    const unionIds = new Set([...denseIds, ...bm25Ids]);
-
-    // Task 2.5: preserve raw dense retrieval scores [0,1] for the precision floor check
-    const denseRetrievalScore = new Map<string, number>(denseResults.map((r) => [r.id, r.score]));
-
-    // Task 2.3: fetch all union candidates once — supplies recency mtime AND final content (no second DB call)
-    const unionArray = [...unionIds];
-    const chunks = this.store.getChunksByIds(unionArray);
-    const chunkMap = new Map(chunks.map((c) => [c.id, c]));
-
-    // Task 2.3: recency channel — rank union by fileMtimeAt DESC; stable tiebreak on union insertion order
-    const unionIndexOf = new Map(unionArray.map((id, idx) => [id, idx]));
-    const recencyOrdered = [...unionArray].sort((a, b) => {
-      const mtimeA = chunkMap.get(a)?.fileMtimeAt ?? 0;
-      const mtimeB = chunkMap.get(b)?.fileMtimeAt ?? 0;
-      if (mtimeB !== mtimeA) return mtimeB - mtimeA;
-      return (unionIndexOf.get(a) ?? 0) - (unionIndexOf.get(b) ?? 0);
+    const rows = this.store.searchHybrid({
+      query,
+      embedding,
+      topK,
+      fetchLimit,
+      denseScoreFloor: DENSE_SCORE_FLOOR,
+      recencyWeight: RECENCY_WEIGHT,
+      rrfK: RRF_K,
     });
 
-    // RRF score accumulation: dense + bm25 + weighted recency channels
-    const scoreMap = new Map<string, { dense: number; bm25: number; recency: number }>();
-
-    denseResults.forEach((r, rank) => {
-      scoreMap.set(r.id, { dense: 1 / (RRF_K + rank + 1), bm25: 0, recency: 0 });
-    });
-
-    bm25Results.forEach((r, rank) => {
-      const entry = scoreMap.get(r.id) ?? { dense: 0, bm25: 0, recency: 0 };
-      entry.bm25 = 1 / (RRF_K + rank + 1);
-      scoreMap.set(r.id, entry);
-    });
-
-    recencyOrdered.forEach((id, rank) => {
-      const entry = scoreMap.get(id);
-      if (!entry) return;
-      entry.recency = RECENCY_WEIGHT * (1 / (RRF_K + rank + 1));
-    });
-
-    // Task 2.4: active-channel normalization — maxScore sums weights of channels that produced ≥1 result
-    const denseActive = denseResults.length > 0;
-    const bm25Active = bm25Results.length > 0;
-    const recencyActive = unionIds.size > 0;
-    const maxScore =
-      ((denseActive ? 1 : 0) + (bm25Active ? 1 : 0) + (recencyActive ? RECENCY_WEIGHT : 0)) / (RRF_K + 1);
-
-    // Task 2.5: build ranked list, dropping dense-only candidates below the precision floor
-    const ranked = [...scoreMap.entries()]
-      .map(([id, scores]) => ({
-        id,
-        totalScore: scores.dense + scores.bm25 + scores.recency,
-        hasDense: scores.dense > 0,
-        hasBm25: scores.bm25 > 0,
-        isDenseOnly: denseIds.has(id) && !bm25Ids.has(id),
-      }))
-      .filter((candidate) => {
-        if (!candidate.isDenseOnly) return true;
-        const retrieval = denseRetrievalScore.get(candidate.id);
-        // Only drop when a dense retrieval score exists and is below the floor
-        if (retrieval === undefined) return true;
-        return retrieval >= DENSE_SCORE_FLOOR;
-      })
-      .sort((a, b) => b.totalScore - a.totalScore);
+    if (rows.length === 0) return [];
 
     const results: SearchResult[] = [];
-    const seenSources = new Set<string>();
-    for (const r of ranked) {
-      if (results.length >= topK) break;
-      const chunk = chunkMap.get(r.id);
-      if (!chunk) continue;
-      if (seenSources.has(chunk.source)) continue;
-      seenSources.add(chunk.source);
-
-      const normalizedScore = maxScore > 0 ? r.totalScore / maxScore : 0;
-      const retriever: 'dense' | 'bm25' | 'both' = r.hasDense && r.hasBm25 ? 'both' : r.hasDense ? 'dense' : 'bm25';
-
+    for (const row of rows) {
       let contentSource: 'file' | 'fallback' = 'file';
       try {
-        chunk.content = fs.readFileSync(path.join(this.config.wikiDir, chunk.source), 'utf8');
+        row.chunk.content = await fs.promises.readFile(path.join(this.config.wikiDir, row.chunk.source), 'utf8');
       } catch {
         contentSource = 'fallback';
       }
-
-      results.push({ chunk, score: normalizedScore, retriever, contentSource });
+      results.push({ chunk: row.chunk, score: row.score, retriever: row.retriever, contentSource });
     }
 
     return results;
@@ -258,7 +200,7 @@ export class MemoryIndexer {
     const savePath = path.join(rawDir, `conv_save_${datePart}.md`);
     const lockPath = `${savePath}.lock`;
 
-    fs.mkdirSync(rawDir, { recursive: true });
+    await fs.promises.mkdir(rawDir, { recursive: true });
 
     const acquired = await acquireLock(lockPath, LOCK_TIMEOUT_MS, LOCK_RETRY_MS);
     if (!acquired) {
@@ -266,7 +208,7 @@ export class MemoryIndexer {
     }
 
     try {
-      fs.appendFileSync(savePath, `\n${content}\n`, 'utf8');
+      await fs.promises.appendFile(savePath, `\n${content}\n`, 'utf8');
     } finally {
       if (acquired) releaseLock(lockPath, { ignoreErrors: true });
     }
