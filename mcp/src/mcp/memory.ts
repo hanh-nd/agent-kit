@@ -2,31 +2,28 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { Embedder } from '../services/memory/embedder.js';
-import { MemoryIndexer } from '../services/memory/indexer.js';
-import { MemoryStore } from '../services/memory/store.js';
-import type { MemoryConfig, SourceType } from '../services/memory/types.js';
+import {
+  createMemorySubsystem,
+  type MemorySubsystem,
+  type MemorySubsystemOverrides,
+} from '../services/memory/subsystem.js';
+import type { SourceType } from '../services/memory/types.js';
 import { SOURCE_TYPES } from '../services/memory/types.js';
 import { initializeConversationDigestModel } from '../services/digest/processor.js';
 import { DEFAULT_DIGEST_MODEL_ID } from '../services/digest/constants.js';
 import { formatError, mcpJson, mcpText } from '../utils/utils.js';
-import {
-  loadGlobalSettings,
-  resolveConversationDigestConfig,
-  resolveMemoryConfig,
-  type ProjectSettings,
-} from '../core/config/index.js';
+import { loadGlobalSettings, resolveConversationDigestConfig, type ProjectSettings } from '../core/config/index.js';
 
 /**
- * Registers tool handlers onto an already-constructed indexer/store pair.
+ * Registers tool handlers against the current memory subsystem state.
  */
 function registerMemoryToolHandlers(
   server: McpServer,
-  indexer: MemoryIndexer,
-  store: MemoryStore,
-  config: MemoryConfig,
+  subsystem: MemorySubsystem,
   workspaceRoot: string = process.cwd(),
 ): void {
+  const { config } = subsystem;
+
   server.tool(
     'kit_memory_search',
     'Search persistent memory for factual or semantic matches (decisions, concepts, entities). Extract concise keywords only, removing stopwords and filler words from the user request before querying. Use kit_memory_recent for temporal or recency questions.',
@@ -36,13 +33,19 @@ function registerMemoryToolHandlers(
     },
     async ({ query, top_k }) => {
       try {
+        if (!subsystem.indexer || !subsystem.store) {
+          return mcpText(formatInitializationFailure(subsystem));
+        }
+
+        const { indexer, store } = subsystem;
         const results = await indexer.search(query, top_k ?? config.topK);
+        const lifecycleNote = formatLifecycleNote(subsystem);
         const degradedNote = !store.vecAvailable
           ? '⚠️ Vector search unavailable — showing keyword-only results.\n\n'
           : '';
 
         if (results.length === 0) {
-          return mcpText(`${degradedNote}No memories found for query: "${query}"`);
+          return mcpText(`${lifecycleNote}${degradedNote}No memories found for query: "${query}"`);
         }
 
         const formatted = results
@@ -56,7 +59,7 @@ function registerMemoryToolHandlers(
           })
           .join('\n\n---\n\n');
 
-        return mcpText(`${degradedNote}${formatted}`);
+        return mcpText(`${lifecycleNote}${degradedNote}${formatted}`);
       } catch (err) {
         return mcpText(`kit_memory_search failed: ${formatError(err)}`);
       }
@@ -72,6 +75,11 @@ function registerMemoryToolHandlers(
     },
     async ({ n, source_type }) => {
       try {
+        if (!subsystem.store) {
+          return mcpText(formatInitializationFailure(subsystem));
+        }
+
+        const store = subsystem.store;
         const rows = store.getRecentSources({ limit: n ?? 5, sourceType: source_type as SourceType });
         if (rows.length === 0) return mcpText('No recent sources found.');
 
@@ -102,6 +110,14 @@ function registerMemoryToolHandlers(
     },
     async ({ content }) => {
       try {
+        if (!subsystem.indexer) {
+          return mcpJson({
+            saved: false,
+            error: formatInitializationFailure(subsystem),
+          });
+        }
+
+        const indexer = subsystem.indexer;
         await indexer.save(content);
         return mcpJson({
           saved: true,
@@ -146,34 +162,40 @@ function registerMemoryToolHandlers(
   );
 }
 
+function formatLifecycleNote(subsystem: MemorySubsystem): string {
+  if (subsystem.status.state === 'warming' || subsystem.status.state === 'initializing') {
+    return '⚠️ Memory index is warming — results may be stale until startup indexing completes.\n\n';
+  }
+  if (subsystem.status.state === 'degraded') {
+    return `⚠️ Memory index is degraded${subsystem.status.error ? `: ${subsystem.status.error}` : ''}.\n\n`;
+  }
+  return '';
+}
+
+function formatInitializationFailure(subsystem: MemorySubsystem): string {
+  const detail = subsystem.status.error ? `: ${subsystem.status.error}` : '';
+  return `Memory initialization failed${detail}`;
+}
+
 /**
  * Initializes the memory subsystem and registers all memory tools.
- * Returns the MemoryIndexer so the caller can fire startupIndex() after server.connect().
+ * Returns the MemorySubsystem so the caller can fire startWarmup() after server.connect().
  * Returns null when memory is disabled (settings.memory.enabled !== true).
  */
 export function registerMemoryTools(
   server: McpServer,
   workspaceRoot: string,
-  overrides?: {
-    indexer?: MemoryIndexer;
-    store?: MemoryStore;
-    config?: MemoryConfig;
+  overrides?: MemorySubsystemOverrides & {
     settings?: ProjectSettings; // For testing
   },
-): MemoryIndexer | null {
+): MemorySubsystem | null {
   const settings = overrides?.settings ?? loadGlobalSettings();
   if (settings.memory?.enabled !== true) return null;
 
-  const config = overrides?.config ?? resolveMemoryConfig(settings, workspaceRoot);
-  const store = overrides?.store ?? new MemoryStore(path.join(config.wikiDir, 'index.db'), config);
-  const indexer =
-    overrides?.indexer ??
-    (() => {
-      const embedder = new Embedder(config.embeddingModel);
-      return new MemoryIndexer(store, embedder, config);
-    })();
+  const subsystem = createMemorySubsystem(workspaceRoot, { ...overrides, settings });
+  if (!subsystem) return null;
 
-  registerMemoryToolHandlers(server, indexer, store, config, workspaceRoot);
+  registerMemoryToolHandlers(server, subsystem, workspaceRoot);
 
-  return indexer;
+  return subsystem;
 }

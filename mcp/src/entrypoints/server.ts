@@ -29,7 +29,7 @@ registerCoreTools(server);
 registerAgentTools(server);
 
 const workspaceRoot = getWorkspaceRoot();
-const memoryIndexer = registerMemoryTools(server, workspaceRoot);
+const memorySubsystem = registerMemoryTools(server, workspaceRoot);
 
 // ═══════════════════════════════════════════════════════════════
 // START SERVER
@@ -39,6 +39,6 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 
 // Fire-and-forget startup indexing — must run after server.connect
-if (memoryIndexer) {
-  void memoryIndexer.startupIndex();
+if (memorySubsystem) {
+  void memorySubsystem.startWarmup();
 }

@@ -32,6 +32,30 @@ class FailEmbedder {
   }
 }
 
+class TrackingEmbedder {
+  active = 0;
+  maxActive = 0;
+
+  constructor(private readonly failForText: string | undefined = undefined) {}
+
+  async embed(texts: string[]): Promise<Float32Array[]> {
+    const failForText = this.failForText;
+    if (failForText && texts.some((text) => text.includes(failForText))) {
+      throw new Error('targeted embed failure');
+    }
+
+    this.active++;
+    this.maxActive = Math.max(this.maxActive, this.active);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    this.active--;
+    return texts.map(() => new Float32Array(384).fill(0.05));
+  }
+
+  initialize(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
 function makeConfig(wikiDir: string): MemoryConfig {
   return {
     enabled: true,
@@ -439,6 +463,125 @@ describe('MemoryIndexer', () => {
       assert.equal(testStore.hashesBySource('2026-05-18.md').size, 0);
     } finally {
       testStore.close();
+      fs.rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  test('indexDirectory prepares changed files with bounded parallelism', async () => {
+    const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'parallel-index-'));
+    const testCfg = makeConfig(path.join(testDir, 'wiki'));
+    const testStore = new MemoryStore(path.join(testCfg.wikiDir, 'index.db'), testCfg);
+    const trackingEmbedder = new TrackingEmbedder();
+    const testIndexer = new MemoryIndexer(testStore, trackingEmbedder, testCfg);
+    const compiledDir = path.join(testCfg.wikiDir, 'compiled');
+
+    try {
+      fs.mkdirSync(compiledDir, { recursive: true });
+      fs.writeFileSync(path.join(compiledDir, 'a.md'), '# A\nparallel alpha content', 'utf8');
+      fs.writeFileSync(path.join(compiledDir, 'b.md'), '# B\nparallel beta content', 'utf8');
+      fs.writeFileSync(path.join(compiledDir, 'c.md'), '# C\nparallel gamma content', 'utf8');
+
+      const stats = await testIndexer.indexDirectory(compiledDir, {
+        relativeBase: testCfg.wikiDir,
+        fileConcurrency: 2,
+      });
+
+      assert.ok(stats.indexed >= 3, `Expected at least 3 indexed chunks, got ${stats.indexed}`);
+      assert.equal(trackingEmbedder.maxActive, 2);
+    } finally {
+      testStore.close();
+      fs.rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  test('indexDirectory serializes store mutations after parallel preparation', async () => {
+    const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'serialized-writes-'));
+    const testCfg = makeConfig(path.join(testDir, 'wiki'));
+    const compiledDir = path.join(testCfg.wikiDir, 'compiled');
+    const calls: string[] = [];
+    let activeMutations = 0;
+    let maxActiveMutations = 0;
+    const fakeStore = {
+      vecAvailable: true,
+      hashesBySource: () => new Set<string>(),
+      indexedSources: () => ['compiled/stale.md'],
+      deleteBySource: (source: string) => {
+        activeMutations++;
+        maxActiveMutations = Math.max(maxActiveMutations, activeMutations);
+        calls.push(`deleteBySource:${source}`);
+        activeMutations--;
+      },
+      upsert: (chunks: MemoryChunk[]) => {
+        activeMutations++;
+        maxActiveMutations = Math.max(maxActiveMutations, activeMutations);
+        calls.push(`upsert:${chunks[0]?.source}`);
+        activeMutations--;
+      },
+      deleteByIds: (ids: string[]) => {
+        activeMutations++;
+        maxActiveMutations = Math.max(maxActiveMutations, activeMutations);
+        calls.push(`deleteByIds:${ids.length}`);
+        activeMutations--;
+      },
+    } as unknown as MemoryStore;
+
+    try {
+      fs.mkdirSync(compiledDir, { recursive: true });
+      fs.writeFileSync(path.join(compiledDir, 'a.md'), '# A\nserialized alpha content', 'utf8');
+      fs.writeFileSync(path.join(compiledDir, 'b.md'), '# B\nserialized beta content', 'utf8');
+
+      const trackingEmbedder = new TrackingEmbedder();
+      const testIndexer = new MemoryIndexer(fakeStore, trackingEmbedder, testCfg);
+      await testIndexer.indexDirectory(compiledDir, {
+        relativeBase: testCfg.wikiDir,
+        fileConcurrency: 2,
+      });
+
+      assert.equal(maxActiveMutations, 1);
+      assert.equal(trackingEmbedder.maxActive, 2);
+      assert.deepEqual(calls.slice(0, 1), ['deleteBySource:compiled/stale.md']);
+      assert.ok(calls.filter((call) => call.startsWith('upsert:')).length >= 2);
+    } finally {
+      fs.rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  test('indexDirectory isolates per-file embedding failure without deleting failed-file chunks', async () => {
+    const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'failure-isolation-'));
+    const testCfg = makeConfig(path.join(testDir, 'wiki'));
+    const compiledDir = path.join(testCfg.wikiDir, 'compiled');
+    const upsertedSources: string[] = [];
+    const deletedIds: string[] = [];
+    const fakeStore = {
+      vecAvailable: true,
+      hashesBySource: (source: string) => (source === 'compiled/bad.md' ? new Set(['bad-old-id']) : new Set<string>()),
+      indexedSources: () => ['compiled/good.md', 'compiled/bad.md'],
+      deleteBySource: () => undefined,
+      upsert: (chunks: MemoryChunk[]) => {
+        upsertedSources.push(...chunks.map((chunk) => chunk.source));
+      },
+      deleteByIds: (ids: string[]) => {
+        deletedIds.push(...ids);
+      },
+    } as unknown as MemoryStore;
+
+    try {
+      fs.mkdirSync(compiledDir, { recursive: true });
+      fs.writeFileSync(path.join(compiledDir, 'good.md'), '# Good\nindexable good content', 'utf8');
+      fs.writeFileSync(path.join(compiledDir, 'bad.md'), '# Bad\nexplode this content', 'utf8');
+
+      const testIndexer = new MemoryIndexer(fakeStore, new TrackingEmbedder('explode'), testCfg);
+      const stats = await testIndexer.indexDirectory(compiledDir, {
+        relativeBase: testCfg.wikiDir,
+        fileConcurrency: 2,
+      });
+
+      assert.ok(stats.indexed > 0, `Expected good file to be indexed, got ${stats.indexed}`);
+      assert.equal(stats.skipped, 1);
+      assert.ok(upsertedSources.includes('compiled/good.md'));
+      assert.ok(!upsertedSources.includes('compiled/bad.md'));
+      assert.deepEqual(deletedIds, []);
+    } finally {
       fs.rmSync(testDir, { recursive: true, force: true });
     }
   });

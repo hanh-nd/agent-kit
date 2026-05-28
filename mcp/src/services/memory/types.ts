@@ -76,6 +76,30 @@ export interface IndexStats {
   skipped: number;
 }
 
+export type MemoryLifecycleState = 'disabled' | 'initializing' | 'warming' | 'ready' | 'degraded' | 'failed';
+
+export interface MemoryLifecycleStatus {
+  state: MemoryLifecycleState;
+  ready: boolean;
+  warming: boolean;
+  degraded: boolean;
+  error?: string;
+}
+
+export interface IndexDirectoryOptions {
+  relativeBase?: string;
+  excludeFiles?: string[];
+  fileConcurrency?: number;
+}
+
+export interface PreparedIndexMutation {
+  source: string;
+  chunksToUpsert: MemoryChunk[];
+  embeddings: Float32Array[];
+  idsToDelete: string[];
+  stats: IndexStats;
+}
+
 export interface RecentSource {
   source: string;
   fileMtimeAt: number;

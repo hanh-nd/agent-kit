@@ -48,11 +48,16 @@ const BASE_CONFIG: MemoryConfig = {
 };
 
 function makeIndexerStub(
-  overrides: Partial<{ search: MemoryIndexer['search']; save: MemoryIndexer['save'] }> = {},
+  overrides: Partial<{
+    search: MemoryIndexer['search'];
+    save: MemoryIndexer['save'];
+    startupIndex: MemoryIndexer['startupIndex'];
+  }> = {},
 ): MemoryIndexer {
   return {
     search: overrides.search ?? (async () => []),
     save: overrides.save ?? (async () => ({ indexed: 1, deleted: 0, skipped: 0 })),
+    startupIndex: overrides.startupIndex ?? (async () => undefined),
   } as unknown as MemoryIndexer;
 }
 
@@ -219,6 +224,50 @@ describe('kit_memory_search', () => {
     assert.equal(capturedTopK, 3);
   });
 
+  test('returns a warming note while subsystem warmup has not completed', async () => {
+    const indexer = makeIndexerStub({ search: async () => [] });
+    const store = makeStoreStub(true);
+    const { server, tools } = makeMockServer();
+    registerMemoryTools(server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
+      indexer,
+      store,
+      config: BASE_CONFIG,
+    });
+
+    const result = await tools.get('kit_memory_search')!({ query: 'test' });
+    const text = extractText(result);
+
+    assert.ok(text.includes('Memory index is warming'), `Expected warming note, got: ${text}`);
+  });
+
+  test('returns degraded note after warmup failure while preserving search results', async () => {
+    const chunk = makeChunk({ content: 'Degraded result', source: 'compiled/entities/degraded.md' });
+    const indexer = makeIndexerStub({
+      search: async () => [{ chunk, score: 0.7, retriever: 'bm25', contentSource: 'file' }],
+      startupIndex: async () => {
+        throw new Error('warmup failed');
+      },
+    });
+    const store = makeStoreStub(true);
+    const { server, tools } = makeMockServer();
+    const subsystem = registerMemoryTools(server as never, '/tmp', {
+      settings: { memory: { enabled: true } },
+      indexer,
+      store,
+      config: BASE_CONFIG,
+    });
+    assert.ok(subsystem);
+
+    await subsystem.startWarmup();
+    const result = await tools.get('kit_memory_search')!({ query: 'test' });
+    const text = extractText(result);
+
+    assert.ok(text.includes('Memory index is degraded'), `Expected degraded note, got: ${text}`);
+    assert.ok(text.includes('warmup failed'), `Expected warmup error, got: ${text}`);
+    assert.ok(text.includes('Degraded result'), 'Result must still be included during degraded state');
+  });
+
   test('falls back to config.topK when top_k is not provided', async () => {
     let capturedTopK: number | undefined;
     const indexer = makeIndexerStub({
@@ -259,6 +308,27 @@ describe('kit_memory_search', () => {
     const text = extractText(result);
     assert.ok(text.includes('kit_memory_search failed'), `Expected error prefix, got: ${text}`);
     assert.ok(text.includes('search exploded'), `Expected error message, got: ${text}`);
+  });
+
+  test('returns initialization failure when store construction fails', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'memory-init-failure-'));
+    const occupiedWikiPath = path.join(tmpDir, 'wiki-file');
+    fs.writeFileSync(occupiedWikiPath, 'not a directory', 'utf8');
+
+    try {
+      const { server, tools } = makeMockServer();
+      const subsystem = registerMemoryTools(server as never, tmpDir, {
+        settings: { memory: { enabled: true } },
+        config: { ...BASE_CONFIG, wikiDir: occupiedWikiPath },
+      });
+      assert.ok(subsystem);
+
+      const result = await tools.get('kit_memory_search')!({ query: 'test' });
+      const text = extractText(result);
+      assert.ok(text.includes('Memory initialization failed'), `Expected initialization failure, got: ${text}`);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
   test('description routes factual and temporal queries distinctly', () => {

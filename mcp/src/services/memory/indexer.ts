@@ -2,7 +2,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { chunkMarkdown } from './chunker.js';
 import type { MemoryStore } from './store.js';
-import type { IndexStats, MemoryConfig, SearchResult, SourceType } from './types.js';
+import type {
+  IndexDirectoryOptions,
+  IndexStats,
+  MemoryConfig,
+  PreparedIndexMutation,
+  SearchResult,
+  SourceType,
+} from './types.js';
 import {
   DENSE_SCORE_FLOOR,
   FETCH_MULTIPLIER,
@@ -11,6 +18,7 @@ import {
   RECENCY_WEIGHT,
   RRF_K,
 } from './constants.js';
+import { mapLimit } from '../../utils/async.js';
 import { acquireLock, releaseLock } from '../../utils/files.js';
 
 interface TextEmbedder {
@@ -36,10 +44,21 @@ export class MemoryIndexer {
   ) {}
 
   async indexFile(absolutePath: string): Promise<IndexStats> {
-    return this.indexFileRelativeTo(absolutePath, this.config.wikiDir);
+    const mutation = await this.prepareIndexFileRelativeTo(absolutePath, this.config.wikiDir);
+    return this.commitPreparedMutation(mutation);
   }
 
-  private async indexFileRelativeTo(absolutePath: string, sourceRoot: string): Promise<IndexStats> {
+  private makeSkippedMutation(source: string, skipped: number): PreparedIndexMutation {
+    return {
+      source,
+      chunksToUpsert: [],
+      embeddings: [],
+      idsToDelete: [],
+      stats: { indexed: 0, deleted: 0, skipped },
+    };
+  }
+
+  private async prepareIndexFileRelativeTo(absolutePath: string, sourceRoot: string): Promise<PreparedIndexMutation> {
     const source = path.relative(sourceRoot, absolutePath);
     const existingChunkIds = this.store.hashesBySource(source);
 
@@ -48,7 +67,7 @@ export class MemoryIndexer {
       text = await fs.promises.readFile(absolutePath, 'utf8');
     } catch (err) {
       console.warn(`[memory-indexer] Cannot read file ${absolutePath}:`, err);
-      return { indexed: 0, deleted: 0, skipped: existingChunkIds.size };
+      return this.makeSkippedMutation(source, existingChunkIds.size);
     }
 
     let fileMtimeAt: number;
@@ -72,28 +91,34 @@ export class MemoryIndexer {
         embeddings = await this.embedder.embed(toIndex.map((c) => c.content));
       } catch (err) {
         console.warn(`[memory-indexer] Embedding failed for ${absolutePath}:`, err);
-        return { indexed: 0, deleted: 0, skipped: existingChunkIds.size };
+        return this.makeSkippedMutation(source, existingChunkIds.size);
       }
     }
 
-    if (toIndex.length > 0) {
-      this.store.upsert(toIndex, embeddings);
-    }
-    if (toDelete.length > 0) {
-      this.store.deleteByIds(toDelete);
-    }
-
     return {
-      indexed: toIndex.length,
-      deleted: toDelete.length,
-      skipped: allChunks.length - toIndex.length,
+      source,
+      chunksToUpsert: toIndex,
+      embeddings,
+      idsToDelete: toDelete,
+      stats: {
+        indexed: toIndex.length,
+        deleted: toDelete.length,
+        skipped: allChunks.length - toIndex.length,
+      },
     };
   }
 
-  async indexDirectory(
-    rootDir: string,
-    opts: { relativeBase?: string; excludeFiles?: string[] } = {},
-  ): Promise<IndexStats> {
+  private commitPreparedMutation(mutation: PreparedIndexMutation): IndexStats {
+    if (mutation.chunksToUpsert.length > 0) {
+      this.store.upsert(mutation.chunksToUpsert, mutation.embeddings);
+    }
+    if (mutation.idsToDelete.length > 0) {
+      this.store.deleteByIds(mutation.idsToDelete);
+    }
+    return mutation.stats;
+  }
+
+  async indexDirectory(rootDir: string, opts: IndexDirectoryOptions = {}): Promise<IndexStats> {
     const totals: IndexStats = { indexed: 0, deleted: 0, skipped: 0 };
 
     let rootExists: boolean;
@@ -145,8 +170,12 @@ export class MemoryIndexer {
       }
     }
 
-    for (const file of files) {
-      const stats = await this.indexFileRelativeTo(file, relativeBase);
+    const preparedMutations = await mapLimit(files, opts.fileConcurrency ?? 2, (file) =>
+      this.prepareIndexFileRelativeTo(file, relativeBase),
+    );
+
+    for (const mutation of preparedMutations) {
+      const stats = this.commitPreparedMutation(mutation);
       totals.indexed += stats.indexed;
       totals.deleted += stats.deleted;
       totals.skipped += stats.skipped;
