@@ -1,6 +1,6 @@
 ---
 name: investigate
-description: 'Trace a bug or error to root cause. Outputs an Investigation Report; no code changes.'
+description: 'Use when investigating bugs, errors, crashes, failing tests, regressions, flaky behavior, unexpected runtime behavior, or unclear root causes before implementation.'
 version: 1.0.0
 providers:
   claude:
@@ -17,31 +17,67 @@ providers:
 
 **No conclusions without evidence.** A hypothesis without proof is a guess. Your job is to find and confirm the root cause — not to fix it. Source code changes are out of scope; this skill produces an Investigation Report that a developer or the `code` skill can act on.
 
+## Core Mental Model
+
+Debugging is not explaining the bug. Debugging is eliminating possible worlds until only one mechanically proven world remains.
+
+Move through this sequence:
+
+```
+Observe → localize → hypothesize → distinguish → verify → trace back → hand off
+```
+
+The decisive question is always: **What did I directly verify that would have been different if this hypothesis were false?**
+
+## Confirmation Standard
+
+A root cause is `CONFIRMED` only when the investigation observes the suspected condition in the failing path, or runs a targeted test that separates it from plausible alternatives. Static code reading, pattern matching, and "this would explain it" are leads. They can support `PROBABLE`, but they do not confirm.
+
+If direct verification is impossible, say why and downgrade the report status. Confidence is not evidence.
+
 ---
 
-## Phase 1: Symptoms & Reproduction
+## Phase 1: Observe Reality
 
-Gather evidence before forming any hypothesis.
+Capture what is actually happening before forming any theory.
 
 1. **Capture baseline.** Record the current broken state before investigating: exact command run, full error/test output, stack trace, relevant logs with timestamps, and `git status --short`. This is the before-state that `code` must verify against after applying a fix.
 2. **Collect symptoms.** Read error messages, stack traces, and steps to reproduce verbatim.
 3. **Reproduce.** Confirm the issue is triggerable deterministically. If it is intermittent, document the conditions under which it appears.
-4. **Localize the failing boundary.** Identify the smallest layer where the failure is visible: test harness, UI, API, job, database, dependency, configuration, environment, or external service.
-5. **Reduce when the trigger is broad.** If the failing command, report, or user flow spans too much surface area, narrow it to the smallest test, input, route, fixture, request, or operation that still fails. Do not minimize for its own sake when the root cause is already directly exposed.
-6. **Check history.** Run `git log --oneline -20 -- <affected-files>` to surface recent regressions.
-7. **Trace the code path.** Starting from the localized failure, reduced repro, or stack trace, trace execution backwards through the call stack to the earliest contributing point.
-
-While tracing, note which patterns in the Pattern Catalog the symptoms resemble — pattern recognition runs naturally alongside reading and need not wait for Phase 2.
+4. **Preserve uncertainty.** Do not write a root-cause sentence yet. At this point you only know observed facts.
 
 ---
 
-## Phase 2: Pattern Match
+## Phase 2: Localize the Boundary
 
-Cross-reference your findings against the catalog. A matching pattern becomes the starting hypothesis. If multiple patterns match, rank by fit and investigate the strongest first.
+Find the smallest point where reality first diverges from expectation.
 
-Check `git log` for recurring fixes in the same area — a file patched repeatedly for similar issues signals an architectural smell, not a coincidence.
+1. **Name the failing boundary.** Identify the smallest visible failing layer: test harness, UI, API, job, database, dependency, configuration, environment, or external service.
+2. **Reduce broad triggers.** If the failing command, report, or user flow spans too much surface area, narrow it to the smallest test, input, route, fixture, request, or operation that still fails. Do not minimize for its own sake when the root cause is already directly exposed.
+3. **Trace the code path backward.** Starting from the localized failure, reduced repro, or stack trace, trace execution backward through callers, data flow, config, state, and dependency boundaries.
+4. **Check history.** Run `git log --oneline -20 -- <affected-files>` to surface recent regressions.
 
-When the codebase contains a similar working path, compare against it before inventing a theory. List the meaningful differences in input shape, environment, configuration, call order, state, and dependencies. A known-good comparison is evidence; a generic pattern match is only a lead.
+---
+
+## Phase 3: Build Competing Worlds
+
+Pattern matching creates leads, not conclusions.
+
+1. **Cross-reference symptoms against the catalog.** A matching pattern becomes a starting hypothesis.
+2. **Compare with a known-good path.** When the codebase contains a similar working path, compare input shape, environment, configuration, call order, state, and dependencies. A known-good comparison is evidence; a generic pattern match is only a lead.
+3. **Name competing hypotheses.** When evidence allows more than one cause, hold 2-3 plausible hypotheses at once and state what observation would distinguish them. If there is only one credible hypothesis, state why alternatives were ruled out.
+4. **Check recurring fixes.** A file patched repeatedly for similar issues signals an architectural smell, not a coincidence.
+
+### Hypothesis Shape
+
+Use this form:
+
+```
+The root cause might be X because Y.
+It would be confirmed by A.
+It would be refuted by B.
+The fastest distinguishing observation is C.
+```
 
 ### Pattern Catalog
 
@@ -60,24 +96,24 @@ When the codebase contains a similar working path, compare against it before inv
 
 ---
 
-## Phase 3: Hypothesis Testing
+## Phase 4: Distinguish and Verify
 
-Form one specific, falsifiable hypothesis at a time.
+Test one hypothesis at a time, but design the test to eliminate alternatives.
 
-1. **State the hypothesis.** "The root cause is X because Y."
-2. **Define proof conditions before testing.** For each hypothesis, state:
-   - what evidence would confirm it
-   - what evidence would refute it
-   - the fastest safe test
-3. **Prefer tests that separate causes.** A useful hypothesis test distinguishes between plausible explanations. A test that only repeats the same symptom without narrowing the cause is weak evidence.
-4. **Add targeted instrumentation if needed.** Insert a temporary log or assertion at the suspected root cause and read the output.
-5. **Remove instrumentation.** Once the hypothesis is confirmed or refuted, remove all temporary logs and assertions before proceeding.
-6. **Record the result in a hypothesis ledger.** Mark each hypothesis `CONFIRMED`, `REFUTED`, or `INCONCLUSIVE` with the evidence that decided it.
-7. **Apply the 3-strike rule.** After three consecutive refuted hypotheses, stop. The root cause is either architectural or requires information not available in this context. Set status to `INCONCLUSIVE` and write the report documenting what was ruled out.
+1. **Define proof before testing.** State confirm evidence, refute evidence, and the fastest safe test before running it.
+2. **Prefer discriminating tests.** A useful test separates plausible causes. Repeating the same symptom without narrowing the cause is weak evidence.
+3. **Verify the suspected condition, not just the symptom.** The test must show the hypothesized bad value, branch, state transition, dependency response, config value, or call order actually occurs on the failing path.
+4. **Instrument only when needed.** Add a temporary log or assertion at the suspected root cause when existing evidence cannot expose the condition.
+5. **Read the output.** Do not infer from command success or failure alone; inspect the specific observation that confirms or refutes the hypothesis.
+6. **Remove instrumentation.** Once the hypothesis is confirmed or refuted, remove all temporary logs and assertions before proceeding.
+7. **Record the result in a hypothesis ledger.** Mark each hypothesis `CONFIRMED`, `REFUTED`, or `INCONCLUSIVE` with the evidence that decided it. The ledger entry must include the distinguishing observation, not only the command that reproduced the failure.
+8. **Apply the 3-strike rule.** After three consecutive refuted hypotheses, stop. The root cause is either architectural or requires information not available in this context. Set status to `INCONCLUSIVE` and write the report documenting what was ruled out.
 
 Move to a new hypothesis only after the current one is confirmed or refuted with evidence.
 
-### Root Cause Chain
+---
+
+## Phase 5: Trace the Causal Chain
 
 After a hypothesis is confirmed, trace it backward in this exact shape:
 
@@ -89,7 +125,7 @@ The root cause is the earliest actionable trigger inside the codebase or its con
 
 ---
 
-## Phase 4: Persist & Handoff
+## Phase 6: Persist & Handoff
 
 1. **Constraint check.** Verify no source code changes remain from temporary investigation probes.
 2. **Persist the report immediately** Call `kit_save_handoff(type: "investigation", slug: <short-issue-slug>, files: { "README.md": <full investigation report markdown> })`.
@@ -124,6 +160,7 @@ The root cause is the earliest actionable trigger inside the codebase or its con
 ### 1. Root Cause Analysis
 [Provide the detailed breakdown of the failure mechanism here. Use bullet points for compounding issues.]
 * **Root Cause Chain:** Symptom → immediate cause → contributing factor(s) → root cause
+* **Direct Verification:** [The observed value, branch, state, response, config, or call order that confirms the suspected condition occurred in the failing path; if unavailable, explain why status is PROBABLE or INCONCLUSIVE]
 * **[Primary Issue]:** [Detailed explanation]
 * **[Contributing Factor]:** [Detailed explanation]
 
@@ -162,7 +199,7 @@ The root cause is the earliest actionable trigger inside the codebase or its con
 **Status definitions:**
 
 - `CONFIRMED` — root cause traced to a specific condition and confirmed with direct evidence.
-- `PROBABLE` — strong hypothesis supported by circumstantial evidence but not fully reproducible (e.g., intermittent issue, restricted environment).
+- `PROBABLE` — strong hypothesis supported by circumstantial evidence but not directly verified in the failing path (e.g., static code analysis only, intermittent issue, restricted environment).
 - `INCONCLUSIVE` — 3-strike rule triggered; hypotheses exhausted without confirmation; report documents what was ruled out.
 
 3. **Present execution menu** for `CONFIRMED` or `PROBABLE` reports:
