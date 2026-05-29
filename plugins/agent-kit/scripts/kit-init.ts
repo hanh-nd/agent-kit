@@ -4,7 +4,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { countTests } from '../scripts/count-tests.js';
-import { ENFORCEMENT_MODES, KIT_DIR, KIT_PATH, PROJECT_DIR } from './constants.js';
+import { KIT_DIR, KIT_PATH, PROJECT_DIR } from './constants.js';
+import { ENFORCEMENT_MODES } from './security/constants.js';
 import { exitWithSuccess, isRecord, noOp, readStdin, runWhenInvoked } from './utils.js';
 import type { AgentKitSettings } from '@types';
 import type { DefaultSettings, InitHookInput } from '@types';
@@ -65,9 +66,6 @@ const DEFAULT_SETTINGS: DefaultSettings = {
   security: {
     allowOutside: false,
     allowedOutsidePaths: [],
-    additionalSystemBinPaths: [],
-    additionalForbiddenFiles: [],
-    additionalForbiddenDirs: [],
     enforcementMode: ENFORCEMENT_MODES.BLOCK,
   },
   project: {

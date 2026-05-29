@@ -8,13 +8,12 @@ import {
   FORBIDDEN_DIRS,
   FORBIDDEN_FILES,
   FORBIDDEN_PATTERN_STRINGS,
-  PROJECT_DIR,
-} from '../constants.js';
-import { getSecurityConfig, loadSettings } from '../utils.js';
+} from './constants.js';
+import { getSecurityConfig, loadSettings } from './utils.js';
+import { PROJECT_DIR } from '../constants.js';
 import type { SecurityPolicy } from '@types';
 
 export const PATH_ARG_KEYS = new Set(['file_path', 'path', 'notebook_path']);
-export const COMMAND_ARG_KEYS = new Set(['command']);
 
 const KNOWN_ENV_VAR_NAMES = [
   'HOME',
@@ -49,13 +48,9 @@ export function loadPolicy(): Readonly<SecurityPolicy> {
   const homeDir = realpathBestEffort(os.homedir());
   const caseInsensitive = ['darwin', 'win32'].includes(process.platform);
 
-  const forbiddenFiles = [...FORBIDDEN_FILES, ...cfg.additionalForbiddenFiles].map((f) =>
-    f.toLowerCase()
-  );
+  const forbiddenFiles = [...FORBIDDEN_FILES].map((f) => f.toLowerCase());
   const forbiddenRegexes = FORBIDDEN_PATTERN_STRINGS.map((p) => new RegExp(p, 'i'));
-  const forbiddenDirs = [...FORBIDDEN_DIRS, ...cfg.additionalForbiddenDirs].map((d) =>
-    d.toLowerCase()
-  );
+  const forbiddenDirs = [...FORBIDDEN_DIRS].map((d) => d.toLowerCase());
 
   const allowedOutsidePaths = cfg.allowedOutsidePaths
     .map((p) => expandTilde(p))
@@ -69,7 +64,7 @@ export function loadPolicy(): Readonly<SecurityPolicy> {
     })
     .map((p) => realpathBestEffort(p));
 
-  const systemBinPaths = ['/usr/bin/', '/bin/', '/usr/local/bin/', ...cfg.additionalSystemBinPaths];
+  const systemBinPaths = ['/usr/bin/', '/bin/', '/usr/local/bin/'];
 
   const knownEnvVars: Record<string, string> = {};
   for (const name of KNOWN_ENV_VAR_NAMES) {

@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'path';
 import { test, describe, before, after } from 'node:test';
-import { shouldBlockOutside } from '../../scripts/security/workspace.js';
+import { shouldBlockOutside, resolveWorkspacePath } from '../../scripts/security/workspace.js';
 import type { SecurityPolicy } from '@types';
 
 describe('workspace', () => {
@@ -36,8 +36,17 @@ describe('workspace', () => {
     assert.ok(!shouldBlockOutside(file, policy));
   });
 
+  test('resolveWorkspacePath resolves inside paths', () => {
+    const file = path.join(tmpDir, 'src', 'foo.ts');
+    assert.equal(resolveWorkspacePath(file, policy), path.join(policy.projectDir, 'src', 'foo.ts'));
+  });
+
   test('file outside workspace is blocked', () => {
     assert.ok(shouldBlockOutside('/etc/passwd', policy));
+  });
+
+  test('resolveWorkspacePath resolves outside paths', () => {
+    assert.equal(resolveWorkspacePath('/etc/passwd', policy), fs.realpathSync('/etc/passwd'));
   });
 
   test('path.sep boundary: workspace-suffix is outside', () => {
@@ -51,6 +60,7 @@ describe('workspace', () => {
     try {
       fs.symlinkSync('/etc/passwd', linkPath);
       assert.ok(shouldBlockOutside(linkPath, policy), 'symlink to /etc/passwd must be blocked');
+      assert.equal(resolveWorkspacePath(linkPath, policy), fs.realpathSync('/etc/passwd'));
     } catch (e) {
       if (e instanceof Error && 'code' in e && e.code === 'EEXIST') {
         assert.ok(shouldBlockOutside(linkPath, policy));
@@ -95,6 +105,16 @@ describe('workspace', () => {
   test('non-existent path inside workspace is not blocked', () => {
     const inside = path.join(tmpDir, 'never', 'created', 'file.txt');
     assert.ok(!shouldBlockOutside(inside, policy));
+  });
+
+  test('resolveWorkspacePath resolves new files under existing ancestors', () => {
+    const existingDir = path.join(tmpDir, 'existing');
+    fs.mkdirSync(existingDir, { recursive: true });
+    const newFile = path.join(existingDir, 'new-file.ts');
+    assert.equal(
+      resolveWorkspacePath(newFile, policy),
+      path.join(fs.realpathSync(existingDir), 'new-file.ts')
+    );
   });
 
   test('non-existent path outside is blocked', () => {

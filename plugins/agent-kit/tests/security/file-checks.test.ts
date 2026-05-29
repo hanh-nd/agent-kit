@@ -1,6 +1,7 @@
 import * as assert from 'node:assert/strict';
 import { test, describe } from 'node:test';
-import { isBlockedFilename, isInForbiddenDir } from '../../scripts/security/file-checks.js';
+import { FORBIDDEN_FILES } from '../../scripts/security/constants.js';
+import { isBlockedFilename, isInForbiddenDir } from '../../scripts/security/utils.js';
 
 const mockPolicy = {
   forbiddenFiles: ['.env', 'credentials', 'id_rsa'],
@@ -37,6 +38,12 @@ describe('isBlockedFilename', () => {
     assert.ok(!isBlockedFilename('index.ts', mockPolicy));
     assert.ok(!isBlockedFilename('README.md', mockPolicy));
     assert.ok(!isBlockedFilename('package.json', mockPolicy));
+    assert.ok(!isBlockedFilename('config.mjs', mockPolicy));
+  });
+
+  test('config.mjs is not forbidden by default but can be added by policy', () => {
+    assert.ok(!FORBIDDEN_FILES.includes('config.mjs'));
+    assert.ok(isBlockedFilename('config.mjs', { ...mockPolicy, forbiddenFiles: ['config.mjs'] }));
   });
 
   test('blocks .env.local via regex', () => {

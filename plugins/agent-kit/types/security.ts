@@ -1,11 +1,18 @@
 export type EnforcementMode = 'block' | 'audit';
+export type SecurityProvider = 'codex' | 'claude' | 'gemini' | 'unknown';
+export type SecurityAction = 'read' | 'write' | 'edit' | 'delete' | 'exec' | 'unknown';
+export type SecurityTargetType = 'filesystem' | 'shell' | 'unknown';
+export type SecurityDecisionKind = 'allow' | 'deny' | 'audit';
+export type SecurityReasonCode =
+  | 'outside_workspace'
+  | 'sensitive_file'
+  | 'sensitive_dir'
+  | 'destructive_command'
+  | 'unsupported_payload';
 
 export interface SecuritySettings {
   allowOutside?: boolean;
   allowedOutsidePaths?: string[];
-  additionalSystemBinPaths?: string[];
-  additionalForbiddenFiles?: string[];
-  additionalForbiddenDirs?: string[];
   enforcementMode?: EnforcementMode;
 }
 
@@ -22,9 +29,6 @@ export interface AgentKitSettings {
 export interface SecurityConfig {
   allowOutside: boolean;
   allowedOutsidePaths: string[];
-  additionalSystemBinPaths: string[];
-  additionalForbiddenFiles: string[];
-  additionalForbiddenDirs: string[];
   enforcementMode: EnforcementMode;
 }
 
@@ -67,4 +71,21 @@ export interface SecurityHookPayload {
   call?: SecurityHookCall;
   tool_input?: unknown;
   args?: unknown;
+}
+
+export interface NormalizedOperation {
+  provider: SecurityProvider;
+  action: SecurityAction;
+  targetType: SecurityTargetType;
+  path?: string;
+  command?: string;
+  cwd: string;
+  toolName?: string;
+  rawEvent?: unknown;
+}
+
+export interface SecurityDecision {
+  decision: SecurityDecisionKind;
+  reasonCode?: SecurityReasonCode;
+  message: string;
 }

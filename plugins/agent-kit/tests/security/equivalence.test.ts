@@ -76,31 +76,29 @@ describe('security-privacy equivalence', { skip: !entryExists }, () => {
       expect: { exitCode: 2 },
     },
     {
-      name: 'traversal ../../../etc/passwd',
+      name: 'shell traversal text is opaque',
       payload: { tool_name: 'Bash', tool_input: { command: 'cat ../../../etc/passwd' } },
-      expect: { exitCode: 2 },
+      expect: { exitCode: 0 },
+    },
+    {
+      name: 'rg /etc/passwd src passes',
+      payload: { tool_name: 'Bash', tool_input: { command: 'rg /etc/passwd src' } },
+      expect: { exitCode: 0 },
+    },
+    {
+      name: 'unknown shell with path-looking argument passes',
+      payload: { tool_name: 'Bash', tool_input: { command: 'python scripts/generate.py' } },
+      expect: { exitCode: 0 },
+    },
+    {
+      name: 'prompt path mention passes',
+      payload: { prompt: 'Use @.env as an example in docs.' },
+      expect: { exitCode: 0 },
     },
     { name: 'malformed json', payload: null, expect: { exitCode: 0 }, raw: 'not-json' },
   ];
 
-  // These are cases where NEW entry must block but OLD may not — skip against OLD
-  const IMPROVE_CASES: SecurityCase[] = [
-    {
-      name: 'tilde expansion ~/.ssh/id_rsa',
-      payload: { tool_name: 'Bash', tool_input: { command: 'cat ~/.ssh/id_rsa' } },
-      expect: { exitCode: 2 },
-    },
-    {
-      name: 'env var $HOME/.ssh/id_rsa',
-      payload: { tool_name: 'Bash', tool_input: { command: 'cat $HOME/.ssh/id_rsa' } },
-      expect: { exitCode: 2 },
-    },
-    {
-      name: 'env var ${HOME}/.ssh/id_rsa',
-      payload: { tool_name: 'Bash', tool_input: { command: 'cat ${HOME}/.ssh/id_rsa' } },
-      expect: { exitCode: 2 },
-    },
-  ];
+  const IMPROVE_CASES: SecurityCase[] = [];
 
   for (const tc of EQUAL_CASES) {
     test(`equal: ${tc.name}`, () => {

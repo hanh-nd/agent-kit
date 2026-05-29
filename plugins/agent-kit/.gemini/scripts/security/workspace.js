@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
-function realpathSafe(p, policy) {
+export function resolveWorkspacePath(filePath, policy) {
     try {
-        const abs = path.resolve(policy.projectDir, p);
+        const abs = path.resolve(policy.projectDir, filePath);
         try {
             return fs.realpathSync(abs);
         }
@@ -27,11 +27,11 @@ function realpathSafe(p, policy) {
         }
     }
     catch {
-        return path.resolve(policy.projectDir, p);
+        return path.resolve(policy.projectDir, filePath);
     }
 }
 function isOutsideWorkspace(filePath, policy) {
-    const resolved = realpathSafe(filePath, policy);
+    const resolved = resolveWorkspacePath(filePath, policy);
     const projectDir = policy.projectDir;
     if (policy.caseInsensitive) {
         const rLower = resolved.toLowerCase();
@@ -43,7 +43,7 @@ function isOutsideWorkspace(filePath, policy) {
 function isInAllowedOutsidePath(filePath, policy) {
     if (policy.allowedOutsidePaths.length === 0)
         return false;
-    const resolved = realpathSafe(filePath, policy);
+    const resolved = resolveWorkspacePath(filePath, policy);
     return policy.allowedOutsidePaths.some((allowed) => {
         if (policy.caseInsensitive) {
             const rLower = resolved.toLowerCase();

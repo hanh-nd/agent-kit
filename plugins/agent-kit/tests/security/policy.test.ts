@@ -94,15 +94,12 @@ describe('policy', () => {
     });
   });
 
-  test('PATH_ARG_KEYS and COMMAND_ARG_KEYS are sets', async () => {
-    const { PATH_ARG_KEYS, COMMAND_ARG_KEYS } = await import(
-      `../../scripts/security/policy.js?t=${Date.now()}`
-    );
+  test('PATH_ARG_KEYS lists structured filesystem path fields', async () => {
+    const { PATH_ARG_KEYS } = await import(`../../scripts/security/policy.js?t=${Date.now()}`);
     assert.ok(PATH_ARG_KEYS instanceof Set);
-    assert.ok(COMMAND_ARG_KEYS instanceof Set);
     assert.ok(PATH_ARG_KEYS.has('file_path'));
     assert.ok(PATH_ARG_KEYS.has('path'));
     assert.ok(PATH_ARG_KEYS.has('notebook_path'));
-    assert.ok(COMMAND_ARG_KEYS.has('command'));
+    assert.equal(PATH_ARG_KEYS.has('command'), false);
   });
 });

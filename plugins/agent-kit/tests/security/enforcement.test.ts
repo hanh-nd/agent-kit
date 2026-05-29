@@ -5,9 +5,11 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { test, describe, before, after } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { enforceDecision } from '../../scripts/security/evaluator.js';
 import type { EnforcementMode } from '@types';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const SECURITY_UTILS = path.resolve(__dirname, '../../scripts/security/utils.js');
 
 // We test enforce() via a child-process helper since it calls process.exit
 function runEnforce(
@@ -16,7 +18,7 @@ function runEnforce(
   kitPath?: string
 ): ReturnType<typeof spawnSync> {
   const helperCode = `
-import { enforce } from '${path.resolve(__dirname, '../../scripts/security/enforcement.js')}';
+import { enforce } from '${SECURITY_UTILS}';
 const policy = { enforcementMode: '${mode}' };
 ${kitPath ? `process.env.CLAUDE_PROJECT_DIR = '${path.resolve(__dirname, '../..')}';` : ''}
 enforce(${JSON.stringify(reason)}, policy);
@@ -64,7 +66,7 @@ describe('enforcement', () => {
 
   test('audit mode exits with code 0', () => {
     const helperCode = `
-import { enforce } from '${path.resolve(__dirname, '../../scripts/security/enforcement.js')}';
+import { enforce } from '${SECURITY_UTILS}';
 const policy = { enforcementMode: 'audit' };
 enforce('audit test reason', policy);
 `;
@@ -90,10 +92,40 @@ enforce('audit test reason', policy);
     );
   });
 
+  test('enforceDecision allows allow decisions without exiting', () => {
+    assert.doesNotThrow(() =>
+      enforceDecision({ decision: 'allow', message: 'allowed' }, { enforcementMode: 'block' })
+    );
+  });
+
+  test('enforceDecision routes audit decisions through audit mode', () => {
+    const helperCode = `
+import { enforceDecision } from '${path.resolve(__dirname, '../../scripts/security/evaluator.js')}';
+const policy = { enforcementMode: 'audit' };
+enforceDecision({ decision: 'audit', reasonCode: 'sensitive_file', message: 'audit route test' }, policy);
+`;
+    const tmpFile = path.join(os.tmpdir(), `enf-decision-audit-${Date.now()}.mjs`);
+    fs.writeFileSync(tmpFile, helperCode);
+    const result = spawnSync(process.execPath, [tmpFile], {
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PROJECT_DIR: path.resolve(__dirname, '../..') },
+    });
+    try {
+      fs.unlinkSync(tmpFile);
+    } catch {
+      /* best effort */
+    }
+    assert.equal(
+      result.status,
+      0,
+      `Expected exit 0 for audit decision, got ${result.status}\nstderr: ${result.stderr}`
+    );
+  });
+
   test('audit mode: log write failure does not crash — exits 0', () => {
     // Use a KIT_PATH where logs/ dir doesn't exist and is unwritable
     const helperCode = `
-import { enforce } from '${path.resolve(__dirname, '../../scripts/security/enforcement.js')}';
+import { enforce } from '${SECURITY_UTILS}';
 const policy = { enforcementMode: 'audit' };
 enforce('audit log fail test', policy);
 `;
