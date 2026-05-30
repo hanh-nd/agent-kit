@@ -15,6 +15,7 @@ The agent's role is the one defined in the main brainstorm skill: independent pr
 | Failure modes are unclear | Reverse Brainstorming | ways the idea could fail | top failure modes and mitigations are known |
 | Decision needs balanced judgment | Six Thinking Hats | facts, upside, downside, alternatives, intuition, synthesis | the trade-off is explicit enough to recommend |
 | Strategic position is unclear | SWOT | internal strengths/weaknesses and external opportunities/threats | the position changes the recommendation, or does not |
+| Recommendation feels plausible but readiness is unclear | Saturation sweep | flow, scope, state, current-state transition, trust, privacy, wedge, overbuild | open strategic decisions are resolved, explicitly out, or safely deferred |
 
 ## Question Rule
 
@@ -25,7 +26,7 @@ Every question must have a job:
 - Expose a constraint.
 - Test a risky assumption.
 - Decide what belongs in scope.
-- Decide what planning must verify later.
+- Decide what planning must verify or what the user explicitly defers.
 
 If the answer will not change one of those decisions, do not ask it.
 
@@ -66,7 +67,7 @@ Prompts:
 Good stop condition:
 
 - You have identified the few priority questions that block recommendation.
-- The rest can move to planning or assumptions.
+- The rest can move to planning verification or explicit deferral.
 
 Do not use as a full questionnaire. Generate the map mentally, then ask only the highest-leverage question.
 
@@ -87,7 +88,7 @@ Prompts:
 Good stop condition:
 
 - You have 2-3 solution families that are meaningfully different.
-- One is close to the narrowest wedge and one preserves part of the ambitious vision.
+- One is close to the narrowest pain-solving wedge and one preserves part of the ambitious vision.
 
 Do not use when:
 
@@ -108,7 +109,7 @@ Pattern:
 Good stop condition:
 
 - You can name the major themes and compare them.
-- The map reveals which branches are scope, risk, implementation detail, or future work.
+- The map reveals which branches are scope, risk, implementation detail, future work, or unapproved strategy.
 
 Do not use when:
 
@@ -125,7 +126,7 @@ Prompt:
 
 Convert failures into mitigations:
 
-- failure mode -> prevention or detection -> Design Brief risk / planning verification
+- failure mode -> prevention or detection -> Design Brief risk / planning verification / explicit deferral
 
 Good stop condition:
 
@@ -153,7 +154,7 @@ Hats:
 Good stop condition:
 
 - The trade-off is explicit enough to make a recommendation.
-- Any missing facts are recorded as verification items.
+- Any missing facts are recorded as verification items or explicit deferrals.
 
 Do not use as a full formal sequence unless the decision is high-stakes. Usually one or two hats are enough.
 
