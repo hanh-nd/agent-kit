@@ -12,14 +12,7 @@ export const HANDOFF_TYPES = [
 
 type HandoffType = (typeof HANDOFF_TYPES)[number];
 
-type CanonicalHandoffType =
-  | 'brainstorm'
-  | 'clarification'
-  | 'plan'
-  | 'ticket'
-  | 'research'
-  | 'investigation'
-  | 'code';
+type CanonicalHandoffType = 'brainstorm' | 'clarification' | 'plan' | 'ticket' | 'research' | 'investigation' | 'code';
 
 export interface SavedHandoffFolderLocation {
   featureSlug: string;
