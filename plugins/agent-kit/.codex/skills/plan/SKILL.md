@@ -517,6 +517,8 @@ What would you like to do next?
 2) Delegate to agent  — Hand off to Gemini (default), Claude, or Codex
 3) Done               — No further action
 4) Custom             — Revise, deepen, or run parallel-agent execution
+
+Tip: run `/ak:preview @<returned-path>` for a glanceable visual of this plan.
 ```
 
 **On user selection:**

@@ -381,6 +381,8 @@ What would you like to do next?
 
 1) Execute plan phase  - Start `/plan @<folder-path>`
 2) Done                - No further action
+
+Tip: run `/ak:preview @<folder-path>` for a glanceable visual of this brief.
 ```
 
 **On user selection:**
