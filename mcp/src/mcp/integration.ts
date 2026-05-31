@@ -81,17 +81,22 @@ async function callRestApi(url: string, auth: string, accept = 'application/json
 
 export function registerIntegrationTools(server: McpServer): void {
   // TOOL: GET BITBUCKET PR
-  server.tool(
+  server.registerTool(
     'kit_get_bitbucket_pr',
-    'Get Bitbucket PR details and optionally the diff. Accepts a full PR URL or a numeric PR ID with workspace + repoSlug.',
     {
-      input: z.string().describe('Bitbucket PR URL or numeric PR ID'),
-      workspace: z
-        .string()
-        .optional()
-        .describe('Bitbucket workspace slug (required for numeric ID if BITBUCKET_DEFAULT_WORKSPACE not set)'),
-      repoSlug: z.string().optional().describe('Bitbucket repo slug (required for numeric ID)'),
-      includeDiff: z.boolean().optional().default(true).describe('Include unified diff in response'),
+      title: 'Get Bitbucket PR',
+      description:
+        'Get Bitbucket PR details and optionally the diff. Accepts a full PR URL or a numeric PR ID with workspace + repoSlug.',
+      inputSchema: {
+        input: z.string().describe('Bitbucket PR URL or numeric PR ID'),
+        workspace: z
+          .string()
+          .optional()
+          .describe('Bitbucket workspace slug (required for numeric ID if BITBUCKET_DEFAULT_WORKSPACE not set)'),
+        repoSlug: z.string().optional().describe('Bitbucket repo slug (required for numeric ID)'),
+        includeDiff: z.boolean().optional().default(true).describe('Include unified diff in response'),
+      },
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
     },
     async ({ input, workspace, repoSlug, includeDiff }) => {
       try {
@@ -165,11 +170,15 @@ ${pr.description || 'No description'}`;
   );
 
   // TOOL: JIRA GET TICKET
-  server.tool(
+  server.registerTool(
     'kit_jira_get_ticket',
-    'Get ticket details from Jira using the Atlassian REST API',
     {
-      ticketId: z.string().describe('Jira ticket ID (e.g., PROJ-123)'),
+      title: 'Get Jira Ticket',
+      description: 'Get ticket details from Jira using the Atlassian REST API',
+      inputSchema: {
+        ticketId: z.string().describe('Jira ticket ID (e.g., PROJ-123)'),
+      },
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
     },
     async ({ ticketId }) => {
       try {

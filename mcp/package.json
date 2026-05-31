@@ -1,6 +1,6 @@
 {
   "name": "@hanhnd/agent-kit",
-  "version": "1.0.40",
+  "version": "1.0.41",
   "description": "Agent Kit MCP server for software development agent workflows",
   "type": "module",
   "main": "dist/server.js",

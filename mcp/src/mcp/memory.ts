@@ -24,12 +24,17 @@ function registerMemoryToolHandlers(
 ): void {
   const { config } = subsystem;
 
-  server.tool(
+  server.registerTool(
     'kit_memory_search',
-    'Search persistent memory for factual or semantic matches (decisions, concepts, entities). Extract concise keywords only, removing stopwords and filler words from the user request before querying. Use kit_memory_recent for temporal or recency questions.',
     {
-      query: z.string().min(1).describe('Keyword-only search query with stopwords removed'),
-      top_k: z.number().int().positive().optional().describe('Number of results to return'),
+      title: 'Search Memory',
+      description:
+        'Search persistent memory for factual or semantic matches (decisions, concepts, entities). Extract concise keywords only, removing stopwords and filler words from the user request before querying. Use kit_memory_recent for temporal or recency questions.',
+      inputSchema: {
+        query: z.string().min(1).describe('Keyword-only search query with stopwords removed'),
+        top_k: z.number().int().positive().optional().describe('Number of results to return'),
+      },
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ query, top_k }) => {
       try {
@@ -66,12 +71,17 @@ function registerMemoryToolHandlers(
     },
   );
 
-  server.tool(
+  server.registerTool(
     'kit_memory_recent',
-    'Return the N most recently updated memory sources. Optionally filter by source type. Use for temporal questions like "what did we do last session" or "recent".',
     {
-      n: z.number().int().positive().max(50).optional().describe('How many recent sources to return (default 5)'),
-      source_type: z.enum(SOURCE_TYPES).optional().describe('Optional source type filter'),
+      title: 'Recent Memory Sources',
+      description:
+        'Return the N most recently updated memory sources. Optionally filter by source type. Use for temporal questions like "what did we do last session" or "recent".',
+      inputSchema: {
+        n: z.number().int().positive().max(50).optional().describe('How many recent sources to return (default 5)'),
+        source_type: z.enum(SOURCE_TYPES).optional().describe('Optional source type filter'),
+      },
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ n, source_type }) => {
       try {
@@ -102,11 +112,15 @@ function registerMemoryToolHandlers(
     },
   );
 
-  server.tool(
+  server.registerTool(
     'kit_memory_save',
-    'Save content to wiki/raw for inclusion after the next /wiki compile.',
     {
-      content: z.string().min(1).describe('Content to save to memory'),
+      title: 'Save to Memory',
+      description: 'Save content to wiki/raw for inclusion after the next /wiki compile.',
+      inputSchema: {
+        content: z.string().min(1).describe('Content to save to memory'),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     async ({ content }) => {
       try {
@@ -133,12 +147,17 @@ function registerMemoryToolHandlers(
     },
   );
 
-  server.tool(
+  server.registerTool(
     'kit_memory_digest_init',
-    'Initialize or toggle local conversation digesting. Downloads/cache-loads the pinned local model only when explicitly invoked.',
     {
-      model_id: z.string().optional().describe('Digest model id'),
-      enabled: z.boolean().optional().describe('Enable or disable conversation digesting'),
+      title: 'Initialize Conversation Digest',
+      description:
+        'Initialize or toggle local conversation digesting. Downloads/cache-loads the pinned local model only when explicitly invoked.',
+      inputSchema: {
+        model_id: z.string().optional().describe('Digest model id'),
+        enabled: z.boolean().optional().describe('Enable or disable conversation digesting'),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async ({ model_id, enabled }) => {
       try {

@@ -74,14 +74,21 @@ function initAgentLog(
 }
 
 export function registerAgentTools(server: McpServer): void {
-  server.tool(
+  server.registerTool(
     'kit_trigger_agent',
-    '!Important: Trigger only when user explicitly asks to delegate a task to an external agent CLI (gemini, claude, or codex). The task can be a direct message or a path to a handoff folder (.agent-kit/handoffs/feature-slug/plan).',
     {
-      agent: z.enum(['gemini', 'claude', 'codex']).describe('The agent CLI to invoke: "gemini", "claude", or "codex"'),
-      task: z
-        .string()
-        .describe('Task message or path to a handoff folder (e.g., ".agent-kit/handoffs/feature-slug/plan")'),
+      title: 'Delegate to External Agent',
+      description:
+        '!Important: Trigger only when user explicitly asks to delegate a task to an external agent CLI (gemini, claude, or codex). The task can be a direct message or a path to a handoff folder (.agent-kit/handoffs/feature-slug/plan).',
+      inputSchema: {
+        agent: z
+          .enum(['gemini', 'claude', 'codex'])
+          .describe('The agent CLI to invoke: "gemini", "claude", or "codex"'),
+        task: z
+          .string()
+          .describe('Task message or path to a handoff folder (e.g., ".agent-kit/handoffs/feature-slug/plan")'),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async ({ agent, task }, extra) => {
       const workspaceRoot = getWorkspaceRoot();

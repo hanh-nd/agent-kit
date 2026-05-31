@@ -14,8 +14,12 @@ function makeMockServer() {
   const tools = new Map<string, (args: Record<string, unknown>) => Promise<unknown>>();
   const descriptions = new Map<string, string>();
   const server = {
-    tool(name: string, desc: string, _schema: unknown, handler: (args: Record<string, unknown>) => Promise<unknown>) {
-      descriptions.set(name, desc);
+    registerTool(
+      name: string,
+      config: { description?: string; [k: string]: unknown },
+      handler: (args: Record<string, unknown>) => Promise<unknown>,
+    ) {
+      if (config.description) descriptions.set(name, config.description);
       tools.set(name, handler);
     },
   };
