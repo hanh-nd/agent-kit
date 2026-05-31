@@ -27,7 +27,6 @@ Create an implementation blueprint that an intern can execute without guessing. 
 | :--- | :--- |
 | Raw ticket or Clarification Brief | Run Phase 1 through Phase 5 |
 | Design Brief | Skip Phase 2, but verify the brief against code |
-| Scenario Brief | Route each scenario row by owner before planning |
 | Critical issue | Ask one structured question, recommend the complete option, then wait |
 | Non-critical issue | Batch in a table with recommendations |
 | Handoff output | Save the planned artifact set with the available Agent Kit handoff save tool |
@@ -148,14 +147,13 @@ Determine input type — this decides which phases to run:
 
 - **Design Brief** (output from brainstorm skill): Problem, scope, approach, and edge cases are already resolved. Skip Phase 2. Go: Phase 1 → Phase 3 → Phase 4 → Phase 5.
 - **Clarification Brief** (output from clarify skill): Acceptance Criteria, business-rule gaps, confirmed constraints, and explicit defaults are resolved. Implementation approach is not necessarily resolved. Run full pipeline: Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5, but Phase 2 may challenge implementation scope only — do not reopen resolved business decisions unless code reality contradicts the brief.
-- **Scenario Brief** (output from scenario skill): Supplemental risk artifact. Keep the primary input type from the source artifact, but ingest scenario rows owned by `plan` as design constraints, rows owned by `test` as proof obligations for Section 3, and rows owned by `clarify` as critical planning blockers.
 - **Raw ticket / requirement**: Nothing pre-resolved. Run full pipeline: Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5.
 
 ### Phase 1: Deep Context Ingestion (MANDATORY — both paths)
 
 **Objective:** Understand what exists before proposing or reviewing anything.
 
-1. **Input Analysis.** Read `$ARGUMENTS`, any attached Design Brief, Clarification Brief, Scenario Brief, schemas, or ticket content. **Extract the high-level Goal, relevant Background, and verifiable Acceptance Criteria.** If a Design Brief exists, it is the source of truth for problem statement, scope, and chosen approach. If a Clarification Brief exists, extract ACs from "Per-AC Resolutions", preserve "Gaps Resolved", "Confirmed Constraints", and "Remaining Unknowns" as business source-of-truth, and inspect "Recommended Next Step" before blueprinting. If its status or next step is `NEEDS_STAKEHOLDER`, `NEEDS_SPIKE`, `spike-first`, or `re-clarify-after-stakeholder`, flag that as a critical planning issue before generating a WBS. If a Scenario Brief exists, preserve its IDs and route each row by owner; do not reopen `clarify` rows as assumptions.
+1. **Input Analysis.** Read `$ARGUMENTS`, any attached Design Brief, Clarification Brief, schemas, or ticket content. **Extract the high-level Goal, relevant Background, and verifiable Acceptance Criteria.** If a Design Brief exists, it is the source of truth for problem statement, scope, and chosen approach. If a Clarification Brief exists, extract ACs from "Per-AC Resolutions", preserve "Gaps Resolved", "Confirmed Constraints", and "Remaining Unknowns" as business source-of-truth, and inspect "Recommended Next Step" before blueprinting. If its status or next step is `NEEDS_STAKEHOLDER`, `NEEDS_SPIKE`, `spike-first`, or `re-clarify-after-stakeholder`, flag that as a critical planning issue before generating a WBS.
 2. **Artifact Set Decision.** Read `.agent-kit/settings.json` when present and extract `project.hasTests` and `project.runTests`. The saved artifact set is:
    - `README.md`, `ARCHITECTURE.md`, `TASKS.md`, and `TESTS.md` when both settings are `true`.
    - `README.md`, `ARCHITECTURE.md`, and `TASKS.md` when either setting is `false` or the settings file is absent. If tests are disabled, do not save `TESTS.md`, do not add test tasks, and record the omission in `README.md > Decisions`.

@@ -33,7 +33,6 @@ Guard against these agent failure modes:
 Proceed only when intent already exists:
 
 - a WBS plan with Acceptance Criteria or behavioral contracts
-- a Scenario Brief with `For Test` proof obligations
 - an Investigation Report with a symptom, root cause, and verification target
 - an existing feature/class whose public behavior can be read from code and callers
 

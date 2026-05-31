@@ -11,9 +11,9 @@ Agent Kit ships these workflows as skills. In Claude Code, invoke them as slash 
 | Skill / Command                 | Description                                                      |
 | ------------------------------- | ---------------------------------------------------------------- |
 | `/brainstorm [idea]`            | Turn a raw idea into an engineer-ready design brief              |
-| `/scenario [artifact]`          | Stress-test requirements, plans, tickets, or reviews for risks   |
 | `/clarify <file or task>`       | Resolve requirement gaps using codebase evidence                 |
 | `/plan [file or idea]`          | Create a detailed implementation blueprint                       |
+| `/preview [path]`               | Render a handoff or markdown doc as a glanceable HTML visual     |
 | `/investigate [issue]`          | Trace bugs, errors, or unexpected behavior to root cause         |
 | `/code [plan or report]`        | Implement from a WBS plan or investigation report                |
 | `/test [intent]`                | Add or update focused tests after implementation intent exists   |

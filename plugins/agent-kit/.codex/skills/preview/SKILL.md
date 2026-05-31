@@ -12,10 +12,11 @@ This skill is **decoupled** from any system. It reads markdown from a path you g
 ## Output Contract (non-negotiable)
 
 - **One file:** a single self-contained `.html` — all CSS and JS inline. External resources via CDN only (Google Fonts, Mermaid v11, optional Chart.js).
-- **Always written to `<input-dir>/PREVIEW.html`**, overwriting silently if present.
-  - Input is a **folder** → write `<folder>/PREVIEW.html`.
-  - Input is a **single file** → write `PREVIEW.html` into that file's **parent** directory.
+- **Output location — write `<output-dir>/PREVIEW.html`**, overwriting silently. Resolve `<output-dir>` exactly:
+  - Given a **folder** → `<output-dir>` **is that folder itself**. Do NOT use its parent. (e.g. input `x/plan` → write `x/plan/PREVIEW.html`, never `x/PREVIEW.html`.)
+  - Given a **single file** → `<output-dir>` is the folder that **contains** that file.
   - **Plain file write only.** Do NOT use `kit_save_handoff` (it accepts `.md` only and requires a handoff type — that would couple this skill to the handoff system).
+- **At least one diagram (non-negotiable):** every preview MUST include ≥1 Mermaid diagram (the flow/architecture) — it is the highest-value visual. A page with only CSS scaffolding and no rendered diagram is incomplete; if the source implies no flow, synthesize one from the entities/decisions.
 - **Distilled + drill-down:** a glanceable one-pager at the top, then `<details>` sections holding the full source content. Glance first, expand for fidelity.
 - **MANDATORY theme toggle:** every page includes the light/dark toggle button. See `references/html-css-patterns.md` → "Theme Toggle Button (MANDATORY)". A page without it is incomplete.
 
@@ -94,7 +95,8 @@ The whole point is to defeat the wall of text. Hold the line:
 ## Quality Checklist (before reporting done)
 
 - [ ] Single self-contained `.html`; CSS/JS inline; CDN-only externals.
-- [ ] Written to `<input-dir>/PREVIEW.html` via a plain write (no `kit_*` tools).
+- [ ] Written INSIDE the input folder (or the file's container) — `<output-dir>/PREVIEW.html`, never the parent — via a plain write (no `kit_*` tools).
+- [ ] At least one diagram is actually rendered (not just `.mermaid` CSS with no diagram).
 - [ ] Theme toggle present as required (light + dark both render).
 - [ ] Distilled hero + `<details>` drill-downs holding full source — not a 1:1 render.
 - [ ] **Squint test:** hierarchy readable at arm's length.

@@ -6,7 +6,6 @@ export const HANDOFF_TYPES = [
   'plan',
   'ticket',
   'research',
-  'scenario',
   'investigation',
   'code',
 ] as const;
@@ -19,7 +18,6 @@ type CanonicalHandoffType =
   | 'plan'
   | 'ticket'
   | 'research'
-  | 'scenario'
   | 'investigation'
   | 'code';
 
