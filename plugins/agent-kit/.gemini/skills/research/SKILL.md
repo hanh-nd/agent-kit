@@ -296,7 +296,7 @@ Never present Community-Reported as Verified.
 
 ## Phase 5: Persistence & Handoff
 
-1. **Persist the blueprint** Call `kit_save_handoff(type: "research", slug: <feature-name-without-versioning>, files: { "README.md": <full blueprint markdown> })`.
+1. **Persist the blueprint** If `$ARGUMENTS` contains a path matching `.agent-kit/handoffs/<slug>/...`, extract `<slug>` verbatim and use it as the slug; otherwise derive a slug from the feature name. Call `kit_save_handoff(type: "research", slug: <feature-name-without-versioning>, files: { "README.md": <full blueprint markdown> })`.
    The tool will handle versioning automatically and returns the saved folder path. Output the next step:
    ```
    ✅ Research saved. To implement:

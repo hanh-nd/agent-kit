@@ -124,7 +124,7 @@ The root cause is the earliest actionable trigger inside the codebase or its con
 ## Phase 6: Persist & Handoff
 
 1. **Constraint check.** Verify no source code changes remain from temporary investigation probes.
-2. **Persist the report immediately** Call `kit_save_handoff(type: "investigation", slug: <short-issue-slug>, files: { "README.md": <full investigation report markdown> })`.
+2. **Persist the report immediately** If `$ARGUMENTS` contains a path matching `.agent-kit/handoffs/<slug>/...`, extract `<slug>` verbatim and use it as the slug; otherwise derive a short slug from the issue description. Call `kit_save_handoff(type: "investigation", slug: <short-issue-slug>, files: { "README.md": <full investigation report markdown> })`.
 
 ```
 # 🔍 INVESTIGATION REPORT: [Short Descriptive Title]

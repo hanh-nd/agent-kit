@@ -377,6 +377,8 @@ Only reached after consensus. Compose the README and DETAIL files silently. **Do
 - [Non-approach-changing strategic decision explicitly deferred by the user - e.g. "manual sync command vs session hooks"]
 ````
 
+**Slug Rule:** If `$ARGUMENTS` contains a path matching `.agent-kit/handoffs/<slug>/...`, extract `<slug>` verbatim and use it as the slug. Only derive a slug from the feature name when no handoffs path is present in `$ARGUMENTS`.
+
 After composing both files: call `kit_save_handoff(type: "brainstorm", slug: <feature-slug-without-versioning>, files: { "README.md": <readme content>, "DETAIL.md": <detail content> })` immediately. Do not ask for approval again after consensus. **Do NOT print README or DETAIL content to chat before or after the tool call.** The tool returns the saved folder path. Then output only:
 
 ```

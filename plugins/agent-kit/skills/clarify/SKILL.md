@@ -515,6 +515,8 @@ SEAM: AC-N ↔ AC-M
 - **back-to-brainstorm** — AC walk surfaced that the problem framing is wrong; recommend `/brainstorm` to revise.
 ````
 
+**Slug Rule:** If `$ARGUMENTS` contains a path matching `.agent-kit/handoffs/<slug>/...`, extract `<slug>` verbatim and use it as the slug. Only derive a slug from the feature name when no handoffs path is present in `$ARGUMENTS`.
+
 After writing: call `kit_save_handoff(type: "clarify", slug: <feature-slug>, files: { "README.md": <full markdown> })`. The tool versions the folder and returns its path.
 
 ---
