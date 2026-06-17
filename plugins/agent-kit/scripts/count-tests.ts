@@ -1,22 +1,28 @@
 import { execSync } from 'node:child_process';
 
 export function countTests(projectDir: string = process.cwd()): number {
-  try {
-    execSync('which rg', { stdio: 'ignore' });
-  } catch {
-    return 0;
-  }
+  const excludePrune = [
+    "-path '*/node_modules/*'",
+    "-path '*/dist/*'",
+    "-path '*/build/*'",
+    "-path '*/.git/*'",
+  ].join(' -o ');
 
-  const patterns = [
-    '--glob "**/*.test.[tj]s{x,}"',
-    '--glob "**/*.spec.[tj]s{x,}"',
-    '--glob "**/__tests__/**/*"',
-  ];
-  const excludeGlob =
-    '--glob "!node_modules/*" --glob "!dist/*" --glob "!build/*" --glob "!.git/*"';
+  const nameMatchers = [
+    "-name '*.test.ts'",
+    "-name '*.test.tsx'",
+    "-name '*.test.js'",
+    "-name '*.test.jsx'",
+    "-name '*.spec.ts'",
+    "-name '*.spec.tsx'",
+    "-name '*.spec.js'",
+    "-name '*.spec.jsx'",
+    "-path '*/__tests__/*'",
+  ].join(' -o ');
+
+  const command = `find . \\( ${excludePrune} \\) -prune -o \\( ${nameMatchers} \\) -print | wc -l`;
 
   try {
-    const command = `rg -l "." ${patterns.join(' ')} ${excludeGlob} . | wc -l`;
     const result = execSync(command, {
       cwd: projectDir,
       encoding: 'utf-8',
