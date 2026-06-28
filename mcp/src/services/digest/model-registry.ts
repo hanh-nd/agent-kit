@@ -10,29 +10,29 @@ class DigestModelRegistryError extends Error {
 const DIGEST_MODEL_REGISTRY: Record<string, DigestModelSpec> = {
   [DigestModelId.TINY]: {
     id: DigestModelId.TINY,
-    ggufUri: 'hf:bartowski/Qwen2.5-0.5B-Instruct-GGUF/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf',
+    ggufUri: 'hf:lmstudio-community/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_K_M.gguf',
 
-    approxSizeBytes: 400_000_000,
+    approxSizeBytes: 528_000_000,
     license: 'Apache-2.0',
-    sourceUrl: 'https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF',
+    sourceUrl: 'https://huggingface.co/lmstudio-community/Qwen3.5-0.8B-GGUF',
     enabled: true,
   },
   [DigestModelId.BASE]: {
     id: DigestModelId.BASE,
-    ggufUri: 'hf:bartowski/Qwen2.5-1.5B-Instruct-GGUF/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf',
+    ggufUri: 'hf:lmstudio-community/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf',
 
-    approxSizeBytes: 1_000_000_000,
+    approxSizeBytes: 1_270_000_000,
     license: 'Apache-2.0',
-    sourceUrl: 'https://huggingface.co/bartowski/Qwen2.5-1.5B-Instruct-GGUF',
+    sourceUrl: 'https://huggingface.co/lmstudio-community/Qwen3.5-2B-GGUF',
     enabled: true,
   },
   [DigestModelId.LARGE]: {
     id: DigestModelId.LARGE,
-    ggufUri: 'hf:bartowski/Qwen2.5-3B-Instruct-GGUF/Qwen2.5-3B-Instruct-Q4_K_M.gguf',
+    ggufUri: 'hf:lmstudio-community/Qwen3.5-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf',
 
-    approxSizeBytes: 1_900_000_000,
+    approxSizeBytes: 2_710_000_000,
     license: 'Apache-2.0',
-    sourceUrl: 'https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF',
+    sourceUrl: 'https://huggingface.co/lmstudio-community/Qwen3.5-4B-GGUF',
     enabled: true,
   },
 };

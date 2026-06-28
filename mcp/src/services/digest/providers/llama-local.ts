@@ -20,14 +20,14 @@ class LlamaLocalDigestProviderError extends Error {
   }
 }
 
-function titleFromSource(sourcePath: string): string {
+export function titleFromSource(sourcePath: string): string {
   return path
     .basename(sourcePath)
     .replace(/\.[^.]+$/, '')
     .replace(/[_-]+/g, ' ');
 }
 
-function trimConversationExport(content: string, maxInputChars: number): string {
+export function trimConversationExport(content: string, maxInputChars: number): string {
   const trimmed = content.trim();
   if (trimmed.length <= maxInputChars) return trimmed;
 
@@ -68,7 +68,7 @@ function stripCodeFence(text: string): string {
   return match ? match[1].trim() : trimmed;
 }
 
-function sanitizeConversationDigestMarkdown(generatedText: string): string {
+export function sanitizeConversationDigestMarkdown(generatedText: string): string {
   return stripCodeFence(generatedText).trim() + '\n';
 }
 
@@ -128,6 +128,7 @@ export async function createLlamaLocalDigestProvider(modelId: string): Promise<C
           session.prompt(userContent, {
             maxTokens: LLAMA_MAX_GENERATED_TOKENS,
             temperature: LLAMA_TEMPERATURE,
+            budgets: { thoughtTokens: 0 },
           }),
           options.timeoutMs,
           () => new LlamaLocalDigestProviderError(`Llama provider timed out after ${options.timeoutMs}ms`),
