@@ -24,7 +24,9 @@ providers:
 
 2. Call `kit_jira_get_ticket(ticketId: "<extracted_id>")` to fetch the ticket.
 
-3. Format the ticket as a clean markdown brief:
+3. If the ticket description contains Confluence links, evaluate each one based on its page title and surrounding context to determine whether it is likely to contain requirements, acceptance criteria, or a product spec for this ticket. Fetch those using `kit_confluence_get_page` and append their content to the brief. List any remaining links as references without fetching them.
+
+4. Format the ticket as a clean markdown brief:
 
 ```markdown
 ## Ticket: <extracted_id>
@@ -39,9 +41,9 @@ providers:
 <ticket raw description>
 ```
 
-4. Call `kit_save_handoff(type: "ticket", slug: "<extracted_id>", files: { "README.md": <formatted brief> })`.
+5. Call `kit_save_handoff(type: "ticket", slug: "<extracted_id>", files: { "README.md": <formatted brief> })`.
 
-5. The tool returns the saved folder path. Present the execution choices as an interactive TUI menu using arrow keys (use `AskUserQuestion` tool or `ask_user` with type of `choice`) with the following format:
+6. The tool returns the saved folder path. Present the execution choices as an interactive TUI menu using arrow keys (use `AskUserQuestion` tool or `ask_user` with type of `choice`) with the following format:
 
 ```
 ✅ Ticket brief saved → `<returned-path>`
