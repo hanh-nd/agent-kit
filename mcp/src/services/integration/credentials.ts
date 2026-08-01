@@ -9,7 +9,7 @@
  * File format:
  *   [default]
  *   ATLASSIAN_USER_EMAIL = user@example.com
- *   ATLASSIAN_API_TOKEN  = your_token_here
+ *   JIRA_API_TOKEN       = your_token_here
  *
  * Active profile: KIT_PROFILE env var (defaults to "default")
  */

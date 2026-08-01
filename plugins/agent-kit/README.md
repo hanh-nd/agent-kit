@@ -68,7 +68,8 @@ mkdir -p ~/.agent-kit && touch ~/.agent-kit/credentials && chmod 600 ~/.agent-ki
 [default]
 ATLASSIAN_CLOUD_ID = your-atlassian-cloud-id
 ATLASSIAN_USER_EMAIL = you@yourcompany.com
-ATLASSIAN_API_TOKEN = your-atlassian-api-token
+JIRA_API_TOKEN = your-jira-api-token
+CONFLUENCE_API_TOKEN = your-confluence-api-token
 BITBUCKET_USER_EMAIL = you@yourcompany.com
 BITBUCKET_API_TOKEN = your-atlassian-api-token
 BITBUCKET_DEFAULT_WORKSPACE = your-default-workspace-slug
@@ -130,7 +131,8 @@ mkdir -p ~/.agent-kit && touch ~/.agent-kit/credentials && chmod 600 ~/.agent-ki
 [default]
 ATLASSIAN_CLOUD_ID = your-atlassian-cloud-id
 ATLASSIAN_USER_EMAIL = you@yourcompany.com
-ATLASSIAN_API_TOKEN = your-atlassian-api-token
+JIRA_API_TOKEN = your-jira-api-token
+CONFLUENCE_API_TOKEN = your-confluence-api-token
 BITBUCKET_USER_EMAIL = you@yourcompany.com
 BITBUCKET_API_TOKEN = your-atlassian-api-token
 BITBUCKET_DEFAULT_WORKSPACE = your-default-workspace-slug
@@ -186,7 +188,27 @@ Used by `/ticket` and `/review-pr`.
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `ATLASSIAN_CLOUD_ID`   | Your Atlassian Cloud ID — find it at [admin.atlassian.com](https://admin.atlassian.com) under your site settings                         |
 | `ATLASSIAN_USER_EMAIL` | Your Atlassian account email                                                                                                             |
-| `ATLASSIAN_API_TOKEN`  | API token — create at [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
+| `JIRA_API_TOKEN`       | Jira API token — create at [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
+
+### Confluence (via Atlassian REST API)
+
+Confluence shares `ATLASSIAN_CLOUD_ID` and `ATLASSIAN_USER_EMAIL` with Jira — same site, same account — and differs only in the **token**, because Atlassian issues scoped API tokens per app and one token cannot hold both Jira and Confluence scopes.
+
+Create a Confluence token with the `read:page:confluence` and `read:label:confluence` scopes at [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens). The symptom of a missing or Jira-only token is a 401 whose body reads `Unauthorized; scope does not match`.
+
+| Key                    | Description                                             |
+| ---------------------- | -------------------------------------------------------- |
+| `ATLASSIAN_CLOUD_ID`   | Shared with Jira — one site                             |
+| `ATLASSIAN_USER_EMAIL` | Shared with Jira — same Atlassian account              |
+| `CONFLUENCE_API_TOKEN` | Confluence-scoped token — separate from `JIRA_API_TOKEN` |
+
+Accepted page references:
+
+- `https://<site>.atlassian.net/wiki/spaces/<SPACEKEY>/pages/<pageId>/<Title>`
+- `https://<site>.atlassian.net/pages/viewpage.action?pageId=<pageId>`
+- a bare numeric page ID
+
+Blog posts and tiny links (`/wiki/x/<hash>`) are not supported — open a tiny link in a browser and pass the full page URL instead.
 
 ### Bitbucket Cloud (via Bitbucket REST API)
 

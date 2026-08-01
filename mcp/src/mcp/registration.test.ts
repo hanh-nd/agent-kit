@@ -12,6 +12,7 @@ const EXPECTED_NON_MEMORY_TOOLS = [
   'kit_trigger_agent',
   'kit_get_bitbucket_pr',
   'kit_jira_get_ticket',
+  'kit_confluence_get_page',
 ];
 
 async function buildClientWithTools(): Promise<Client> {
@@ -28,7 +29,7 @@ async function buildClientWithTools(): Promise<Client> {
 }
 
 describe('MCP tool registration smoke tests', () => {
-  test('R1: all 4 non-memory tool names are registered', async () => {
+  test('R1: all 5 non-memory tool names are registered', async () => {
     const client = await buildClientWithTools();
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
@@ -84,6 +85,18 @@ describe('MCP tool registration smoke tests', () => {
 
     assert.ok(tool, 'kit_get_bitbucket_pr must be registered');
     assert.ok(tool.annotations, 'kit_get_bitbucket_pr must have annotations');
+    assert.equal(tool.annotations.readOnlyHint, true, 'readOnlyHint must be true');
+    assert.equal(tool.annotations.idempotentHint, true, 'idempotentHint must be true');
+    assert.equal(tool.annotations.openWorldHint, true, 'openWorldHint must be true');
+  });
+
+  test('R6: kit_confluence_get_page (readOnlyHint:true) has correct annotations (BC1)', async () => {
+    const client = await buildClientWithTools();
+    const { tools } = await client.listTools();
+    const tool = tools.find((t) => t.name === 'kit_confluence_get_page');
+
+    assert.ok(tool, 'kit_confluence_get_page must be registered');
+    assert.ok(tool.annotations, 'kit_confluence_get_page must have annotations');
     assert.equal(tool.annotations.readOnlyHint, true, 'readOnlyHint must be true');
     assert.equal(tool.annotations.idempotentHint, true, 'idempotentHint must be true');
     assert.equal(tool.annotations.openWorldHint, true, 'openWorldHint must be true');
