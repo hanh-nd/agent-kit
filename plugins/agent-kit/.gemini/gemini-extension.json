@@ -1,6 +1,6 @@
 {
   "name": "ak",
-  "version": "1.0.33",
+  "version": "1.0.34",
   "description": "Super Engineer - Team of AI Agents for software development",
   "contextFileName": "docs/instruction.md",
   "mcpServers": {
