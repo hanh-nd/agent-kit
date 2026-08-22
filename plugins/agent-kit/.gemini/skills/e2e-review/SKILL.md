@@ -7,9 +7,9 @@ description: Review Playwright, Cypress, browser automation, and end-to-end test
 
 You review E2E automation the way a strict test architect does: as evidence that a user-visible requirement is protected, not as proof that a script can click through a page. The absolute bar is trust. A test that passes for the wrong reason, fails for environmental reasons, or cannot be debugged from CI is a liability even when it covers an important flow.
 
-An E2E test is a browser-executed contract between the product and the user. If the ticket regresses in production, the test should fail for the same reason a user would notice. If the app is internally refactored but the user experience remains correct, the test should keep passing.
+An E2E test is a browser-executed contract between product and user. If the ticket regresses in production, the test should fail for the same reason a user would notice. If the app is refactored but the experience stays correct, the test should keep passing.
 
-This skill reviews the diff as code. It does not write tests and does not replace `code-review`; it specializes the review lens for Playwright, Cypress, browser automation, visual regression, accessibility automation, and E2E test infrastructure changes.
+This skill reviews the diff as code. It does not write tests and does not replace `code-review`; it specializes the lens for Playwright, Cypress, browser automation, visual regression, accessibility automation, and E2E infrastructure changes.
 
 A finding without evidence is a guess. A category without a clearance is a skipped check.
 
@@ -17,174 +17,89 @@ A finding without evidence is a guess. A category without a clearance is a skipp
 
 ## Inputs
 
-Three things are required before review. If a parent pipeline invoked this skill, it supplies them. If invoked directly, request whatever is missing:
+Three things are required before review. If a parent pipeline invoked this skill it supplies them; otherwise request what's missing:
 
-1. **The diff** - changed tests, fixtures, page objects, helpers, config, CI jobs, snapshots, or app code coupled to the E2E change.
-2. **The intent** - PR description, ticket, bug report, commit message, or direct statement of what behavior the test should protect.
-3. **Codebase access** - app routes/components/API behavior, existing E2E conventions, fixtures, runner config, and CI setup.
+1. **The diff** — changed tests, fixtures, page objects, helpers, config, CI jobs, snapshots, or app code coupled to the change.
+2. **The intent** — PR description, ticket, bug report, commit message, or direct statement of what behavior the test protects.
+3. **Codebase access** — routes/components/API behavior, existing conventions, fixtures, runner config, CI setup.
 
-If intent cannot be recovered, prepend to the final report:
+Missing intent → prepend:
 
 > ⚠️ No stated intent (no PR description, ticket, or commit message). Reviewing technical E2E quality only. Requirement Drift cannot be assessed.
 
-If codebase access is missing, state which checks degraded: route validity, app behavior alignment, fixture reuse, selector conventions, and CI integration.
+Missing codebase access → state which checks degraded: route validity, app-behavior alignment, fixture reuse, selector conventions, CI integration.
 
 ---
 
-## Execution - Four Ordered Phases
+## Execution — Four Ordered Phases
 
-Run all four phases in order. Phase 4 is not optional - it is where the review catches attractive but brittle tests.
+### Phase 1 — Frame the Test Claim
 
-### Phase 1 - Frame the Test Claim
+Before any checklist: what user behavior/ticket/regression should this protect? What scenario does setup create? What actions run? What **oracle** proves the business outcome?
 
-Before touching any checklist, form a mental model:
+Produce **Requirement Drift**: `CLEAN` (test proves stated behavior) or `DRIFT` (automates something different, asserts an incidental detail, or proves only that a mock/helper was called).
 
-- What user behavior, ticket requirement, or bug regression should this E2E change protect?
-- What scenario does the setup create?
-- What browser actions does the test perform?
-- What oracle proves the business outcome?
+Produce **Layer Fit**: E2E is justified for critical flows, browser integration, auth/session, routing, real rendering, cross-service wiring, accessibility, browser-only regressions. Flag only when E2E adds little signal relative to its cost, instability, or setup — never merely because a lower-level test is possible.
 
-Produce a **Requirement Drift** assessment: `CLEAN` (test proves the stated behavior) or `DRIFT` (test automates something different, asserts an incidental detail, or proves only that a mock/helper was called).
+The core failure mode is **script theater**: many browser actions, no proven requirement.
 
-Also assess **Layer Fit**. E2E is justified for critical user flows, browser integration, auth/session behavior, routing, real rendering, cross-service wiring, accessibility behavior, or regressions that only appear in the browser. Do not reject an E2E test merely because a lower-level test is possible. Flag layer fit only when the E2E layer adds little signal relative to its cost, instability, or setup complexity.
+### Phase 2 — Read the Test Surface
 
-The core failure mode is **script theater**: the test performs many browser actions but never proves the requirement.
+Read the changed test and its infrastructure before judging style: runner config (retries, traces, screenshots, video), fixtures/auth/storage state/page objects/route mocks, nearby tests establishing local conventions, CI workflow (sharding, browser install/cache, env vars, artifacts), and app code behind changed routes/fixtures where needed to verify oracles against real behavior. Stop once the execution path is known; don't scan unrelated suites unless shared helpers/config affect them.
 
-### Phase 2 - Read the Test Surface
+Apply real framework semantics before flagging anything — auto-waiting locators, command queuing/retry semantics, aliasing, isolation defaults all differ per runner, and misreading them produces false findings. `force: true`, `nth()`, hard sleeps, and disabled isolation deserve scrutiny; idiomatic locator/assertion patterns do not.
 
-Read the changed test and the infrastructure it depends on before judging style:
+### Phase 3 — Category Sweep
 
-- runner config (`playwright.config.*`, Cypress config, browser projects, retries, traces, screenshots, video)
-- fixtures, auth setup, storage state, test data factories, page objects, route mocks
-- nearby E2E tests that establish local selector, setup, and assertion conventions
-- CI workflow for E2E jobs, sharding, browser install/cache, env vars, and artifact upload
-- app code directly behind the changed route, component, API, or fixture when needed to verify that the oracle matches real behavior
+For every category produce a **Finding** (`file:line` — problem, why it matters, fix) or a **Clearance** (one auditable line in Coverage). Pass 1 → BLOCKERS; Pass 2 → CONCERNS/NITPICKS by severity.
 
-Stop once you know the changed test's execution path. Do not scan unrelated suites unless the changed helper/config affects them.
+#### Pass 1 — Critical (BLOCKERS)
 
-Apply framework semantics before flagging a pattern:
+| Category | What blocks merge |
+|---|---|
+| **Requirement Proof** | Final assertion doesn't prove the stated acceptance criterion or regression; proves page arrival instead of business outcome; asserts mock/fixture/helper instead of user-visible outcome; negative assertion can pass before UI deterministically rendered the denied/removed state. |
+| **Selector Contract** | Selectors keyed to CSS classes/DOM depth/generated IDs/nth-child/incidental structure; ambiguous matches resolved by first/last/nth without product meaning; copy-based selectors where copy isn't the contract and a role/stable test ID exists. |
+| **Synchronization** | Hard sleeps/arbitrary timeouts hiding observable conditions; route intercepts registered after triggering action; waiting on network but never asserting the visible result; global timeout bumps masking flake without a specific condition. |
+| **Isolation & Determinism** | Order dependence, shared mutable accounts/state, wall-clock time, randomness, leaked DB state; cannot run alone/repeated/sharded/parallel; parallel workers sharing mutable records/inboxes/carts/flags. |
+| **Trust Boundaries & Secrets** | Real third-party services without claiming integration coverage; mocks bypassing the requirement boundary; secrets/tokens/cookies/PII in logs, screenshots, snapshots, videos, committed fixtures; test-only behavior added to production paths instead of a stable seam. |
+| **CI Trust** | Missing service/DB/browser/env/artifact prerequisites; retries hiding known flake instead of diagnosing it; sharding over shared mutable state; missing failure artifacts for non-self-explanatory failures. |
 
-- **Playwright:** locators and web-first assertions are expected because they auto-wait around user-visible state. `getByRole` with accessible name is usually the strongest locator for interactive UI. `first()`, `last()`, `nth()`, and `force: true` need justification. Missing `await` on Playwright actions/assertions is a correctness bug unless intentionally handled.
-- **Cypress:** commands are queued; aliases and closures are normal. Queries and assertions retry; action commands should not be treated like retried assertions. `cy.wait(number)` is usually a smell. Programmatic login is acceptable when login itself is not under test. Disabled test isolation or shared sessions need explicit suite-level justification.
+#### Pass 2 — Informational (CONCERNS / NITPICKS)
 
-### Phase 3 - Category Sweep
+| Category | What to weigh |
+|---|---|
+| **Behavior Scope** | Little signal vs cost even if not dangerous; covers too much unrelated behavior; brittle long UI setup where API/fixture setup expresses it clearly. |
+| **Locator Quality** | Stable-but-less-user-facing vs local preference; accessible locators treated as full a11y coverage; page objects hiding assertions or swallowing errors into an unreadable DSL. |
+| **Wait Quality** | Justified timeouts that could bind to clearer conditions; polling implementation details where DOM/URL/network/persisted state would express the outcome; assertion-after-action chains obscuring retry semantics. |
+| **Data & Auth** | Over-broad seeded data; random data lacking failure traceability; programmatic login helpers whose name/placement obscures that login isn't under test. |
+| **Diagnostics** | Failure messages naming elements not behaviors; custom assertions discarding runner errors; trace/video retention costs unmatched by diagnostic value. |
+| **CI Economics** | Device/browser matrix broader than protected risk; slow-valuable tests needing tags/scheduling so routine feedback stays cheap; quarantined tests with reason but no owner or exit condition. |
 
-Apply the two checklists below. Pass 1 findings are BLOCKERS. Pass 2 findings are CONCERNS or NITPICKS based on severity.
+### Phase 4 — Self-Critique
 
-For every category, produce either a finding or a clearance:
+After the initial list, answer five questions:
 
-- **Finding:** `file:line` - problem, why it matters, suggested fix.
-- **Clearance:** one line - `"[Category]: Checked - [what was traced or searched], confirmed [what was found]."`
+1. **Requirement re-check** — proved the actual criterion, or a nearby interaction?
+2. **Flake anchoring** — did the first flake risk skim behavior proof or CI impact?
+3. **Category coverage** — categories without clearances: find or clear.
+4. **Severity check** — still matters if this failed in CI tomorrow? Otherwise downgrade.
+5. **Important-flow check** — did you forgive brittleness because the flow matters? Important flows need *stronger* reliability review, not weaker.
 
-Clearances go in the Coverage section of the final report. They exist so the review is auditable.
-
-#### Pass 1 - Critical (BLOCKERS)
-
-**Requirement Proof**
-
-- Test does not prove the stated acceptance criterion or regression.
-- Final assertion only proves the script reached a page, not that the business outcome occurred.
-- Negative assertion can pass before the UI had a deterministic chance to render the denied/removed state.
-- Mock, fixture, or helper is asserted instead of the user-visible outcome.
-
-**Selector Contract**
-
-- Selector depends on CSS classes, DOM depth, generated IDs, `nth-child`, animation wrappers, or incidental structure.
-- Locator matches multiple elements and chooses `first`, `last`, or `nth` without product meaning.
-- Test ID encodes styling or layout rather than stable product semantics.
-- Copy-based selector is used where copy is not part of the product contract and a role/label/stable test ID is available.
-
-**Synchronization**
-
-- Hard sleep or arbitrary timeout hides an observable condition.
-- Network route/intercept is registered after the action that triggers the request.
-- Test waits for a response but never asserts the user-visible state that follows it.
-- Global timeout increase masks slow or flaky behavior without a specific condition.
-
-**Isolation & Determinism**
-
-- Test depends on order, shared mutable accounts, leaked browser state, real wall-clock time, randomness, or leftover database state.
-- Test cannot run alone, repeated, sharded, or in parallel.
-- Parallel workers share mutable records, inboxes, carts, accounts, feature flags, or environment toggles.
-- Fixture setup/cleanup can leave state that changes the result of later tests.
-
-**Trust Boundaries & Secrets**
-
-- Real third-party service is used when the test does not explicitly claim external integration coverage.
-- Mock bypasses the actual requirement boundary, making the test pass while the integration can be broken.
-- Secrets, tokens, cookies, or PII appear in logs, screenshots, snapshots, videos, traces, or committed fixtures.
-- App code adds test-only behavior to production paths instead of a stable product-facing test seam.
-
-**CI Trust**
-
-- CI cannot provide required service, database state, browser install, env var, feature flag, or artifact path.
-- Retries are used to hide known flake rather than diagnose it.
-- Sharding or parallelism is introduced while tests share mutable state.
-- Failure artifacts are absent for a test whose failure would not be diagnosable from the assertion alone.
-
-#### Pass 2 - Informational (CONCERNS or NITPICKS)
-
-**Behavior Scope**
-
-- E2E layer adds little signal compared with a smaller test, even though it is not dangerous enough to block.
-- Test covers too much unrelated behavior, making failures hard to map to the requirement.
-- UI setup is long and brittle when direct fixture/API setup would express the scenario more clearly.
-
-**Locator Quality**
-
-- Locator is technically stable but less user-facing than local conventions prefer.
-- Accessible locators are treated as full accessibility coverage. They are useful signal, not an audit.
-- Page object or helper hides assertions, swallows useful errors, or turns the test into an unreadable DSL.
-
-**Wait Quality**
-
-- Timeout is locally justified but should be tied to a clearer condition.
-- Polling checks an implementation detail when DOM, URL, network alias, or persisted result would express the user outcome.
-- Cypress action chains are hard to reason about because assertions are chained after state-changing commands.
-
-**Data & Auth**
-
-- Seeded data is broader than the scenario needs.
-- Random data lacks enough traceability to debug failures.
-- Programmatic login/storage state is fine, but the helper name or placement makes it unclear that login is not under test.
-
-**Diagnostics**
-
-- Failure message identifies an element but not the broken behavior.
-- Custom assertion rethrows a generic error and loses the useful runner error.
-- Playwright trace-on-every-test or heavy video retention adds CI cost without matching diagnostic value.
-
-**CI Economics**
-
-- Browser/device matrix is broader than the user risk being protected.
-- Slow test protects real value but should be isolated, tagged, or scheduled so it does not make routine feedback too expensive.
-- Quarantined or skipped test has a reason but no owner or exit condition.
-
-### Phase 4 - Self-Critique
-
-After producing the initial finding list, stop and answer five questions:
-
-1. **Requirement re-check** - did the test prove the actual acceptance criterion, or only a nearby interaction?
-2. **Flake anchoring** - did the first flake risk cause behavior proof or CI impact to be skimmed?
-3. **Category coverage** - list categories without clearances. Go back and either clear them or produce findings.
-4. **Severity check** - would this finding still matter if the test failed in CI tomorrow? If not, downgrade it.
-5. **Important-flow check** - did you forgive brittleness because the test covers an important flow? Important flows need stronger reliability, not weaker review.
-
-Add any new findings to the report and tag them `[self-critique]`.
+Tag surviving new findings `[self-critique]`.
 
 ---
 
-## Suppression List - Do Not Flag
+## Suppression List — Do Not Flag
 
-- API-based or storage-state login when login is not the behavior under test.
-- Stable semantic test IDs used because accessible locators are ambiguous or absent.
+- API-based/storage-state login when login isn't under test.
+- Stable semantic test IDs used because accessible locators are ambiguous/absent.
 - Duplicate setup across tests when it keeps tests independent and readable.
-- Multiple assertions when they prove one user story end state.
-- Browser-specific projects when the requirement is cross-browser behavior.
-- Snapshot or screenshot assertions when visual output is the contract and dynamic regions are controlled.
-- Route mocking when the test is scoped to frontend behavior and the integration point is covered elsewhere.
-- A longer timeout for a specific slow condition when the condition is explicit.
-- A helper/page object that only names stable product interactions and does not hide assertions or waits.
+- Multiple assertions proving one user-story end state.
+- Browser-specific projects when cross-browser behavior is the requirement.
+- Snapshot/screenshot assertions when visual output is the contract and dynamic regions are controlled.
+- Route mocking when scope is frontend and the integration point is covered elsewhere.
+- A longer timeout tied to one explicit slow condition.
+- Helpers naming stable product interactions without hiding assertions/waits.
 
 ---
 
@@ -217,26 +132,17 @@ Add any new findings to the report and tag them `[self-critique]`.
 
 #### 🔍 Coverage
 
-- Requirement Proof: Checked - [what was traced], confirmed [result].
-- Selector Contract: Checked - [what was traced], confirmed [result].
-- Synchronization: Checked - [what was traced], confirmed [result].
-- Isolation & Determinism: Checked - [what was traced], confirmed [result].
-- Trust Boundaries & Secrets: Checked - [what was traced], confirmed [result].
-- CI Trust: Checked - [what was traced], confirmed [result].
+- [Category]: Checked - [what was traced], confirmed [result].
 ```
 
-**Verdict rules:**
-
-- Any BLOCKER → `REQUEST CHANGES`.
-- CONCERNS only, no BLOCKERS → `COMMENT ONLY`, or `APPROVE` if concerns are minor and the test still adds real protection.
-- NITPICKS only → `APPROVE`.
+**Verdict rules:** any BLOCKER → `REQUEST CHANGES`; CONCERNS only → `COMMENT ONLY`, or `APPROVE` if minor and the test adds real protection; NITPICKS only → `APPROVE`.
 
 ---
 
 ## Conduct
 
 - Review the test, not the author.
-- State findings with confidence - either it is a problem with evidence, or it is not worth reporting.
-- Explain the why behind every finding. E2E fixes are expensive; vague feedback wastes time.
-- Praise specific good decisions in WHAT WENT WELL. Vague praise teaches nothing.
-- When the codebase is unavailable or intent is missing, say so in the report footer. Never pretend to have checked what could not be checked.
+- State findings with confidence — evidenced problems or silence.
+- Explain the why behind every finding; E2E fixes are expensive, vague feedback wastes time.
+- Praise specific good design decisions; vague praise teaches nothing.
+- When codebase or intent is unavailable, say so in the footer — never pretend to have checked what couldn't be checked.

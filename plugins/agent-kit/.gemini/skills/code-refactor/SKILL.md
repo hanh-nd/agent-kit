@@ -260,7 +260,7 @@ Halt at Phase 3 and flag these. General "looks good" approval is insufficient.
 
 4. **Cowardly compatibility.** Keeping the old signature plus adding a new helper often preserves the disease. If no hard-stop surface requires compatibility, migrate callers and remove the old shape.
 
-5. **"Unused" that isn't.** A function with no static callers may be reached via DI containers, route registries, plugin loaders, reflection. UNCERTAIN, never deleted.
+5. **"Unused" that isn't.** A function with no static callers may be reached via DI containers, route registries, plugin loaders, reflection. Follows the dynamic-language tier rule above: UNCERTAIN, never deleted without explicit user confirmation.
 
 6. **Defensive-code removal.** A null check that "seems unnecessary" often catches a real production edge case. Require evidence of unreachability, not aesthetic judgment.
 

@@ -46,15 +46,15 @@ Rules:
 
 ### Step 3 — Read design references, then build
 
-Always read first:
-- `references/html-design-guidelines.md` — anti-slop rules, 6 style presets, quality checklist.
+Read as needed (skim; your native design judgment is strong — these files carry the kit's product conventions, not remedial design rules):
+- `references/html-design-guidelines.md` — quality checklist and the kit's style presets.
 - `references/html-css-patterns.md` — theme toggle (MANDATORY), cards, tables, code blocks, Mermaid containers, overflow protection.
 
-Read as needed for the strategy (the strategy file says which):
+Read for the strategy when the strategy file calls for it:
 - `references/html-libraries.md` — Mermaid v11 setup + **"Writing Valid Mermaid"** + theme handling; Chart.js; fonts.
 - `references/html-responsive-nav.md` — sticky table-of-contents for multi-section pages.
 
-Study the matching template under `templates/` (`architecture.html`, `data-table.html`, or `mermaid-flowchart.html`) as a structural starting point — adapt, do not copy verbatim.
+Templates under `templates/` (`architecture.html`, `data-table.html`, `mermaid-flowchart.html`) are structural starting points if helpful — adapt freely or work from scratch; the output contract is what matters, not resemblance to a template.
 
 Then generate following the strategy's section map: **distilled hero on top, full source content inside `<details>` drill-downs below.**
 
@@ -100,7 +100,7 @@ The whole point is to defeat the wall of text. Hold the line:
 - [ ] Theme toggle present as required (light + dark both render).
 - [ ] Distilled hero + `<details>` drill-downs holding full source — not a 1:1 render.
 - [ ] **Squint test:** hierarchy readable at arm's length.
-- [ ] **Slop test:** no forbidden fonts/accents/clichés (see `html-design-guidelines.md`).
+- [ ] **Slop test:** no generic AI-frontend clichés (default gradients, emoji accents, Inter-everywhere) — see `html-design-guidelines.md`.
 - [ ] No horizontal overflow (tables wrapped in a scroll container).
 - [ ] Mermaid diagrams render (zoom controls for 10+ nodes); failed blocks degrade to code, not breakage.
 - [ ] Browser opened, or path printed if open unavailable.

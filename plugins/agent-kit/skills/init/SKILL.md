@@ -1,7 +1,7 @@
 ---
 name: init
 description: Extract a codebase DNA Profile — stack, conventions, patterns — for downstream agents.
-version: 1.0.0
+version: 2.0.0
 providers:
   claude:
     disable-model-invocation: true
@@ -14,188 +14,27 @@ providers:
 
 ## Purpose
 
-Before writing code in an existing project, you need to understand its "culture" —
-the frameworks, patterns, naming conventions, and architectural decisions that make
-code look like it belongs. This skill extracts that understanding into a compact
-DNA Profile (≤ 2,000 tokens) suitable for injection into a coding agent's system prompt.
+Before writing code in an existing project, capture its "culture" — the frameworks, patterns, naming conventions, and architectural decisions that make code look like it belongs. This skill distills that into a compact DNA Profile (≤ 2,000 tokens) suitable for injection into a coding agent's system prompt.
 
-The profile answers one question: **"What does a senior developer who's been on this
-project for 6 months know instinctively that a newcomer doesn't?"**
+The profile answers one question: **"What does a senior developer who's been on this project for 6 months know instinctively that a newcomer doesn't?"**
 
----
+## How to Explore
 
-## How It Works: Three Phases
+You already know how to read a codebase — do it natively, cheaply first:
 
-### Phase 1 — Structural Discovery (shell commands, no file reading)
+1. Map the project shape (directory tree, ecosystem markers, monorepo/workspace layout) without deep-reading files.
+2. Read high-signal metadata: package manifests, language/linter/formatter configs, README, `.gitignore`. Linter and formatter configs are authoritative for style questions — they represent the target state even where existing code violates them.
+3. Then sample representative code: entry points, domain/type definitions, error handling, shared infrastructure (logger, HTTP client, DB setup), one complete route → handler → data path, migrations/schema, one mid-complexity feature module with its test file, CI config.
 
-Map the project shape without reading file contents. This phase is cheap and fast.
+Scale effort to repo size: small projects (<20 source files) can be read in full; very large ones get shallow coverage everywhere plus depth on load-bearing files. Don't burn context inventorying every file — the profile is about patterns, not a file listing.
 
-**Step 1: Get the directory tree.**
+## Synthesis Rules
 
-```bash
-find <project_root> -type f \
-  -not -path '**/node_modules/**' \
-  -not -path '**/.git/**' \
-  -not -path '**/vendor/**' \
-  -not -path '**/dist/**' \
-  -not -path '**/build/**' \
-  -not -path '**/__pycache__/**' \
-  -not -path '**/target/**' \
-  -not -path '**/.next/**' \
-  -not -path '**/coverage/**' \
-  -not -name '*.lock' \
-  -not -name '*.map' \
-  | head -500
-```
-
-If the project has more than 500 files, also run a directory-only tree (depth 3) to see the top-level organization:
-
-```bash
-find <project_root> -type d -maxdepth 3 \
-  -not -path '**/node_modules/**' \
-  -not -path '**/.git/**' \
-  -not -path '**/vendor/**' \
-  -not -path '**/dist/**' \
-  | sort
-```
-
-**Step 2: Identify the primary language ecosystem.**
-
-Look for ecosystem marker files at the project root:
-
-| Marker File                                      | Ecosystem                    |
-| ------------------------------------------------ | ---------------------------- |
-| `package.json`                                   | JavaScript/TypeScript (Node) |
-| `pyproject.toml`, `setup.py`, `requirements.txt` | Python                       |
-| `go.mod`                                         | Go                           |
-| `Cargo.toml`                                     | Rust                         |
-| `pom.xml`, `build.gradle`, `build.gradle.kts`    | Java/Kotlin (JVM)            |
-| `Gemfile`                                        | Ruby                         |
-| `composer.json`                                  | PHP                          |
-| `*.csproj`, `*.sln`                              | C# (.NET)                    |
-| `mix.exs`                                        | Elixir                       |
-| `pubspec.yaml`                                   | Dart/Flutter                 |
-
-If multiple markers exist at root, this is a polyglot project — note each ecosystem
-and scan each independently. For monorepos, identify sub-projects by looking for
-nested ecosystem markers.
-
-**Step 3: Detect monorepo structure.**
-
-Signs of monorepo: `packages/`, `apps/`, `services/`, `libs/` directories at root;
-or a workspace config (`pnpm-workspace.yaml`, `lerna.json`, `turbo.json`,
-Cargo workspace in `Cargo.toml`, Go workspace `go.work`). If monorepo detected,
-list each workspace member and treat the largest or most representative as primary
-scan target. Note the monorepo tooling in the profile.
-
----
-
-### Phase 2 — High-Signal File Reading (tiered, budget-aware)
-
-Now read files. There are three tiers ordered by information density.
-Read all of Tier 1 (cheap). Read Tier 2 selectively. Read Tier 3 only if budget remains.
-
-**Total token budget for Phase 2: ~20,000 input tokens.**
-Track approximate consumption. If approaching budget, skip remaining Tier 3 files.
-
-#### Tier 1 — Project Metadata (~3,000 tokens)
-
-Always read these. They are small and extremely information-dense.
-
-- **Package manifest**: `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, etc.
-  → Extract: dependencies, scripts/commands, project name, version.
-- **Language config**: `tsconfig.json`, `rustfmt.toml`, `.editorconfig`, `setup.cfg`, etc.
-  → Extract: strictness level, path aliases, target version.
-- **Linter/formatter config**: `.eslintrc*`, `.prettierrc*`, `ruff.toml`, `.rubocop.yml`, etc.
-  → Extract: enforced style rules, disabled rules (reveals intentional deviations).
-- **README.md** (first 200 lines only): → Extract: project description, setup instructions, architectural overview if present.
-- **.gitignore**: → Extract: what's generated vs. authored, environment patterns.
-
-#### Tier 2 — Architecture Signals (~10,000 tokens)
-
-Read selectively based on Phase 1 findings. Goal: understand the structural patterns.
-
-**Entry points** (read 1-2):
-Find `main.*`, `app.*`, `index.*`, `server.*` at the project or `src/` root.
-These reveal: bootstrap sequence, middleware chain, dependency wiring, top-level error handling.
-
-**Type definitions / Domain models** (read 2-3 representative files):
-Find files in `types/`, `models/`, `entities/`, `schemas/`, `domain/` or files named
-`*.types.*`, `*.model.*`, `*.entity.*`, `*.dto.*`.
-These reveal: business terminology (the Nomenclature/Glossary), data shapes, validation approach.
-
-**Error handling** (read 1-2):
-Find files with `error`, `exception`, `fault`, `failure` in the name.
-These reveal: error strategy (Result objects, custom exceptions, error codes, error envelopes).
-
-**Shared infrastructure** (read 2-3):
-Look in `utils/`, `common/`, `shared/`, `lib/`, `infrastructure/`, `core/`.
-Prioritize: logger setup, HTTP client wrapper, auth utilities, database connection setup.
-These reveal: observability patterns, cross-cutting conventions.
-
-**API layer** (read 1-2 complete endpoints):
-Find route definitions, controllers, or handler files. Read one complete request path
-from route → handler → service → data access if that layering exists.
-These reveal: API style (REST/GraphQL/RPC), request/response envelope, validation flow,
-middleware chain, auth pattern.
-
-**Database layer** (read 1-2):
-Migration files (latest 1-2), schema definitions, ORM config.
-These reveal: data model, naming conventions for DB objects, migration tooling.
-
-#### Tier 3 — Representative Samples (~7,000 tokens)
-
-Only read if token budget remains. Goal: see a complete feature implementation.
-
-**One complete feature module**: Pick a module/feature that appears well-established
-(not the simplest CRUD, not the most complex — something mid-complexity).
-Read: the main source file + its test file.
-
-**Test file**: Read 1 test file that corresponds to a Tier 2 source file.
-These reveal: test framework, mocking strategy, test naming conventions, assertion style,
-fixture patterns.
-
-**CI/CD config** (read 1):
-`.github/workflows/*.yml`, `.gitlab-ci.yml`, `Jenkinsfile`, `Dockerfile`.
-These reveal: build process, deployment target, environment management, quality gates.
-
----
-
-### Phase 3 — Synthesis
-
-From everything read in Phase 2, produce the DNA Profile. Follow the output template
-below exactly. Every field must be filled or explicitly marked `[Not detected]`.
-Do not invent information — only report what the code evidence supports.
-
-**Critical rules for synthesis:**
-
-1. **Be specific, not generic.** "Uses error handling" is worthless. "Custom AppException
-   with errorCode enum, caught by global ExceptionFilter, returned as
-   `{ error: { code, message, details } }`" is useful.
-
-2. **Include concrete examples.** For naming conventions, show actual names from the code.
-   For patterns, reference actual file paths.
-
-3. **Flag uncertainty.** If a pattern was observed in only 1 file, note it:
-   "(observed in `user.service.ts`, may not be universal)".
-
-4. **Detect legacy vs. current patterns.** If you see two conflicting patterns
-   (e.g., callbacks AND async/await), check which appears in newer files.
-   Heuristics for "newer":
-   - Files in directories that appear actively developed (more files, recent naming patterns)
-   - Patterns used in the entry point or bootstrap code (usually kept current)
-   - Patterns matching the linter/formatter config (the config represents the target state)
-   - If available, `git log --oneline -1 <file>` on conflicting files to compare recency
-
-   Report the current pattern as primary and note the legacy pattern as a warning:
-   "⚠ Legacy: some older files use callbacks (e.g., `legacy/mailer.js`). Follow async/await."
-
-5. **Stay under 2,000 tokens.** This profile will be injected into a system prompt.
-   Every token over budget steals from the coding agent's working memory.
-   Be terse. Use sentence fragments. Skip obvious things (don't say "uses npm" if
-   package.json already implies it).
-
----
+1. **Be specific, not generic.** "Uses error handling" is worthless. "Custom AppException with errorCode enum, caught by global ExceptionFilter, returned as `{ error: { code, message, details } }`" is useful.
+2. **Include concrete evidence.** Real names from the code; real paths for patterns.
+3. **Flag uncertainty.** A pattern seen once gets "(observed in `user.service.ts`, may not be universal)".
+4. **Resolve legacy vs current.** Two conflicting patterns? The newer wins: check which appears in actively developed directories, entry-point/bootstrap code, and linter config; `git log -1 <file>` settles recency when available. Report the current pattern as primary and the legacy one as a warning.
+5. **Stay under 2,000 tokens.** Every token over budget steals from the coding agent's working memory. Be terse; use fragments; skip anything the manifest already implies.
 
 ## Output Template
 
@@ -268,10 +107,6 @@ Do not invent information — only report what the code evidence supports.
 [3-7 bullet points of things that WILL cause a PR rejection if violated.
 These are the highest-value items in the entire profile.]
 
-- [Rule 1]
-- [Rule 2]
-- ...
-
 ## ⚠ Legacy Warnings
 
 [Patterns observed in older code that should NOT be followed]
@@ -279,57 +114,25 @@ These are the highest-value items in the entire profile.]
 - [Legacy pattern]: [what to do instead] (seen in: [file paths])
 ```
 
----
+Every field is filled or explicitly marked `[Not detected]`. Only report what code evidence supports.
+
+## What NOT to Include
+
+- **Obvious defaults.** Don't say "uses npm" for a Node project.
+- **Dependency lists.** Only libraries that change how you write code ("uses Zod for validation").
+- **File-by-file descriptions.**
+- **Aspirational statements.** What the code does, not what READMEs say it should do.
 
 ## Edge Cases
 
-### Monorepo with multiple apps
+- **Monorepo, multiple apps:** scan shared packages first, then the most representative app; produce one profile per distinct app type if they differ significantly.
+- **Minimal/new project:** note that conventions aren't established yet rather than inventing patterns.
+- **No tests:** report `[No tests detected]` — important information for downstream agents, don't assume a testing pattern.
+- **Config enforces rules code violates:** config is primary; violations are legacy warnings.
 
-Scan the shared/common packages first (they define cross-cutting conventions),
-then scan the most representative app. Produce one profile per distinct app type
-if they differ significantly (e.g., a Go backend + React frontend in the same repo).
+## Handoff
 
-### Minimal or new project
-
-If the project has < 20 source files, read all of them (skip tiering).
-If config files are mostly defaults, note this — the project may not have established
-conventions yet. Say so in the profile rather than inventing patterns.
-
-### No tests found
-
-Report `[No tests detected]` — do not assume a testing pattern. This is important
-information for the coding agent (it may need to set up testing infrastructure).
-
-### Conflicting patterns (ongoing refactor)
-
-If linter config enforces rules that existing code violates, the config represents
-the target state. Report the config's rules as primary conventions and the violations
-as legacy warnings.
-
-### Very large codebase (>1000 files)
-
-Stick strictly to the token budget. Focus Tier 2 reading on `src/` or the primary
-source directory. Skip test files in Tier 2 and rely on Tier 3 for test pattern detection.
-If the directory tree alone exceeds 300 lines, summarize it rather than including it
-in your working context.
-
----
-
-## What NOT to Include in the Profile
-
-- **Obvious defaults.** Don't say "uses npm" for a Node project, "uses pip" for Python.
-- **Dependency lists.** The full list is in the manifest. Only mention libraries that
-  affect coding patterns (e.g., "uses Zod for validation" changes how you write schemas).
-- **File-by-file descriptions.** The profile is about patterns, not inventory.
-- **Aspirational statements.** Only report what the code currently does, not what
-  READMEs say it "should" do (unless code matches).
-- **Anything that inflates token count without being actionable** for a coding agent.
-
----
-
-### Phase 4 — Handoff
-
-From the output of Phase 3, save the DNA profile to `.agent-kit/project.md` and output:
+Save the profile to `.agent-kit/project.md` and output:
 
 ```
 ✅ DNA profile saved to .agent-kit/project.md.

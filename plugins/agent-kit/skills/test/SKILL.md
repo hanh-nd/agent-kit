@@ -1,7 +1,7 @@
 ---
 name: test
 description: 'Add or update tests given an existing implementation plan or WBS.'
-version: 1.0.0
+version: 2.0.0
 providers:
   claude:
     effort: medium
@@ -18,6 +18,8 @@ providers:
 A test is meaningful only if it protects a behavior contract, a failure mode, or a past bug. Coverage is a byproduct, not the goal.
 
 A good unit test is a **behavior sensor**: it should fail only when a meaningful behavior changes, and the failure should point to the broken contract without requiring the reader to mentally execute the implementation.
+
+**Minimality principle:** write the fewest test cases that cover the most scenarios. Every scenario class (happy path, boundary, failure, regression) needs exactly one representative proof — not one test per input, per method, or per branch. When several inputs exercise the same behavior, one parameterized case proves them all; when two tests would fail for the same reason, delete one.
 
 This skill adds or updates tests. It does not change production behavior except for minimal testability seams that already exist in the plan or Investigation Report.
 
@@ -51,6 +53,7 @@ Use this contract to keep the skill predictable:
 - **Escalate once:** if the contract and code disagree, make one focused check against the source artifact or caller behavior. If still unresolved, stop and route to `clarify`, `plan`, or `investigate` rather than writing assumption-driven tests.
 - **Safe vs unsafe autonomy:** choose test names, fixtures, and assertions autonomously when behavior is specified. Ask the user only when expected behavior is a business decision or when adding a required testability seam would alter production design.
 - **Instruction conflicts:** if coverage pressure conflicts with signal quality, signal quality wins. If existing local style conflicts with this skill, preserve local framework conventions while keeping the proof obligation behavioral.
+- **Style is law:** tests follow the project's existing coding style at all times — mirror the naming, structure, assertion idioms, fixture patterns, and formatting of surrounding test files and the production code they exercise. Never impose your own preferred style on a codebase with established conventions.
 - **Completion:** finish only when each added test maps to a proof obligation, rejected candidates are explained, and verification has been run or explicitly bounded.
 
 ## Workflow
@@ -115,18 +118,18 @@ Parameterized tests are fine when every row proves the same behavior. If rows pr
 
 ### Phase 5: Minimal Set
 
-Write the smallest useful set:
+Apply the minimality principle: the fewest cases that cover the most scenarios.
 
 - one happy path if not already covered
-- one to three meaningful edge or failure cases
+- one to three meaningful edge or failure cases — each proving a *distinct* scenario class
 - one regression case for an Investigation Report
-- no exhaustive matrix unless the domain truly requires it
+- no exhaustive matrix unless the domain truly requires it; parameterize when multiple inputs share one behavior
 
 For characterization before refactor, lock the externally observed behavior, not incidental formatting, call order, or private decomposition.
 
 ### Phase 6: Implement & Verify
 
-Read nearby tests first and mirror naming, setup, mocking, fixtures, and assertion style. Add tests beside the existing test surface unless the repository has a clear central convention.
+Read nearby tests first and follow their style exactly — naming, setup, mocking, fixtures, and assertion idioms. Match the production code's conventions too. Add tests beside the existing test surface unless the repository has a clear central convention.
 
 Before running, perform a signal audit:
 

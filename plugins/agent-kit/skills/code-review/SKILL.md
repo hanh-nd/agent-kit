@@ -1,7 +1,7 @@
 ---
 name: code-review
 description: Rigorous semantic code review of features, PRs, commits, or diffs with evidence-backed findings. Catches critical issues (data safety, concurrency, trust boundaries, destructive ops) and informational concerns (dead code, test parity, magic values). Language- and domain-agnostic. Also loadable as a sub-skill by review orchestrators.
-version: 3.0.0
+version: 3.1.0
 providers:
   claude:
     effort: high
@@ -21,174 +21,98 @@ A finding without evidence is a guess. A category without a clearance is a skipp
 Three things are required before review. If a parent pipeline invoked this skill, it supplies them. If invoked directly, request whatever is missing:
 
 1. **The diff** — actual code changes, as unified diff or equivalent.
-2. **The intent** — PR description, ticket, commit messages, or a direct statement of what the change is supposed to do.
-3. **Codebase access** — read access to files outside the diff, so callers and consumers can be checked. Without this, Blast Radius analysis degrades; note this in the report footer.
+2. **The intent** — PR description, ticket, commit messages, or a direct statement of purpose.
+3. **Codebase access** — read access beyond the diff, so callers and consumers can be checked. Without it, blast-radius analysis degrades; note this in the report footer.
 
 If intent cannot be recovered, prepend to the final report:
 
 > ⚠️ No stated intent (no PR description, ticket, or commit message). Reviewing technical semantics only. Scope Drift cannot be assessed.
 
-If the diff primarily changes Playwright, Cypress, browser automation, E2E fixtures, visual regression, accessibility automation, or E2E CI configuration, route to `e2e-review` using the same diff, intent, and codebase access. If the diff mixes production code and E2E changes, review production code here and apply `e2e-review` to the E2E portion, then combine the verdicts.
+If the diff primarily changes Playwright/Cypress/browser automation/E2E fixtures/visual regression/accessibility automation/E2E CI config → route to `e2e-review` with the same inputs. Mixed diffs → production portion here, E2E portion there, combine verdicts.
 
 ---
 
 ## Execution — Four Ordered Phases
 
-Run all four phases in order. Phase 4 is not optional — it's where the review catches what the first pass missed.
+Run all four in order. Phase 4 is where the review catches what the first pass missed.
 
 ### Phase 1 — Identify the Review Unit
 
-Before touching any checklist, identify the feature, behavior, or contract this diff changes. The review unit is semantic, not file-based: CLI command, route, service, library export, data model, workflow, state machine, background job, UI interaction, or other externally meaningful behavior. The diff is evidence inside that unit, not the unit itself.
+Before any checklist, identify the feature, behavior, or contract this diff changes — semantic, not file-based: CLI command, route, service, library export, data model, workflow, state machine, background job, UI interaction. Build a compact **Review Unit Map**:
 
-Build a compact **Review Unit Map**:
+- **Review Unit:** the feature/behavior being changed.
+- **Entrypoints:** commands, routes, exports, handlers, jobs, components, public methods, schemas, events, config keys exposing it.
+- **Owned Files:** changed files implementing the unit.
+- **Context Files:** unchanged files defining invariants, tests, consumers, trust boundaries.
+- **External Consumers:** callers/imports/API clients/UI mappings/docs/migrations relying on its observable contract.
+- **Trust Boundaries:** user/network input, LLM output, webhooks, queues, uploads, secrets, persistence, shells touched by the unit.
 
-- **Review Unit:** the feature or behavior being changed.
-- **Entrypoints:** commands, routes, exports, handlers, jobs, components, public methods, schemas, events, or config keys that start or expose the behavior.
-- **Owned Files:** changed files that implement the unit.
-- **Context Files:** unchanged files needed to understand the unit's behavior, invariants, tests, consumers, or trust boundaries.
-- **External Consumers:** callers, imports, API clients, UI mappings, docs, migrations, fixtures, or downstream code that relies on the unit's observable contract.
-- **Trust Boundaries:** user input, network input, LLM output, webhooks, queues, uploads, secrets, persistence, shells, interpreters, or other boundary crossings touched by the unit.
+Then assess:
 
-- What is the stated intent? (one sentence from ticket/PR description)
-- What feature behavior does the diff actually change? (one sentence synthesizing the semantic change)
-- Do these match?
-
-Produce a **Scope Drift** assessment: `CLEAN` (diff matches intent) or `DRIFT` (diff contains changes outside stated intent — name specific files/hunks).
-
-Unrelated changes smuggled into an otherwise-legitimate PR are a real problem: they expand blast radius, bypass review focus, and correlate with incident-causing bugs. Flag drift even when the drift itself looks harmless.
-
-Also assess **Reviewability**: can this change be reviewed honestly as one logical unit? If the diff mixes feature work with broad refactoring, spans unrelated ownership areas, or is so large that category coverage would become performative, flag it as a BLOCKER and recommend a split. Large deletions, generated files, and mechanical refactors can remain reviewable when the intent and verification path are clear.
+- **Scope Drift** — stated intent vs actual semantic change: `CLEAN` or `DRIFT` (name specific hunks). Smuggled-in unrelated changes expand blast radius and correlate with incident-causing bugs — flag drift even when the drift looks harmless.
+- **Reviewability** — can this be honestly reviewed as one logical unit? Mixed feature work + broad refactoring, unrelated ownership areas, or size making coverage performative → BLOCKER recommending a split. Large deletions, generated files, mechanical refactors stay reviewable when intent and verification are clear.
 
 ### Phase 2 — Build Feature Context
 
-Read in this order:
+Read in order: tests for the unit → owned files → context files (invariants, validation, permissions, persistence, error handling) → external consumers whose assumptions could break.
 
-1. Tests for the review unit, when present.
-2. Owned files from the diff.
-3. Context files that define invariants, validation, permissions, persistence, error handling, or boundary behavior.
-4. External consumers whose assumptions could be invalidated.
+For every changed contract observable outside the diff — signatures, exports, enum values, state transitions, DB columns, API schemas, event payloads, route behavior, config keys, persisted formats — search the codebase for consumers. A consumer outside the diff not updated to match = **BLOCKER**; the change is incomplete. Brand-new symbols with no consumers yet: record that you checked.
 
-Review the feature as behavior, not as changed hunks. For every changed symbol or contract observable outside the diff — function signatures, exported constants, enum values, state machine transitions, public methods, database columns, API schemas, event payloads, route behavior, CLI flags, config keys, or persisted formats — search the codebase for consumers.
-
-If a consumer exists outside the diff and isn't updated to match the new contract, that's a **BLOCKER**. The PR is incomplete. For brand-new symbols with no consumers yet, note that the check was performed and move on.
-
-Most regression bugs don't live in the changed lines. They live in callers that silently assumed the old behavior.
+Most regression bugs don't live in the changed lines — they live in callers that silently assumed the old behavior.
 
 ### Phase 3 — Category Sweep
 
-Apply each category to the whole review unit: entrypoints, owned files, context files, consumers, and trust boundaries. Findings may be anchored in changed lines or unchanged context, but they must explain how the diff makes the feature unsafe, incomplete, misleading, or less maintainable.
+Apply every category to the whole review unit. Findings may anchor in unchanged context, but must explain how the diff makes the feature unsafe, incomplete, misleading, or less maintainable. Tests are evidence of intended behavior: contradicting tests downgrade confidence unless the test itself is wrong. Absent tests → evaluate Test Parity explicitly.
 
-When tests are present, treat them as evidence for intended behavior, boundary cases, and the author's verification story. If tests directly contradict a suspected finding, downgrade confidence or skip the finding unless the test itself is wrong or incomplete. If tests are absent, continue the review and evaluate Test Parity explicitly.
-
-Apply the two checklists below. Pass 1 findings are BLOCKERS. Pass 2 findings are CONCERNS or NITPICKS based on severity.
-
-For every category, produce either a finding or a clearance:
-
+For every category produce either:
 - **Finding:** `file:line` — problem, why it matters, suggested fix.
-- **Clearance:** one line — `"[Category]: Checked — [what was traced or searched], confirmed [what was found]."`
-
-Clearances go in the Coverage section of the final report. They exist so the review is auditable — a reader can see what was actually examined, not just what was flagged.
+- **Clearance:** `"[Category]: Checked — [what was traced], confirmed [what was found]."` — goes in Coverage so the review is auditable.
 
 #### Pass 1 — Critical (→ BLOCKERS)
 
-**Injection & Untrusted Input**
-
-- Untrusted input flowing into an interpreter (query languages, shells, templating engines, deserializers, dynamic code execution, regex constructed at runtime) without parameterization, escaping, or schema validation.
-- Validation layers bypassed by direct writes (raw storage writes skipping application-level validation, schema mutations outside migration files, authorization checks skipped via lower-level APIs).
-
-**Concurrency & Atomicity**
-
-- Check-then-act patterns on shared state that should be atomic.
-- Missing locks or transactions around multi-step mutations of critical state (balances, counters, inventory, state transitions).
-- Non-idempotent operations that can be retried or run concurrently. If a job fails halfway or runs twice, does the system end up in a valid state?
-
-**Trust Boundaries**
-
-- Output from external systems (LLMs, remote APIs, webhooks, message queues, user uploads) parsed, persisted, or executed without schema validation.
-- Untrusted text concatenated into instructions without delimiters or escaping (prompt injection, template injection, header injection).
-- Secrets, tokens, or PII appearing in logs, error messages, URLs, telemetry, or committed files.
-
-**State Completeness**
-
-- New enum value, state, status, event type, error code, feature flag, or configuration key introduced without updating every consumer that must handle it. Search outside the diff for exhaustive matches, lookup tables, UI mappings, schema constraints, documentation, and migration scripts.
-
-**Destructive & Irreversible Operations**
-
-- Deletes, truncates, schema changes, or data migrations without rollback paths, safeguards, dry-run modes, or recovery plans.
-- Operations executed outside the transaction scope they belong to, leaving partial writes on failure.
-
-**Error Handling That Hides Failures**
-
-- Broad exception catches that swallow errors which should propagate.
-- Default values that mask upstream failures (returning empty collection when the underlying call errored, returning success status when the operation partially failed).
-- Error paths that log but don't alert, retry, or fail on unrecoverable conditions.
+| Category | What blocks merge |
+|---|---|
+| **Injection & Untrusted Input** | Untrusted input reaching an interpreter (queries, shells, templating, deserialization, dynamic execution, runtime-built regex) without parameterization/escaping/schema validation; validation layers bypassed by direct low-level writes. |
+| **Concurrency & Atomicity** | Check-then-act on shared state needing atomicity; missing locks/transactions around multi-step mutations of critical state; non-idempotent operations that can retry or run concurrently. |
+| **Trust Boundaries** | External output (LLMs, APIs, webhooks, queues, uploads) consumed without schema validation; untrusted text concatenated into instructions; secrets, tokens, or PII in logs, errors, URLs, telemetry, or committed files. |
+| **State Completeness** | New enum value, state, event type, error code, flag, or config key without every consumer updated — searched exhaustively outside the diff (lookups, UI mappings, schema constraints, docs, migrations). |
+| **Destructive & Irreversible Ops** | Deletes, truncates, schema changes, migrations without rollback paths, safeguards, dry-run modes, or recovery; partial writes left by ops escaping transaction scope. |
+| **Error Handling That Hides Failures** | Broad catches swallowing what should propagate; defaults masking upstream failures (empty collection on error, success status on partial failure); error paths that log but don't alert, retry, or fail. |
 
 #### Pass 2 — Informational (→ CONCERNS or NITPICKS)
 
-**Logic & Correctness**
-
-- Missing branches, off-by-one conditions, inverted comparisons, vacuously true or unreachable conditions.
-- Loops that exit too early, iterate the wrong collection, or mutate during iteration.
-- Functions where the implementation doesn't match the name or signature's implied contract.
-
-**Hidden Side Effects**
-
-- State mutations inside functions that appear to be pure readers, validators, or getters.
-- Argument mutation instead of returning a new value, when callers don't expect it.
-- I/O, logging, or telemetry inside code paths advertised as pure.
-
-**Magic Values**
-
-- Hardcoded numbers or strings in conditional logic that should be named constants, enums, or configuration.
-- Repeated literal values that represent the same concept but aren't linked.
-
-**Dead Code & Debug Residue**
-
-- Unused variables, parameters, imports, or exports.
-- Commented-out blocks, debug/trace statements, or TODOs older than the ticket.
-- Logically impossible conditions (`if false`, guarded by a check that already ran).
-
-**Test Parity**
-
-- New logic paths without tests. Every non-trivial branch should have coverage.
-- Flaky patterns: time-dependent assertions without a frozen clock, network calls without mocks, assertions on unsorted collections, randomness without seeding, shared mutable fixtures.
-- Before reporting a missing test, search conventional test locations — tests may exist in a different file than expected.
-
-**Performance Hotspots**
-
-- Repeated work inside loops, render paths, or request handlers that could be hoisted or memoized.
-- Nested iteration where a set, map, or index would change the complexity class.
-- Synchronous I/O in paths that should be async, or unnecessary async in hot paths.
-- Large payloads fetched when a field projection would suffice.
-
-**Naming & Clarity**
-
-- Names that lie: a function named `validate` that also mutates, a flag `isEnabled` with inverted semantics, a variable named for its type rather than its role.
-- Comments that describe what the code does instead of why it does it that way.
-- Over-abstracted interfaces introduced for a single current caller.
+| Category | What to weigh |
+|---|---|
+| **Logic & Correctness** | Missing branches, off-by-one, inverted comparisons, unreachable conditions, implementation contradicting name/signature's implied contract. |
+| **Hidden Side Effects** | Mutations inside apparent readers/validators/getters; argument mutation callers don't expect; I/O in paths advertised as pure. |
+| **Magic Values** | Hardcoded literals in conditional logic deserving named constants/config; repeated literals representing one concept. |
+| **Dead Code & Debug Residue** | Unused variables/params/imports/exports; commented-out blocks; stale debug statements; logically impossible branches. |
+| **Test Parity** | New logic paths without tests; flaky patterns (unfrozen clocks, network without mocks, shared fixtures); search conventional locations before reporting missing tests. |
+| **Performance Hotspots** | Repeated work in loops/render/request paths hoistable or memoizable; nested iteration where an index changes complexity class; sync I/O in async paths; oversized payloads vs field projection. |
+| **Naming & Clarity** | Names that lie (`validate` that mutates, inverted `isEnabled`); "What" comments; over-abstraction for a single caller. |
 
 ### Phase 4 — Self-Critique
 
-After producing the initial finding list, stop and answer four questions:
+After the initial finding list, answer four questions:
 
-1. **Review-unit check** — did the review cover the feature behavior, or only the changed hunks? Revisit entrypoints, context files, consumers, and trust boundaries that received little attention.
-2. **Anchoring check** — did the first interesting bug cause other files or parts of the feature to be skimmed? Re-examine the least-reviewed parts of the unit.
-3. **Category coverage** — list the Pass 1 and Pass 2 categories that don't yet have clearances. Go back and either clear them or produce findings.
-4. **Intent re-check** — re-read the ticket/PR description with the review unit in hand. Is there anything the ticket required that the diff doesn't address?
+1. **Review-unit check** — covered the feature behavior, or only changed hunks? Revisit under-examined entrypoints, context files, consumers, boundaries.
+2. **Anchoring check** — did the first interesting bug cause skimming elsewhere? Re-examine least-reviewed parts.
+3. **Category coverage** — which Pass 1/Pass 2 categories lack clearances? Go back: find or clear.
+4. **Intent re-check** — re-read the ticket/PR description with the review unit in hand. Anything required but unaddressed?
 
-Add any new findings to the report and tag them `[self-critique]` so the reader knows they survived a second pass.
+Tag surviving new findings `[self-critique]`.
 
 ---
 
 ## Suppression List — Do Not Flag
 
-- Redundancy that aids readability (e.g., a nil-check before a length check).
-- Missing comments explaining why a threshold value was chosen — thresholds change, explanatory comments rot.
-- Tests that cover multiple guard clauses in a single assertion.
+- Redundancy that aids readability (nil-check before length check).
+- Missing comments explaining threshold values — thresholds change, explanatory comments rot.
+- Tests covering multiple guard clauses in one assertion.
 - Harmless no-ops.
-- Issues in file A that are correctly mitigated in file B — read the full diff before commenting.
-- Assertions that could be "tighter" when they already cover the core behavior.
-- Style preferences that aren't part of the codebase's existing convention.
+- Issues in file A correctly mitigated in file B — read the full diff before commenting.
+- Assertions that could be "tighter" when they already cover core behavior.
+- Style preferences outside the codebase's existing convention.
 
 ---
 
@@ -225,22 +149,16 @@ Add any new findings to the report and tag them `[self-critique]` so the reader 
 #### 🔍 Coverage
 
 - [Category]: Checked — [what was traced], confirmed [result].
-- [Category]: Checked — [what was traced], confirmed [result].
-- …
 ```
 
-**Verdict rules:**
-
-- Any BLOCKER → `REQUEST CHANGES`.
-- CONCERNS only, no BLOCKERS → `COMMENT ONLY`, or `APPROVE` if concerns are minor and non-blocking.
-- NITPICKS only → `APPROVE`.
+**Verdict rules:** any BLOCKER → `REQUEST CHANGES`; CONCERNS only → `COMMENT ONLY`, or `APPROVE` if minor and non-blocking; NITPICKS only → `APPROVE`.
 
 ---
 
 ## Conduct
 
 - Review the code, not the author.
-- State findings with confidence — either it is a problem with evidence, or it isn't worth reporting.
+- Findings carry confidence: either evidenced problems worth reporting, or silence.
 - Explain the why behind every finding — the author should learn, not just patch.
-- Praise specific good decisions in WHAT WENT WELL. Vague praise teaches nothing.
-- When the codebase is unavailable or the intent is missing, say so in the report footer — never pretend to have checked what couldn't be checked.
+- Praise specific good decisions; vague praise teaches nothing.
+- When codebase or intent is unavailable, say so in the report footer — never pretend to have checked what couldn't be checked.
