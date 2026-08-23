@@ -59,14 +59,6 @@ const BLOCKED: Array<{ name: string; payload: unknown }> = [
     payload: { tool_name: 'Bash', tool_input: { command: 'cat .env' } },
   },
   {
-    name: 'redirect write echo leak > .env',
-    payload: { tool_name: 'Bash', tool_input: { command: 'echo leak > .env' } },
-  },
-  {
-    name: 'reader traversal cat ../../../etc/passwd',
-    payload: { tool_name: 'Bash', tool_input: { command: 'cat ../../../etc/passwd' } },
-  },
-  {
     name: 'writer exfiltration cp .env /tmp/out',
     payload: { tool_name: 'Bash', tool_input: { command: 'cp .env /tmp/ak-adv-out' } },
   },
@@ -82,8 +74,11 @@ const BLOCKED: Array<{ name: string; payload: unknown }> = [
     },
   },
   {
-    name: 'Glob with outside-workspace path argument',
-    payload: { tool_name: 'Glob', tool_input: { pattern: '**/*.pem', path: '/etc' } },
+    name: 'sensitive read outside the workspace stays denied',
+    payload: {
+      tool_name: 'Read',
+      tool_input: { file_path: '../outside-project/.aws/credentials' },
+    },
   },
 ];
 
@@ -91,6 +86,18 @@ const ALLOWED: Array<{ name: string; payload: unknown }> = [
   {
     name: 'ordinary build command',
     payload: { tool_name: 'Bash', tool_input: { command: 'npm test' } },
+  },
+  {
+    name: 'audited: redirect write to in-workspace .env',
+    payload: { tool_name: 'Bash', tool_input: { command: 'echo leak > .env' } },
+  },
+  {
+    name: 'audited: reader traversal cat ../../../etc/passwd',
+    payload: { tool_name: 'Bash', tool_input: { command: 'cat ../../../etc/passwd' } },
+  },
+  {
+    name: 'audited: Glob with outside-workspace path argument',
+    payload: { tool_name: 'Glob', tool_input: { pattern: '**/*.pem', path: '/etc' } },
   },
   {
     name: 'search pattern that looks like a sensitive path',

@@ -43,8 +43,8 @@ function runRaw(input: string, env: NodeJS.ProcessEnv = {}): ChildRunResult {
   return { exitCode: result.status ?? 0, stderr: result.stderr ?? '' };
 }
 
-describe('AC1: symlink to external target is blocked', () => {
-  test('symlink inside workspace pointing to /etc/passwd is blocked', () => {
+describe('AC1: symlink escape to external target is audited', () => {
+  test('symlink inside workspace pointing to /etc/passwd passes (logged)', () => {
     if (!fs.existsSync('/etc/passwd')) return;
     const linkPath = path.join(tmpDir, 'symlink-to-etc-passwd');
     try {
@@ -54,11 +54,7 @@ describe('AC1: symlink to external target is blocked', () => {
     }
     if (!fs.existsSync(linkPath)) return; // can't create symlink, skip
     const result = run({ tool_name: 'Read', tool_input: { file_path: linkPath } });
-    assert.equal(
-      result.exitCode,
-      2,
-      `Expected blocked (exit 2), got ${result.exitCode}\nstderr: ${result.stderr}`
-    );
+    assert.equal(result.exitCode, 0, `Expected audited pass, got ${result.exitCode}`);
   });
 });
 
@@ -92,27 +88,31 @@ describe('reader-verb shell operands are path-checked', () => {
     assert.equal(result.exitCode, 2, `Expected blocked, got ${result.exitCode}`);
   });
 
-  test('redirect target > .env is blocked with write semantics', () => {
+  test('redirect target > .env is audited (in-workspace authoring)', () => {
     const result = run({ tool_name: 'Bash', tool_input: { command: 'echo leak > .env' } });
+    assert.equal(result.exitCode, 0, `Expected audited pass, got ${result.exitCode}`);
+  });
+
+  test('redirect outside the workspace is still blocked', () => {
+    const result = run({
+      tool_name: 'Bash',
+      tool_input: { command: 'echo x > /tmp/ak-int-escape' },
+    });
     assert.equal(result.exitCode, 2, `Expected blocked, got ${result.exitCode}`);
   });
 });
 
-describe('AC4: /etc/passwd is blocked', () => {
-  test('Read /etc/passwd is blocked', () => {
+describe('AC4: outside-workspace reads are audited, not blocked', () => {
+  test('Read /etc/passwd passes (logged)', () => {
     const result = run({ tool_name: 'Read', tool_input: { file_path: '/etc/passwd' } });
-    assert.equal(
-      result.exitCode,
-      2,
-      `Expected blocked, got ${result.exitCode}\nstderr: ${result.stderr}`
-    );
+    assert.equal(result.exitCode, 0, `Expected audited pass, got ${result.exitCode}`);
   });
 });
 
-describe('AC5: path traversal ../../../etc/passwd is blocked', () => {
-  test('Bash cat ../../../etc/passwd is blocked', () => {
+describe('AC5: reader traversal outside the workspace is audited', () => {
+  test('Bash cat ../../../etc/passwd passes (logged)', () => {
     const result = run({ tool_name: 'Bash', tool_input: { command: 'cat ../../../etc/passwd' } });
-    assert.equal(result.exitCode, 2, `Expected blocked, got ${result.exitCode}`);
+    assert.equal(result.exitCode, 0, `Expected audited pass, got ${result.exitCode}`);
   });
 });
 

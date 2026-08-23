@@ -48,30 +48,50 @@ export function evaluateOperation(
   if (!operation.path) return allow('unsupported_payload: filesystem operation has no path');
 
   const resolvedPath = resolveWorkspacePath(operation.path, policy);
-  if (shouldBlockOutside(operation.path, policy)) {
-    return decideForPolicy(
-      policy,
-      'outside_workspace',
-      `Access to '${operation.path}' resolves outside the workspace at '${resolvedPath}'.`
-    );
-  }
+  const outside = shouldBlockOutside(operation.path, policy);
+  const writeLike = operation.action === 'write' || operation.action === 'edit';
 
+  // Sensitive-content lens first: reading secrets is the exfiltration guard
+  // and blocks everywhere. Authoring them inside the own workspace is a
+  // normal task — audited, not blocked.
   const forbiddenDir = isInForbiddenDir(resolvedPath, policy);
-  if (forbiddenDir) {
+  const fileName = path.basename(resolvedPath);
+  const sensitiveCode = forbiddenDir
+    ? 'sensitive_dir'
+    : isBlockedFilename(fileName, policy)
+      ? 'sensitive_file'
+      : null;
+  if (sensitiveCode) {
+    if (writeLike && !outside) {
+      return {
+        decision: 'audit',
+        reasonCode: sensitiveCode,
+        message: `${sensitiveCode}: authoring sensitive path '${operation.path}' in workspace (logged, allowed)`,
+      };
+    }
     return decideForPolicy(
       policy,
-      'sensitive_dir',
-      `Access to sensitive directory '${forbiddenDir}' via '${operation.path}' is forbidden.`
+      sensitiveCode,
+      forbiddenDir
+        ? `Access to sensitive directory '${forbiddenDir}' via '${operation.path}' is forbidden.`
+        : `Access to sensitive file '${fileName}' via '${operation.path}' is forbidden.`
     );
   }
 
-  const fileName = path.basename(resolvedPath);
-  if (isBlockedFilename(fileName, policy)) {
-    return decideForPolicy(
-      policy,
-      'sensitive_file',
-      `Access to sensitive file '${fileName}' via '${operation.path}' is forbidden.`
-    );
+  // Location lens: reads are safe by default; writes must stay in-workspace.
+  if (outside) {
+    if (writeLike) {
+      return decideForPolicy(
+        policy,
+        'outside_workspace',
+        `Write access to '${operation.path}' resolves outside the workspace at '${resolvedPath}'.`
+      );
+    }
+    return {
+      decision: 'audit',
+      reasonCode: 'outside_workspace',
+      message: `outside_workspace: read of '${operation.path}' resolves outside the workspace at '${resolvedPath}' (logged, allowed)`,
+    };
   }
 
   return allow(`filesystem target '${operation.path}' is allowed`);

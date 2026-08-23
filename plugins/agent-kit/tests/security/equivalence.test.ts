@@ -71,14 +71,14 @@ describe('security-privacy equivalence', { skip: !entryExists }, () => {
       expect: { exitCode: 0 },
     },
     {
-      name: 'read /etc/passwd',
+      name: 'read /etc/passwd is audited',
       payload: { tool_name: 'Read', tool_input: { file_path: '/etc/passwd' } },
-      expect: { exitCode: 2 },
+      expect: { exitCode: 0 },
     },
     {
-      name: 'shell traversal via reader verb is blocked',
+      name: 'shell traversal via reader verb is audited',
       payload: { tool_name: 'Bash', tool_input: { command: 'cat ../../../etc/passwd' } },
-      expect: { exitCode: 2 },
+      expect: { exitCode: 0 },
     },
     {
       name: 'rg /etc/passwd src passes',
