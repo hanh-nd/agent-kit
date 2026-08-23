@@ -88,7 +88,10 @@ const BLOCKED: Array<{ name: string; payload: unknown }> = [
 ];
 
 const ALLOWED: Array<{ name: string; payload: unknown }> = [
-  { name: 'ordinary build command', payload: { tool_name: 'Bash', tool_input: { command: 'npm test' } } },
+  {
+    name: 'ordinary build command',
+    payload: { tool_name: 'Bash', tool_input: { command: 'npm test' } },
+  },
   {
     name: 'search pattern that looks like a sensitive path',
     payload: { tool_name: 'Bash', tool_input: { command: 'rg /etc/passwd src' } },
@@ -115,7 +118,10 @@ const ALLOWED: Array<{ name: string; payload: unknown }> = [
       tool_input: { command: 'curl https://example.com/etc/passwd -o out.txt' },
     },
   },
-  { name: 'prompt text mentioning @.env', payload: { prompt: 'Update the docs to mention @.env examples.' } },
+  {
+    name: 'prompt text mentioning @.env',
+    payload: { prompt: 'Update the docs to mention @.env examples.' },
+  },
   {
     name: 'Write content quoting sensitive names',
     payload: {

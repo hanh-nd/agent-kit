@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build:plugin": "node dist/utils/build-plugin.js",
-    "build": "tsc && npm run build:plugin",
+    "build": "tsc && npm run build:plugin && node dist/scripts/generate-native-policy.js",
     "test": "tsc && node --test $(find dist/tests -name '*.test.js' | tr '\\n' ' ')"
   },
   "devDependencies": {

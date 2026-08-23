@@ -22,7 +22,6 @@ function ensureDirectories(): void {
       }
     }
   }
-
 }
 
 function ensureGitExclusion(): void {
