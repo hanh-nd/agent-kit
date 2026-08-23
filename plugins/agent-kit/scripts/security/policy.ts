@@ -13,8 +13,6 @@ import { getSecurityConfig, loadSettings } from './utils.js';
 import { PROJECT_DIR } from '../constants.js';
 import type { SecurityPolicy } from '@types';
 
-export const PATH_ARG_KEYS = new Set(['file_path', 'path', 'notebook_path']);
-
 const KNOWN_ENV_VAR_NAMES = [
   'HOME',
   'XDG_CONFIG_HOME',
@@ -64,8 +62,6 @@ export function loadPolicy(): Readonly<SecurityPolicy> {
     })
     .map((p) => realpathBestEffort(p));
 
-  const systemBinPaths = ['/usr/bin/', '/bin/', '/usr/local/bin/'];
-
   const knownEnvVars: Record<string, string> = {};
   for (const name of KNOWN_ENV_VAR_NAMES) {
     if (process.env[name] !== undefined) {
@@ -83,7 +79,6 @@ export function loadPolicy(): Readonly<SecurityPolicy> {
     forbiddenDirs: Object.freeze(forbiddenDirs),
     allowedOutsidePaths: Object.freeze(allowedOutsidePaths),
     allowOutside: cfg.allowOutside ?? false,
-    systemBinPaths: Object.freeze(systemBinPaths),
     knownEnvVars: Object.freeze(knownEnvVars),
   });
 }

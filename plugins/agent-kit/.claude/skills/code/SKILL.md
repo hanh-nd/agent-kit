@@ -42,7 +42,6 @@ When execution legitimately evolves the contract, record it as durable audit evi
    - **WBS plan** from `plan` — a handoff folder or inline content.
    - **Investigation Report** from `investigate` — handoff folder or inline content with root-cause evidence and recommended actions.
    If absent, stop and request one.
-2. **Project DNA** at `.agent-kit/project.md`. Read when present — it carries naming, error-handling, and stack conventions.
 
 If either references files that do not exist, surface this in Phase 3 — do not silently invent paths.
 

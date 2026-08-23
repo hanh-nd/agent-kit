@@ -95,7 +95,7 @@ describe('policy', () => {
   });
 
   test('PATH_ARG_KEYS lists structured filesystem path fields', async () => {
-    const { PATH_ARG_KEYS } = await import(`../../scripts/security/policy.js?t=${Date.now()}`);
+    const { PATH_ARG_KEYS } = await import(`../../scripts/security/adapters.js?t=${Date.now()}`);
     assert.ok(PATH_ARG_KEYS instanceof Set);
     assert.ok(PATH_ARG_KEYS.has('file_path'));
     assert.ok(PATH_ARG_KEYS.has('path'));

@@ -2,7 +2,6 @@
   "name": "ak",
   "version": "1.0.35",
   "description": "Super Engineer - Team of AI Agents for software development",
-  "contextFileName": "docs/instruction.md",
   "mcpServers": {
     "kit-agents": {
       "command": "npx",

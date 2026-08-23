@@ -1,5 +1,13 @@
-import { CLAUDE_TOOL_ACTIONS, CODEX_TOOL_ACTIONS, GEMINI_TOOL_ACTIONS } from './constants.js';
-import { PATH_ARG_KEYS } from './policy.js';
+import {
+  CODEX_TOOL_NAMES,
+  GEMINI_TOOL_NAMES,
+  SHELL_OPAQUE_INTERPRETERS,
+  SHELL_PATTERN_TOOLS,
+  SHELL_READER_VERBS,
+  SHELL_WRITER_VERBS,
+  TOOL_ACTIONS,
+} from './constants.js';
+import { extractCandidates, tokenizeShellCommand } from './shell-parser.js';
 import { isRecord } from '../utils.js';
 import type {
   NormalizedOperation,
@@ -14,14 +22,23 @@ interface PayloadShape {
   args: Record<string, unknown>;
 }
 
+export const PATH_ARG_KEYS = new Set(['file_path', 'path', 'notebook_path']);
+
+const COMMAND_ARG_KEYS = new Set(['command', 'cmd', 'script']);
+
+// Redirect operators: > >> < 2> &> …
+const REDIRECT_OPERATOR = /^\d*<?&?[<>]{1,2}$/;
+
+const URL_LIKE = /^[a-z][a-z0-9+.-]*:\/\//i;
+
 function normalizeToolName(toolName: string): string {
   return toolName.trim().toLowerCase();
 }
 
 function providerFromToolName(toolName: string): SecurityProvider | null {
   const normalized = normalizeToolName(toolName);
-  if (GEMINI_TOOL_ACTIONS.has(normalized)) return 'gemini';
-  if (CODEX_TOOL_ACTIONS.has(normalized)) return 'codex';
+  if (GEMINI_TOOL_NAMES.has(normalized)) return 'gemini';
+  if (CODEX_TOOL_NAMES.has(normalized)) return 'codex';
   return null;
 }
 
@@ -49,18 +66,8 @@ function stringValue(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
 }
 
-function inferAction(provider: SecurityProvider, toolName: string): SecurityAction {
-  const normalized = normalizeToolName(toolName);
-  if (provider === 'claude') return CLAUDE_TOOL_ACTIONS.get(normalized) ?? 'unknown';
-  if (provider === 'codex') return CODEX_TOOL_ACTIONS.get(normalized) ?? 'unknown';
-  if (provider === 'gemini') return GEMINI_TOOL_ACTIONS.get(normalized) ?? 'unknown';
-
-  return (
-    CLAUDE_TOOL_ACTIONS.get(normalized) ??
-    CODEX_TOOL_ACTIONS.get(normalized) ??
-    GEMINI_TOOL_ACTIONS.get(normalized) ??
-    'unknown'
-  );
+function inferAction(toolName: string): SecurityAction {
+  return TOOL_ACTIONS.get(normalizeToolName(toolName)) ?? 'unknown';
 }
 
 function getPayloadShape(input: SecurityHookPayload): PayloadShape | null {
@@ -76,6 +83,94 @@ function getPayloadShape(input: SecurityHookPayload): PayloadShape | null {
   if (!isRecord(argsValue)) return null;
 
   return { toolName, args: argsValue };
+}
+
+function basename(token: string): string {
+  return token.split(/[\\/]/).pop() ?? token;
+}
+
+function isOptionToken(token: string): boolean {
+  return token.startsWith('-') && token.length > 1;
+}
+
+/**
+ * Analyze an exec tool's command string into path-bearing operations.
+ *
+ * Semantics (tokenizer limitations preserved):
+ * - Interpreter invocations stay OPAQUE: one audit-only shell operation.
+ * - Reader/writer verbs have every non-flag operand path-checked, separator
+ *   or not (`cat .env`).
+ * - Pattern tools (grep/sed/awk…) skip their FIRST positional operand;
+ *   later operands are still checked under the default shape filter.
+ * - Redirect operators force their target to be checked with write semantics.
+ * - Compound commands (`&&`, `|`, heredoc bodies) are flattened; every token
+ *   is seen, which over-includes but never under-reports.
+ */
+function analyzeShellCommand(
+  command: string,
+  provider: SecurityProvider,
+  toolName: string,
+  policy: Readonly<SecurityPolicy>
+): NormalizedOperation[] {
+  const tokens = tokenizeShellCommand(command);
+  if (tokens.length === 0) return [];
+
+  const verb = basename(tokens[0]).toLowerCase();
+
+  if (SHELL_OPAQUE_INTERPRETERS.has(verb)) {
+    return [
+      { provider, action: 'exec', targetType: 'shell', cwd: policy.projectDir, toolName, command },
+    ];
+  }
+
+  // Reader/writer operands are paths by definition; other verbs only yield
+  // candidates that already look path-shaped.
+  const force = SHELL_READER_VERBS.has(verb) || SHELL_WRITER_VERBS.has(verb);
+  const writes = SHELL_WRITER_VERBS.has(verb);
+  const isPatternTool = SHELL_PATTERN_TOOLS.has(verb);
+
+  const operations: NormalizedOperation[] = [];
+  let patternSkipped = false;
+  let redirectPending = false;
+
+  for (let i = 1; i < tokens.length; i++) {
+    const raw = tokens[i];
+
+    if (REDIRECT_OPERATOR.test(raw)) {
+      redirectPending = true;
+      continue;
+    }
+    if (isOptionToken(raw)) continue;
+
+    let action: SecurityAction | null = null;
+    if (redirectPending) {
+      redirectPending = false;
+      action = 'write';
+    } else if (force) {
+      action = writes ? 'write' : 'read';
+    } else if (isPatternTool && !patternSkipped) {
+      patternSkipped = true;
+      continue;
+    }
+
+    const [candidate] = extractCandidates(raw, policy);
+    if (!action) {
+      // Default verbs: only path-shaped tokens denote operands here.
+      if (!candidate || URL_LIKE.test(candidate.expanded)) continue;
+      action = 'read';
+    }
+
+    operations.push({
+      provider,
+      action,
+      targetType: 'filesystem',
+      path: candidate?.expanded ?? raw,
+      cwd: policy.projectDir,
+      toolName,
+    });
+  }
+
+  return operations;
 }
 
 export function normalizeHookPayload(
@@ -94,13 +189,18 @@ export function normalizeHookPayload(
     if (PATH_ARG_KEYS.has(key)) {
       operations.push({
         provider,
-        action: inferAction(provider, shape.toolName),
+        action: inferAction(shape.toolName),
         targetType: 'filesystem',
         path: value,
         cwd: policy.projectDir,
         toolName: shape.toolName,
         rawEvent: input,
       });
+      continue;
+    }
+
+    if (COMMAND_ARG_KEYS.has(key) && inferAction(shape.toolName) === 'exec' && value.trim()) {
+      operations.push(...analyzeShellCommand(value, provider, shape.toolName, policy));
     }
   }
 

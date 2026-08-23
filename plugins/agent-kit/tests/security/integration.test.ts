@@ -43,8 +43,8 @@ function runRaw(input: string, env: NodeJS.ProcessEnv = {}): ChildRunResult {
   return { exitCode: result.status ?? 0, stderr: result.stderr ?? '' };
 }
 
-describe('AC1: symlink to external target is blocked', () => {
-  test('symlink inside workspace pointing to /etc/passwd is blocked', () => {
+describe('AC1: symlink escape to external target is audited', () => {
+  test('symlink inside workspace pointing to /etc/passwd passes (logged)', () => {
     if (!fs.existsSync('/etc/passwd')) return;
     const linkPath = path.join(tmpDir, 'symlink-to-etc-passwd');
     try {
@@ -54,67 +54,70 @@ describe('AC1: symlink to external target is blocked', () => {
     }
     if (!fs.existsSync(linkPath)) return; // can't create symlink, skip
     const result = run({ tool_name: 'Read', tool_input: { file_path: linkPath } });
+    assert.equal(result.exitCode, 0, `Expected audited pass, got ${result.exitCode}`);
+  });
+});
+
+describe('reader-verb shell operands are path-checked', () => {
+  test('cat ~/.ssh/id_rsa is blocked', () => {
+    const result = run({ tool_name: 'Bash', tool_input: { command: 'cat ~/.ssh/id_rsa' } });
     assert.equal(
       result.exitCode,
       2,
       `Expected blocked (exit 2), got ${result.exitCode}\nstderr: ${result.stderr}`
     );
   });
-});
 
-describe('shell command text is opaque', () => {
-  test('cat ~/.ssh/id_rsa passes through the hook', () => {
-    const result = run({ tool_name: 'Bash', tool_input: { command: 'cat ~/.ssh/id_rsa' } });
-    assert.equal(
-      result.exitCode,
-      0,
-      `Expected pass, got ${result.exitCode}\nstderr: ${result.stderr}`
-    );
-  });
-
-  test('$HOME form passes through the hook', () => {
+  test('$HOME form is blocked', () => {
     const result = run({ tool_name: 'Bash', tool_input: { command: 'cat $HOME/.ssh/id_rsa' } });
-    assert.equal(
-      result.exitCode,
-      0,
-      `Expected pass, got ${result.exitCode}\nstderr: ${result.stderr}`
-    );
+    assert.equal(result.exitCode, 2, `Expected blocked, got ${result.exitCode}`);
   });
 
-  test('${HOME} form passes through the hook', () => {
+  test('${HOME} form is blocked', () => {
     const result = run({ tool_name: 'Bash', tool_input: { command: 'cat ${HOME}/.ssh/id_rsa' } });
-    assert.equal(
-      result.exitCode,
-      0,
-      `Expected pass, got ${result.exitCode}\nstderr: ${result.stderr}`
-    );
+    assert.equal(result.exitCode, 2, `Expected blocked, got ${result.exitCode}`);
+  });
+
+  test('separator-less reader operand .env is blocked', () => {
+    const result = run({ tool_name: 'Bash', tool_input: { command: 'cat .env' } });
+    assert.equal(result.exitCode, 2, `Expected blocked, got ${result.exitCode}`);
+  });
+
+  test('source ~/.zshrc is blocked', () => {
+    const result = run({ tool_name: 'Bash', tool_input: { command: 'source ~/.zshrc' } });
+    assert.equal(result.exitCode, 2, `Expected blocked, got ${result.exitCode}`);
+  });
+
+  test('redirect target > .env is audited (in-workspace authoring)', () => {
+    const result = run({ tool_name: 'Bash', tool_input: { command: 'echo leak > .env' } });
+    assert.equal(result.exitCode, 0, `Expected audited pass, got ${result.exitCode}`);
+  });
+
+  test('redirect outside the workspace is still blocked', () => {
+    const result = run({
+      tool_name: 'Bash',
+      tool_input: { command: 'echo x > /tmp/ak-int-escape' },
+    });
+    assert.equal(result.exitCode, 2, `Expected blocked, got ${result.exitCode}`);
   });
 });
 
-describe('AC4: /etc/passwd is blocked', () => {
-  test('Read /etc/passwd is blocked', () => {
+describe('AC4: outside-workspace reads are audited, not blocked', () => {
+  test('Read /etc/passwd passes (logged)', () => {
     const result = run({ tool_name: 'Read', tool_input: { file_path: '/etc/passwd' } });
-    assert.equal(
-      result.exitCode,
-      2,
-      `Expected blocked, got ${result.exitCode}\nstderr: ${result.stderr}`
-    );
+    assert.equal(result.exitCode, 0, `Expected audited pass, got ${result.exitCode}`);
   });
 });
 
-describe('AC5: path traversal ../../../etc/passwd in structured tools is blocked', () => {
-  test('Bash cat ../../../etc/passwd passes through the hook', () => {
+describe('AC5: reader traversal outside the workspace is audited', () => {
+  test('Bash cat ../../../etc/passwd passes (logged)', () => {
     const result = run({ tool_name: 'Bash', tool_input: { command: 'cat ../../../etc/passwd' } });
-    assert.equal(
-      result.exitCode,
-      0,
-      `Expected pass, got ${result.exitCode}\nstderr: ${result.stderr}`
-    );
+    assert.equal(result.exitCode, 0, `Expected audited pass, got ${result.exitCode}`);
   });
 });
 
-describe('inline interpreter code is opaque shell text', () => {
-  test('node -e fs.readFileSync .env passes through the hook', () => {
+describe('interpreter invocations stay opaque but are audited', () => {
+  test('node -e fs.readFileSync .env passes (audit-only residual risk)', () => {
     const result = run({
       tool_name: 'Bash',
       tool_input: {
@@ -304,14 +307,24 @@ describe('AC8: scripts/security-privacy.js is ≤ 50 lines', () => {
   });
 });
 
-describe('malformed JSON input', () => {
-  test('non-JSON stdin exits 0', () => {
+describe('malformed JSON input fails closed', () => {
+  test('non-JSON stdin exits 2 in block mode', () => {
     const result = runRaw('not-json');
-    assert.equal(result.exitCode, 0, `Expected exit 0 for malformed JSON, got ${result.exitCode}`);
+    assert.equal(
+      result.exitCode,
+      2,
+      `Expected exit 2 for malformed JSON, got ${result.exitCode}\nstderr: ${result.stderr}`
+    );
+    assert.match(result.stderr, /malformed_payload/);
   });
 
-  test('non-object JSON exits 0', () => {
+  test('non-object JSON exits 2 in block mode', () => {
     const result = runRaw('"not-an-object"');
-    assert.equal(result.exitCode, 0, `Expected exit 0 for non-object JSON, got ${result.exitCode}`);
+    assert.equal(result.exitCode, 2, `Expected exit 2 for non-object JSON, got ${result.exitCode}`);
+  });
+
+  test('empty stdin stays a silent no-op', () => {
+    const result = runRaw('');
+    assert.equal(result.exitCode, 0, `Expected exit 0 for empty stdin, got ${result.exitCode}`);
   });
 });

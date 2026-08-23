@@ -10,25 +10,6 @@
             "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/kit-init.js",
             "description": "Initialize Agent-Kit",
             "timeout": 10000
-          },
-          {
-            "name": "inject-instructions",
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/inject-agent-instructions.js",
-            "description": "Inject agent instructions at session start",
-            "timeout": 5000
-          }
-        ]
-      },
-      {
-        "matcher": "clear",
-        "hooks": [
-          {
-            "name": "inject-instructions",
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/inject-agent-instructions.js",
-            "description": "Inject agent instructions after /clear",
-            "timeout": 5000
           }
         ]
       }
@@ -56,20 +37,6 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/security-privacy.js",
             "description": "Hard-block access to sensitive files",
-            "timeout": 5000
-          }
-        ]
-      }
-    ],
-    "PostCompact": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "name": "inject-instructions",
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}\"/scripts/inject-agent-instructions.js",
-            "description": "Inject agent instructions after /compact",
             "timeout": 5000
           }
         ]

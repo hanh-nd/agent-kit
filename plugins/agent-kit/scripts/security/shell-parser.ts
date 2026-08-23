@@ -18,6 +18,8 @@ function tokenizeCommand(cmd: string): string[] {
   return tokens;
 }
 
+export { tokenizeCommand as tokenizeShellCommand };
+
 function expandToken(
   token: string,
   policy: Pick<SecurityPolicy, 'homeDir' | 'knownEnvVars'>

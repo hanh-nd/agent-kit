@@ -8,7 +8,10 @@ export type SecurityReasonCode =
   | 'sensitive_file'
   | 'sensitive_dir'
   | 'destructive_command'
-  | 'unsupported_payload';
+  | 'unsupported_payload'
+  | 'malformed_payload'
+  | 'no_verifiable_target'
+  | 'opaque_shell_code';
 
 export interface SecuritySettings {
   allowOutside?: boolean;
@@ -42,7 +45,6 @@ export interface SecurityPolicy {
   forbiddenDirs: readonly string[];
   allowedOutsidePaths: readonly string[];
   allowOutside: boolean;
-  systemBinPaths: readonly string[];
   knownEnvVars: Readonly<Record<string, string>>;
 }
 

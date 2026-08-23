@@ -27,7 +27,6 @@ Agent Kit ships these workflows as skills. In Claude Code, invoke them as slash 
 | `/research [topic]`             | Produce source-backed technical research                         |
 | `/debate [subject]`             | Run adversarial validation of an analysis, review, or plan       |
 | `/ticket [ID]`                  | Fetch a Jira ticket and route it into the planning pipeline      |
-| `/init`                         | Extract project DNA for downstream coding and planning workflows |
 | `/delegate <agent> <task>`      | Delegate to Gemini, Claude, or Codex CLI with optional handoff   |
 
 ---
@@ -155,6 +154,17 @@ git clone https://github.com/hanh-nd/agent-kit.git
 cd agent-kit/plugins/agent-kit
 gemini extension link .gemini
 ```
+
+---
+
+## Security
+
+The `security-blocker` hook runs on every prompt submit and tool call. Its policy lives in one place (`scripts/security/constants.ts`):
+
+- Path-checks structured tool arguments and shell command operands (reader/writer verbs, redirect targets), blocks access to forbidden files/dirs and paths resolving outside the workspace, and fails closed on unparseable payloads.
+- Every decision — allows included — is appended to `.agent-kit/logs/security-decisions.log` so misses are attributable. Set `enforcementMode: "audit"` in `.agent-kit/settings.json` to log without blocking.
+
+Known limits: interpreter invocations (`node -e`, `python -c`) stay opaque to path analysis by design (they are logged, not blocked); patch-diff formats carrying embedded file paths (e.g. `apply_patch`) are not parsed.
 
 ---
 

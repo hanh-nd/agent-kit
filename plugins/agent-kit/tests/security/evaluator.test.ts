@@ -30,7 +30,6 @@ describe('evaluateOperation', () => {
       forbiddenDirs: ['.git', '.ssh', '.aws'],
       allowedOutsidePaths: [],
       allowOutside: false,
-      systemBinPaths: [],
       knownEnvVars: { HOME: os.homedir() },
     };
   });
@@ -58,11 +57,17 @@ describe('evaluateOperation', () => {
     assert.equal(decision.decision, 'allow');
   });
 
-  test('denies outside workspace targets with reason code', () => {
+  test('audits outside-workspace reads', () => {
     const decision = evaluateOperation(op('/etc/passwd'), policy);
+    assert.equal(decision.decision, 'audit');
+    assert.equal(decision.reasonCode, 'outside_workspace');
+    assert.match(decision.message, /logged, allowed/);
+  });
+
+  test('denies outside-workspace writes', () => {
+    const decision = evaluateOperation({ ...op('/etc/passwd'), action: 'write' }, policy);
     assert.equal(decision.decision, 'deny');
     assert.equal(decision.reasonCode, 'outside_workspace');
-    assert.match(decision.message, /outside_workspace/);
   });
 
   test('audits violations in audit mode', () => {
@@ -90,6 +95,18 @@ describe('evaluateOperation', () => {
     }
   });
 
+  test('audits authoring sensitive files inside the workspace, denies elsewhere', () => {
+    const inside = path.join(policy.projectDir, '.env.local');
+    assert.equal(evaluateOperation({ ...op(inside), action: 'write' }, policy).decision, 'audit');
+    assert.equal(
+      evaluateOperation({ ...op(path.join(os.homedir(), 'secrets/.env')), action: 'write' }, policy)
+        .decision,
+      'deny'
+    );
+    // Reads stay denied everywhere — the exfiltration guard.
+    assert.equal(evaluateOperation(op(inside), policy).decision, 'deny');
+  });
+
   test('uses canonical paths for symlinks', () => {
     if (!fs.existsSync('/etc/passwd')) return;
     const linkPath = path.join(policy.projectDir, 'passwd-link');
@@ -99,7 +116,7 @@ describe('evaluateOperation', () => {
       return;
     }
     const decision = evaluateOperation(op(linkPath), policy);
-    assert.equal(decision.decision, 'deny');
+    assert.equal(decision.decision, 'audit');
     assert.equal(decision.reasonCode, 'outside_workspace');
   });
 

@@ -9,6 +9,7 @@ function tokenizeCommand(cmd) {
     }
     return tokens;
 }
+export { tokenizeCommand as tokenizeShellCommand };
 function expandToken(token, policy) {
     let expanded = token;
     const unresolvedVars = [];
