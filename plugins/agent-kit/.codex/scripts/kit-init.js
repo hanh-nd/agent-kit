@@ -18,18 +18,6 @@ function ensureDirectories() {
             }
         }
     }
-    const files = ['project.md'];
-    for (const file of files) {
-        const filePath = path.join(KIT_PATH, file);
-        if (!fs.existsSync(filePath)) {
-            try {
-                fs.writeFileSync(filePath, '');
-            }
-            catch {
-                // Silently fail to not block session startup
-            }
-        }
-    }
 }
 function ensureGitExclusion() {
     const gitDir = path.join(PROJECT_DIR, '.git');

@@ -10,25 +10,6 @@
             "command": "node \"${extensionPath}/scripts/kit-init.js\"",
             "description": "Initialize Agent-Kit",
             "timeout": 10000
-          },
-          {
-            "name": "inject-instructions",
-            "type": "command",
-            "command": "node \"${extensionPath}/scripts/inject-agent-instructions.js\"",
-            "description": "Inject agent instructions at session start",
-            "timeout": 5000
-          }
-        ]
-      },
-      {
-        "matcher": "clear",
-        "hooks": [
-          {
-            "name": "inject-instructions",
-            "type": "command",
-            "command": "node \"${extensionPath}/scripts/inject-agent-instructions.js\"",
-            "description": "Inject agent instructions after /clear",
-            "timeout": 5000
           }
         ]
       }

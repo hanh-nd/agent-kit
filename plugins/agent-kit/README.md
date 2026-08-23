@@ -27,7 +27,6 @@ Agent Kit ships these workflows as skills. In Claude Code, invoke them as slash 
 | `/research [topic]`             | Produce source-backed technical research                         |
 | `/debate [subject]`             | Run adversarial validation of an analysis, review, or plan       |
 | `/ticket [ID]`                  | Fetch a Jira ticket and route it into the planning pipeline      |
-| `/init`                         | Extract project DNA for downstream coding and planning workflows |
 | `/delegate <agent> <task>`      | Delegate to Gemini, Claude, or Codex CLI with optional handoff   |
 
 ---
