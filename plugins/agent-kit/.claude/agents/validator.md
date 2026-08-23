@@ -52,7 +52,7 @@ Contradictions → BLOCKER.
 
 **4. Scope Discipline** — the artifact does not introduce work the expectation explicitly marked as out-of-scope. Scope drift → BLOCKER.
 
-**5. Evidence by Execution (code artifacts only)** — run the project's lint and test scripts (`npm run lint`, `npm test`, or whatever `package.json` / `.agent-kit/project.md` specifies). Failures introduced by this artifact → BLOCKER. Pre-existing baseline failures → noted, not a blocker.
+**5. Evidence by Execution (code artifacts only)** — run the project's lint and test scripts (`npm run lint`, `npm test`, or whatever `package.json` specifies). Failures introduced by this artifact → BLOCKER. Pre-existing baseline failures → noted, not a blocker.
 
 ---
 

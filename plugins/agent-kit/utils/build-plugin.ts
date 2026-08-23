@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const pluginRoot = path.resolve(__dirname, '..', '..');
 
-const sourceBundleDirs = ['agents', 'docs'];
+const sourceBundleDirs = ['agents'];
 const compiledBundleDirs = ['scripts'];
 const requiredSkillKeys = ['name', 'description'];
 

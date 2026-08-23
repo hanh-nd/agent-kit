@@ -33,7 +33,7 @@ Three things are needed. If invoked directly, request what's missing:
 
 1. **The target.** A diff, a set of changed files, or explicit paths. Defaults to staged + unstaged changes (`git diff HEAD`).
 2. **Read access to the full files**, not just the diff. File-scope context is required.
-3. **Project conventions.** Read `.agent-kit/project.md` if it exists. Otherwise infer from 2–3 non-modified files in the same module. Conventions matter for naming, constant placement, and import style.
+3. **Project conventions.** Infer from 2–3 non-modified files in the same module. Conventions matter for naming, constant placement, and import style.
 
 If the target is empty, stop and tell the user.
 
