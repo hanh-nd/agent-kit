@@ -52,12 +52,17 @@ describe('normalizeHookPayload', () => {
     assert.equal(operations[0].action, 'edit');
   });
 
-  test('does not infer filesystem operations from command text', () => {
+  test('infers filesystem operations from exec command text', () => {
     const operations = normalizeHookPayload(
       { call: { method: 'shell', params: { command: 'cat ~/.ssh/id_rsa' } } },
       policy
     );
-    assert.deepEqual(operations, []);
+    assert.ok(operations.length >= 1);
+    const target = operations.find((op) => op.targetType === 'filesystem');
+    assert.ok(target, 'expected a filesystem operation derived from the command');
+    assert.equal(target.action, 'read');
+    assert.match(target.path as string, /id_rsa$/);
+    assert.equal(target.provider, 'codex');
   });
 
   test('infers actions from documented Claude tool names', () => {

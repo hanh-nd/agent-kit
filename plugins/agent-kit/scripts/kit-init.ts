@@ -125,7 +125,6 @@ function ensureSettings(): void {
     }
   }
 }
-
 /**
  * SessionStart Hook — Kit Initializer
  */

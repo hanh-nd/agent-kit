@@ -76,9 +76,9 @@ describe('security-privacy equivalence', { skip: !entryExists }, () => {
       expect: { exitCode: 2 },
     },
     {
-      name: 'shell traversal text is opaque',
+      name: 'shell traversal via reader verb is blocked',
       payload: { tool_name: 'Bash', tool_input: { command: 'cat ../../../etc/passwd' } },
-      expect: { exitCode: 0 },
+      expect: { exitCode: 2 },
     },
     {
       name: 'rg /etc/passwd src passes',
@@ -95,7 +95,12 @@ describe('security-privacy equivalence', { skip: !entryExists }, () => {
       payload: { prompt: 'Use @.env as an example in docs.' },
       expect: { exitCode: 0 },
     },
-    { name: 'malformed json', payload: null, expect: { exitCode: 0 }, raw: 'not-json' },
+    {
+      name: 'malformed json is blocked (fail closed)',
+      payload: null,
+      expect: { exitCode: 2 },
+      raw: 'not-json',
+    },
   ];
 
   const IMPROVE_CASES: SecurityCase[] = [];

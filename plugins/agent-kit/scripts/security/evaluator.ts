@@ -3,8 +3,8 @@ import { enforce, isBlockedFilename, isInForbiddenDir } from './utils.js';
 import { shouldBlockOutside, resolveWorkspacePath } from './workspace.js';
 import type { NormalizedOperation, SecurityDecision, SecurityPolicy } from '@types';
 
-function violationDecision(
-  policy: Readonly<SecurityPolicy>,
+export function decideForPolicy(
+  policy: Readonly<Pick<SecurityPolicy, 'enforcementMode'>>,
   reasonCode: NonNullable<SecurityDecision['reasonCode']>,
   message: string
 ): SecurityDecision {
@@ -23,12 +23,24 @@ export function evaluateOperation(
   operation: NormalizedOperation,
   policy: Readonly<SecurityPolicy>
 ): SecurityDecision {
-  if (operation.targetType === 'shell' && operation.action === 'delete') {
-    return violationDecision(
-      policy,
-      'destructive_command',
-      `Destructive shell command targets '${operation.path ?? operation.command ?? 'unknown'}'.`
-    );
+  if (operation.targetType === 'shell') {
+    if (operation.action === 'delete') {
+      return decideForPolicy(
+        policy,
+        'destructive_command',
+        `Destructive shell command targets '${operation.path ?? operation.command ?? 'unknown'}'.`
+      );
+    }
+    if (operation.action === 'exec') {
+      // Interpreter invocations are program text: opaque to path analysis.
+      // Audit-only so the attempt is attributed in the decision log without
+      // blocking legitimate developer workflows.
+      return {
+        decision: 'audit',
+        reasonCode: 'opaque_shell_code',
+        message: `opaque_shell_code: interpreter command not path-analyzed: '${operation.command ?? 'unknown'}'`,
+      };
+    }
   }
 
   if (operation.targetType !== 'filesystem')
@@ -37,7 +49,7 @@ export function evaluateOperation(
 
   const resolvedPath = resolveWorkspacePath(operation.path, policy);
   if (shouldBlockOutside(operation.path, policy)) {
-    return violationDecision(
+    return decideForPolicy(
       policy,
       'outside_workspace',
       `Access to '${operation.path}' resolves outside the workspace at '${resolvedPath}'.`
@@ -46,7 +58,7 @@ export function evaluateOperation(
 
   const forbiddenDir = isInForbiddenDir(resolvedPath, policy);
   if (forbiddenDir) {
-    return violationDecision(
+    return decideForPolicy(
       policy,
       'sensitive_dir',
       `Access to sensitive directory '${forbiddenDir}' via '${operation.path}' is forbidden.`
@@ -55,7 +67,7 @@ export function evaluateOperation(
 
   const fileName = path.basename(resolvedPath);
   if (isBlockedFilename(fileName, policy)) {
-    return violationDecision(
+    return decideForPolicy(
       policy,
       'sensitive_file',
       `Access to sensitive file '${fileName}' via '${operation.path}' is forbidden.`
@@ -70,5 +82,6 @@ export function enforceDecision(
   policy: Pick<SecurityPolicy, 'enforcementMode'>
 ): void {
   if (decision.decision === 'allow') return;
+  if (decision.decision === 'audit') return;
   enforce(decision.message, policy);
 }
