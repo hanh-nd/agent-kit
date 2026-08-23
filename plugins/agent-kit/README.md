@@ -159,10 +159,10 @@ gemini extension link .gemini
 
 ## Security
 
-The `security-blocker` hook runs on every prompt submit and tool call. Its policy lives in one place (`scripts/security/constants.ts`); enforcement is layered:
+The `security-blocker` hook runs on every prompt submit and tool call. Its policy lives in one place (`scripts/security/constants.ts`):
 
-- **Portable layer (hook):** path-checks structured tool arguments and shell command operands (reader/writer verbs, redirect targets), blocks access to forbidden files/dirs and paths resolving outside the workspace, and fails closed on unparseable payloads. Every decision — allows included — is appended to `.agent-kit/logs/security-decisions.log` so misses are attributable. Set `enforcementMode: "audit"` in `.agent-kit/settings.json` to log without blocking.
-- **Native layer (Claude Code only):** `native-permissions.json` is generated from the same constants at build time. Merge its `claude` block into your project `.claude/settings.json` for runtime-native deny rules that do not depend on hook execution. Codex and Gemini are enforced by the hook alone — their runtimes do not accept deny-rule configs.
+- Path-checks structured tool arguments and shell command operands (reader/writer verbs, redirect targets), blocks access to forbidden files/dirs and paths resolving outside the workspace, and fails closed on unparseable payloads.
+- Every decision — allows included — is appended to `.agent-kit/logs/security-decisions.log` so misses are attributable. Set `enforcementMode: "audit"` in `.agent-kit/settings.json` to log without blocking.
 
 Known limits: interpreter invocations (`node -e`, `python -c`) stay opaque to path analysis by design (they are logged, not blocked); patch-diff formats carrying embedded file paths (e.g. `apply_patch`) are not parsed.
 
@@ -175,7 +175,7 @@ Known limits: interpreter invocations (`node -e`, `python -c`) stay opaque to pa
 npm run build
 ```
 
-This workspace builds the provider plugin bundles and regenerates `native-permissions.json`. Agent personas are in `agents/`. Canonical skill modules are in `skills/`; `npm run build` generates provider-safe copies into `.claude/skills/`, `.codex/skills/`, and `.gemini/skills/`.
+This workspace builds the provider plugin bundles. Agent personas are in `agents/`. Canonical skill modules are in `skills/`; `npm run build` generates provider-safe copies into `.claude/skills/`, `.codex/skills/`, and `.gemini/skills/`.
 
 ---
 
