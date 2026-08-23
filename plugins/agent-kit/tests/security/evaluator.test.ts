@@ -30,7 +30,6 @@ describe('evaluateOperation', () => {
       forbiddenDirs: ['.git', '.ssh', '.aws'],
       allowedOutsidePaths: [],
       allowOutside: false,
-      systemBinPaths: [],
       knownEnvVars: { HOME: os.homedir() },
     };
   });

@@ -57,13 +57,11 @@ export function runSecurityPrivacyHook(raw) {
         const detail = hasToolIdentity(input)
             ? 'tool event carried no verifiable path or command'
             : 'prompt text is not path-scanned';
-        recordDecision({
-            timestamp: new Date().toISOString(),
-            mode: policy.enforcementMode,
+        recordDecision(logEntry({
             decision: 'allow',
             reasonCode: 'no_verifiable_target',
             message: `no_verifiable_target: ${detail}`,
-        });
+        }, policy));
         return;
     }
     // Fold to the most restrictive outcome (deny > audit > allow), record every

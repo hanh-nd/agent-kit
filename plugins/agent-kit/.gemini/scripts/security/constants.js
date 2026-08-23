@@ -80,7 +80,12 @@ export const SHELL_OPAQUE_INTERPRETERS = new Set([
     'perl',
     'php',
 ]);
-export const CLAUDE_TOOL_ACTIONS = new Map([
+/**
+ * Unified tool-name → action map. Tool namespaces are disjoint across
+ * providers except where actions agree, so one lookup serves all dialects.
+ */
+export const TOOL_ACTIONS = new Map([
+    // Claude Code
     ['bash', 'exec'],
     ['read', 'read'],
     ['write', 'write'],
@@ -89,8 +94,7 @@ export const CLAUDE_TOOL_ACTIONS = new Map([
     ['notebookedit', 'edit'],
     ['glob', 'read'],
     ['grep', 'read'],
-]);
-export const CODEX_TOOL_ACTIONS = new Map([
+    // Codex
     ['shell', 'exec'],
     ['shell_command', 'exec'],
     ['exec_command', 'exec'],
@@ -101,15 +105,36 @@ export const CODEX_TOOL_ACTIONS = new Map([
     ['applypatchhandler', 'edit'],
     ['view_image', 'read'],
     ['list_dir', 'read'],
-]);
-export const GEMINI_TOOL_ACTIONS = new Map([
+    // Gemini CLI
     ['run_shell_command', 'exec'],
     ['read_file', 'read'],
     ['read_many_files', 'read'],
     ['list_directory', 'read'],
-    ['glob', 'read'],
     ['grep_search', 'read'],
     ['search_file_content', 'read'],
     ['write_file', 'write'],
     ['replace', 'edit'],
+]);
+export const CODEX_TOOL_NAMES = new Set([
+    'shell',
+    'shell_command',
+    'exec_command',
+    'unified_exec',
+    'apply_patch',
+    'applypatch',
+    'apply-patch',
+    'applypatchhandler',
+    'view_image',
+    'list_dir',
+]);
+export const GEMINI_TOOL_NAMES = new Set([
+    'run_shell_command',
+    'read_file',
+    'read_many_files',
+    'list_directory',
+    'glob',
+    'grep_search',
+    'search_file_content',
+    'write_file',
+    'replace',
 ]);

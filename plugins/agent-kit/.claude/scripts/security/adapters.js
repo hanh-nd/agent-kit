@@ -1,7 +1,7 @@
-import { CLAUDE_TOOL_ACTIONS, CODEX_TOOL_ACTIONS, GEMINI_TOOL_ACTIONS, SHELL_OPAQUE_INTERPRETERS, SHELL_PATTERN_TOOLS, SHELL_READER_VERBS, SHELL_WRITER_VERBS, } from './constants.js';
+import { CODEX_TOOL_NAMES, GEMINI_TOOL_NAMES, SHELL_OPAQUE_INTERPRETERS, SHELL_PATTERN_TOOLS, SHELL_READER_VERBS, SHELL_WRITER_VERBS, TOOL_ACTIONS, } from './constants.js';
 import { extractCandidates, tokenizeShellCommand } from './shell-parser.js';
-import { PATH_ARG_KEYS } from './policy.js';
 import { isRecord } from '../utils.js';
+export const PATH_ARG_KEYS = new Set(['file_path', 'path', 'notebook_path']);
 const COMMAND_ARG_KEYS = new Set(['command', 'cmd', 'script']);
 // Redirect operators: > >> < 2> &> …
 const REDIRECT_OPERATOR = /^\d*<?&?[<>]{1,2}$/;
@@ -11,9 +11,9 @@ function normalizeToolName(toolName) {
 }
 function providerFromToolName(toolName) {
     const normalized = normalizeToolName(toolName);
-    if (GEMINI_TOOL_ACTIONS.has(normalized))
+    if (GEMINI_TOOL_NAMES.has(normalized))
         return 'gemini';
-    if (CODEX_TOOL_ACTIONS.has(normalized))
+    if (CODEX_TOOL_NAMES.has(normalized))
         return 'codex';
     return null;
 }
@@ -43,18 +43,8 @@ function inferProvider(input) {
 function stringValue(value) {
     return typeof value === 'string' ? value : null;
 }
-function inferAction(provider, toolName) {
-    const normalized = normalizeToolName(toolName);
-    if (provider === 'claude')
-        return CLAUDE_TOOL_ACTIONS.get(normalized) ?? 'unknown';
-    if (provider === 'codex')
-        return CODEX_TOOL_ACTIONS.get(normalized) ?? 'unknown';
-    if (provider === 'gemini')
-        return GEMINI_TOOL_ACTIONS.get(normalized) ?? 'unknown';
-    return (CLAUDE_TOOL_ACTIONS.get(normalized) ??
-        CODEX_TOOL_ACTIONS.get(normalized) ??
-        GEMINI_TOOL_ACTIONS.get(normalized) ??
-        'unknown');
+function inferAction(toolName) {
+    return TOOL_ACTIONS.get(normalizeToolName(toolName)) ?? 'unknown';
 }
 function getPayloadShape(input) {
     const toolName = stringValue(input.tool_name) ??
@@ -155,7 +145,7 @@ export function normalizeHookPayload(input, policy) {
         if (PATH_ARG_KEYS.has(key)) {
             operations.push({
                 provider,
-                action: inferAction(provider, shape.toolName),
+                action: inferAction(shape.toolName),
                 targetType: 'filesystem',
                 path: value,
                 cwd: policy.projectDir,
@@ -164,9 +154,7 @@ export function normalizeHookPayload(input, policy) {
             });
             continue;
         }
-        if (COMMAND_ARG_KEYS.has(key) &&
-            inferAction(provider, shape.toolName) === 'exec' &&
-            value.trim()) {
+        if (COMMAND_ARG_KEYS.has(key) && inferAction(shape.toolName) === 'exec' && value.trim()) {
             operations.push(...analyzeShellCommand(value, provider, shape.toolName, policy));
         }
     }

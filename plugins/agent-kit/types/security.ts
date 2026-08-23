@@ -45,7 +45,6 @@ export interface SecurityPolicy {
   forbiddenDirs: readonly string[];
   allowedOutsidePaths: readonly string[];
   allowOutside: boolean;
-  systemBinPaths: readonly string[];
   knownEnvVars: Readonly<Record<string, string>>;
 }
 

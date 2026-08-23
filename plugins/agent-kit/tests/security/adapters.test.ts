@@ -14,7 +14,6 @@ const policy: SecurityPolicy = {
   forbiddenDirs: ['.ssh', '.git'],
   allowedOutsidePaths: [],
   allowOutside: false,
-  systemBinPaths: [],
   knownEnvVars: { HOME: os.homedir() },
 };
 
