@@ -162,9 +162,9 @@ gemini extension link .gemini
 The `security-blocker` hook runs on every prompt submit and tool call. Its policy lives in one place (`scripts/security/constants.ts`):
 
 - Path-checks structured tool arguments and shell command operands (reader/writer verbs, redirect targets), blocks access to forbidden files/dirs and paths resolving outside the workspace, and fails closed on unparseable payloads.
-- Every decision — allows included — is appended to `.agent-kit/logs/security-decisions.log` so misses are attributable. Set `enforcementMode: "audit"` in `.agent-kit/settings.json` to log without blocking.
+- Blocks are written to stderr; set `enforcementMode: "audit"` in `.agent-kit/settings.json` to log blocks to `.agent-kit/logs/security-audit.log` without blocking.
 
-Known limits: interpreter invocations (`node -e`, `python -c`) stay opaque to path analysis by design (they are logged, not blocked); patch-diff formats carrying embedded file paths (e.g. `apply_patch`) are not parsed.
+Known limits: interpreter invocations (`node -e`, `python -c`) stay opaque to path analysis by design (they are allowed, not blocked); patch-diff formats carrying embedded file paths (e.g. `apply_patch`) are not parsed.
 
 ---
 

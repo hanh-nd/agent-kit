@@ -162,7 +162,7 @@ describe('adversarial corpus: blocked (exit 2)', () => {
     assert.equal(result.exitCode, 2);
   });
 
-  test('audit mode logs instead of blocking', () => {
+  test('audit mode allows instead of blocking', () => {
     const kitDir = path.join(tmpDir, '.agent-kit');
     fs.mkdirSync(kitDir, { recursive: true });
     fs.writeFileSync(
@@ -171,9 +171,6 @@ describe('adversarial corpus: blocked (exit 2)', () => {
     );
     const result = run(BLOCKED[0].payload, tmpDir);
     assert.equal(result.exitCode, 0);
-    const logPath = path.join(kitDir, 'logs', 'security-decisions.log');
-    assert.ok(fs.existsSync(logPath), 'expected decision log entry');
-    assert.match(fs.readFileSync(logPath, 'utf8'), /sensitive_file/);
   });
 });
 

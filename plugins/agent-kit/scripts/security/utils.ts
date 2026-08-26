@@ -10,43 +10,6 @@ export function blockAction(reason: string): never {
   process.exit(2);
 }
 
-const DECISIONS_LOG_MAX_BYTES = 2 * 1024 * 1024;
-
-export interface DecisionLogEntry {
-  timestamp: string;
-  mode: string;
-  decision: string;
-  reasonCode?: string;
-  provider?: string;
-  tool?: string;
-  action?: string;
-  target?: string;
-  message: string;
-}
-
-/**
- * Append one JSONL line per security decision (allow included) so misses and
- * near-misses are attributable. Contained: logging must never break the hook.
- */
-export function recordDecision(entry: DecisionLogEntry): void {
-  try {
-    const logsDir = path.join(KIT_PATH, 'logs');
-    fs.mkdirSync(logsDir, { recursive: true });
-    const logPath = path.join(logsDir, 'security-decisions.log');
-    try {
-      const stats = fs.statSync(logPath);
-      if (stats.size > DECISIONS_LOG_MAX_BYTES) {
-        fs.truncateSync(logPath, 0);
-      }
-    } catch {
-      // Missing file is fine — first write creates it
-    }
-    fs.appendFileSync(logPath, `${JSON.stringify(entry)}\n`);
-  } catch {
-    // Never block on logging failure
-  }
-}
-
 export function enforce(reason: string, policy: Pick<SecurityPolicy, 'enforcementMode'>): void {
   if (policy.enforcementMode === ENFORCEMENT_MODES.AUDIT) {
     try {

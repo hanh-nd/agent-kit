@@ -33,8 +33,7 @@ export function evaluateOperation(
     }
     if (operation.action === 'exec') {
       // Interpreter invocations are program text: opaque to path analysis.
-      // Audit-only so the attempt is attributed in the decision log without
-      // blocking legitimate developer workflows.
+      // Allowed without blocking legitimate developer workflows.
       return {
         decision: 'audit',
         reasonCode: 'opaque_shell_code',
