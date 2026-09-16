@@ -9,7 +9,19 @@ description: 'Delegate a task to an external agent CLI (Gemini, Claude, or Codex
 
 ---
 
-## Execution
+## Voice
+
+Write for a tired teammate, not a reviewer you're impressing.
+
+- Short sentences, one idea each. Cut every word that isn't load-bearing.
+- Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second. Never the reverse.
+- Bullets and tables over paragraphs. Three bullets max per point.
+- A question is one question plus one recommendation, under 5 lines.
+- No filler openers, no self-praise, no restating the request back.
+- If the explanation is longer than the thing it explains, delete the explanation.
+
+## Steps
 
 Parse `$ARGUMENTS` as: `<agent> <task or handoff folder path>`
 
@@ -33,6 +45,7 @@ Call `kit_trigger_agent(agent: <agent>, task: <task>)`.
 Report the full output to the user.
 
 ## Rules
-- If the agent fails to process (e.g., timed out or requested CLI is not installed), clearly report the error and terminate execution.
-- Do NOT retry the execution if the agent fails.
-- Do NOT post-process, summarize, or modify the agent's output. Report the exact, raw output to the user.
+
+- Agent fails — timeout, CLI not installed — report the error plainly and stop.
+- Never retry.
+- Never post-process, summarize, or edit the agent's output. Report it raw.

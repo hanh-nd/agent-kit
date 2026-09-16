@@ -8,14 +8,26 @@ description: Fetch a PR, check out locally, run code-review, return a full revie
 **PR Target:** $ARGUMENTS
 
 This skill is a thin orchestrator. It handles fetching the PR, pulling its Jira ticket, and setting up the local codebase so the `code-review` skill can run with full context. Review criteria, severity levels, output format, and judgment all live in `code-review` — this skill does not duplicate or override them.
+## Voice
+
+Write for a tired teammate, not a reviewer you're impressing.
+
+- Short sentences, one idea each. Cut every word that isn't load-bearing.
+- Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second. Never the reverse.
+- Bullets and tables over paragraphs. Three bullets max per point.
+- A question is one question plus one recommendation, under 5 lines.
+- No filler openers, no self-praise, no restating the request back.
+- If the explanation is longer than the thing it explains, delete the explanation.
+
 
 ---
 
-## Execution Pipeline
+## Pipeline
 
-### Phase 1 — Context Acquisition
+### Phase 1 — Gather context
 
-Gather the inputs `code-review` needs:
+Collect what `code-review` needs:
 
 1. **PR details + diff.** Call `kit_get_bitbucket_pr(input: "$ARGUMENTS", includeDiff: true)`. Capture PR metadata (`workspace`, `repoSlug`, `sourceBranch`, `destinationBranch`, `title`, `description`, `author`) and the unified diff. On tool error, stop and report the error to the user — do not fall back to partial data.
 
@@ -23,9 +35,9 @@ Gather the inputs `code-review` needs:
 
 3. **Intent availability.** If no PR description, commit messages, or Jira ticket exists, record this — the child skill will emit its own missing-intent warning.
 
-### Phase 2 — Environment Setup
+### Phase 2 — Set up the checkout
 
-Check out the source branch locally so `code-review` has full codebase access (required for Blast Radius analysis):
+Check out the source branch locally so `code-review` can read the whole codebase — it needs that to check consumers:
 
 1. `git branch --show-current` → save as `originalBranch`.
 2. `git status --porcelain` → if non-empty, mark `checkoutState = UNHAPPY` (dirty working tree; checkout would destroy uncommitted work).
@@ -37,7 +49,7 @@ Check out the source branch locally so `code-review` has full codebase access (r
    - Set `checkoutState = CHECKED_OUT`.
 5. If `UNHAPPY`: skip checkout. Never stash, never force. Record the reason (`dirty working tree` or `mismatched repo`).
 
-### Phase 3 — Route to Reviewer
+### Phase 3 — Route it
 
 Inspect the diff from Phase 1 to determine the review path:
 
@@ -49,11 +61,11 @@ Pass to the chosen skill(s):
 
 - **Diff** — from Phase 1 (full diff for single-skill path; split by file type for the mixed path).
 - **Intent** — PR description and Jira ticket body (when available). If neither exists, pass what you have and let the child skill handle the missing-intent case.
-- **Codebase access** — full if `checkoutState = CHECKED_OUT`, degraded if `UNHAPPY`. Tell the child which mode applies so its Blast Radius phase can adjust.
+- **Codebase access** — full if `checkoutState = CHECKED_OUT`, degraded if `UNHAPPY`. Tell the child which one, so its consumer check can adjust.
 
-The child skill(s) own framing, Scope Drift assessment, Blast Radius, Pass 1 and Pass 2 sweep, self-critique, and final report formatting. Do not re-run those phases here and do not second-guess the child's verdict.
+The child skill owns framing, scope drift, the consumer check, both sweep passes, self-critique, and report formatting. Don't re-run those here, and don't second-guess its verdict.
 
-### Phase 4 — Report Assembly
+### Phase 4 — Assemble the report
 
 Prepend this PR header to the child skill's report:
 
@@ -70,26 +82,26 @@ Append the child skill's full report below the header, unchanged. Do not rewrite
 
 If `checkoutState = UNHAPPY`, append this to the report footer:
 
-> ⚠️ Codebase context unavailable ({reason}). Blast Radius and callsite verification could not run. Review is diff-only.
+> ⚠️ Codebase unavailable ({reason}). Consumer and call-site checks couldn't run. This review is diff-only.
 
-### Phase 5 — Environment Restore (always runs)
+### Phase 5 — Restore git state (always runs)
 
-This phase runs before returning the report, and must run even if Phases 1–4 errored partway through. Treat it as cleanup that survives failure:
+Runs before returning the report, even if Phases 1–4 errored. Cleanup that survives failure:
 
 - If `checkoutState = CHECKED_OUT`: `git checkout {originalBranch}`.
 - If `checkoutState = UNHAPPY`: nothing to restore; skip.
 
-If the restore command itself fails, surface that failure clearly in the final output so the user knows their git state needs manual recovery. A silent failure here leaves the user on an unexpected branch — worse than the original review problem.
+If the restore itself fails, say so clearly in the output. A silent failure leaves the user on an unexpected branch — worse than the review problem they started with.
 
-**Implementation rule:** before moving to Phase 1, register in your working memory that Phase 5 is mandatory. If you encounter an error mid-pipeline, do not terminate the response without executing Phase 5 first.
+**Rule:** Phase 5 is mandatory. Hit an error mid-pipeline → run Phase 5 before you finish the response.
 
 ---
 
-## What this skill does NOT do
+## What this skill doesn't do
 
-To keep the boundary with `code-review` clean:
+Keeping the boundary with `code-review` clean:
 
-- It does not define review criteria, severity levels, category checklists, or output sections — those belong to `code-review` or `e2e-review`.
-- It does not produce findings of its own. If a PR-level concern exists that the child skill missed, the fix is to improve `code-review`, not to duplicate logic here.
-- It does not mutate the PR (no comments posted, no approve/reject actions). The review is advisory; the human decides.
-- It does not re-assess Scope Drift, Blast Radius, or category coverage. The child skill reports those once, in its own format.
+- Define review criteria, severity, category checklists, or output sections. Those belong to `code-review` or `e2e-review`.
+- Produce findings of its own. A PR-level concern the child missed is a reason to improve `code-review`, not to duplicate logic here.
+- Touch the PR. No comments, no approve or reject. The review is advisory; the human decides.
+- Re-assess scope drift, consumers, or category coverage. The child reports those once, in its own format.

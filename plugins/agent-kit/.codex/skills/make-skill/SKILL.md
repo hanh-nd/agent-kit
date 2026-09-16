@@ -15,6 +15,20 @@ You write test cases (pressure scenarios with subagents), watch them fail (basel
 
 Personal skills live in agent-specific directories (`~/.claude/skills` for Claude Code, `~/.codex/skills` or `~/.agents/skills/` for Codex).
 
+## Voice
+
+Write for a tired teammate, not a reviewer you're impressing.
+
+- Short sentences, one idea each. Cut every word that isn't load-bearing.
+- Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second. Never the reverse.
+- Bullets and tables over paragraphs. Three bullets max per point.
+- A question is one question plus one recommendation, under 5 lines.
+- No filler openers, no self-praise, no restating the request back.
+- If the explanation is longer than the thing it explains, delete the explanation.
+
+**Every skill in this kit carries this block verbatim.** Copy it in word for word — identical copies are greppable, so drift is catchable by script. A skill that writes or proposes code also carries the reuse ladder (see `plan` or `code`). Both are checklist items below.
+
 **REQUIRED BACKGROUND:** Understand [test-driven-development](references/test-driven-development.md) before using this skill — it defines the RED-GREEN-REFACTOR cycle this skill adapts to documentation. For platform authoring conventions, see [anthropic-best-practices](references/anthropic-best-practices.md); this document adds the Agent Kit testing methodology on top.
 
 ## TDD Mapping for Skills
@@ -30,13 +44,13 @@ Personal skills live in agent-specific directories (`~/.claude/skills` for Claud
 | **Watch it fail** | Document exact rationalizations agent uses |
 | **Minimal code** | Write skill addressing those specific violations |
 
-## When to Create a Skill
+## When to make one
 
 **Create when:** the technique wasn't intuitively obvious, you'd reference it across projects, the pattern applies broadly, others benefit.
 
 **Don't create for:** one-off solutions; practices well-documented elsewhere; project-specific conventions (→ CLAUDE.md/AGENTS.md); mechanical constraints enforceable with regex/validation (automate instead — documentation is for judgment calls).
 
-## Skill Structure
+## Structure
 
 A skill directory contains `SKILL.md` plus optional supporting files:
 
@@ -80,7 +94,7 @@ Over-constraining judgment calls degrades capable models; under-constraining fra
 
 **Move to separate files:** heavy reference (100+ lines of API docs/syntax), reusable tools/scripts, optional examples loaded only when needed.
 
-## Claude Search Optimization
+## Getting the skill found
 
 Future agents find skills through the `description`. Make it answer "should I read this right now?"
 
@@ -109,7 +123,7 @@ Write skill before testing? Delete it. Start over. Edit without testing? Same vi
 
 **No exceptions:** not for "simple additions", not for "just a section", not for doc updates. Don't keep untested changes as "reference". Delete means delete.
 
-## Testing All Skill Types
+## Testing each kind of skill
 
 | Skill type | Test with | Success criteria |
 |---|---|---|
@@ -118,11 +132,11 @@ Write skill before testing? Delete it. Start over. Edit without testing? Same vi
 | **Pattern** (mental models) | Recognition scenarios; applications; counter-examples | Knows when/how/when-NOT to apply |
 | **Reference** (docs/APIs) | Retrieval scenarios; application; gap testing | Finds and correctly uses information |
 
-## Bulletproofing Against Rationalization
+## Closing the loopholes
 
 Skills that enforce discipline must resist loopholes found under pressure. Ground every defense in observed baseline failures ([persuasion principles](references/persuasion-principles.md) explain why these techniques work):
 
-### Close Every Loophole Explicitly
+### Name every loophole
 
 Don't just state the rule — forbid the specific workarounds agents actually attempted:
 
@@ -135,11 +149,11 @@ Write code before test? Delete it. Start over.
 - Delete means delete
 ```
 
-### Cut Off "Spirit vs Letter" Arguments Early
+### Kill "spirit vs letter" early
 
 State the foundational principle up front: **"Violating the letter of the rules is violating the spirit of the rules."**
 
-### Build the Rationalization Table From Baseline Tests
+### Build the table from real baselines
 
 Every excuse observed in RED-phase testing goes in:
 
@@ -152,12 +166,12 @@ Every excuse observed in RED-phase testing goes in:
 
 Do not invent hypothetical excuses — each row should trace to an observed failure.
 
-### Red Flags List
+### The red flags list
 
 Make self-checking easy:
 
 ```markdown
-## Red Flags - STOP and Start Over
+## Red flags — stop and start over
 
 - Code before test
 - "I already manually tested it"
@@ -180,11 +194,11 @@ Write the skill addressing exactly those observed violations — nothing for hyp
 
 New rationalization → add its explicit counter → re-test until bulletproof. Full methodology: [testing-skills-with-subagents.md](references/testing-skills-with-subagents.md).
 
-## STOP: Before Moving to Next Skill
+## Before moving to the next skill
 
 After writing ANY skill, complete the deployment process before starting another. No batching untested skills; skipping testing because "batching is efficient" is deploying untested code.
 
-## Skill Creation Checklist
+## Checklist
 
 **RED Phase:**
 - [ ] Pressure scenarios created (3+ combined pressures for discipline skills)
@@ -195,6 +209,8 @@ After writing ANY skill, complete the deployment process before starting another
 - [ ] Name: lowercase/hyphens, ≤64 chars
 - [ ] Frontmatter: `name` + `description` per current spec (≤1024 chars, what + when, third person)
 - [ ] Description includes concrete triggers/symptoms/keywords
+- [ ] `## Voice` block copied in verbatim
+- [ ] Reuse ladder included, if the skill writes or proposes code
 - [ ] Body addresses specific baseline failures from RED
 - [ ] Degrees of freedom matched to fragility (outcomes for judgment; exact steps only for fragile ops)
 - [ ] Code inline or linked; one excellent example
@@ -211,12 +227,13 @@ After writing ANY skill, complete the deployment process before starting another
 - [ ] Flowchart only if decision non-obvious
 - [ ] Quick reference table; common mistakes section
 - [ ] No narrative storytelling; no multi-language dilution
+- [ ] Plain words throughout — no consultant jargon in anything the user reads
 - [ ] Supporting files only for tools or heavy reference
 
 **Deployment:**
 - [ ] Committed and pushed (if configured)
 - [ ] Consider upstreaming via PR (if broadly useful)
 
-## The Bottom Line
+## The short version
 
 Creating skills IS TDD for process documentation. Same Iron Law, same cycle — RED (baseline) → GREEN (minimal skill) → REFACTOR (close loopholes) — same benefits: better quality, fewer surprises, bulletproof results.

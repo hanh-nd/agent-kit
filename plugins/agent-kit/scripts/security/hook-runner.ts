@@ -1,8 +1,8 @@
+import type { SecurityDecision, SecurityHookPayload } from '@types';
+import { isRecord } from '../utils.js';
 import { normalizeHookPayload } from './adapters.js';
 import { decideForPolicy, enforceDecision, evaluateOperation } from './evaluator.js';
 import { loadPolicy } from './policy.js';
-import { isRecord } from '../utils.js';
-import type { SecurityDecision, SecurityHookPayload, SecurityPolicy } from '@types';
 
 function parsePayload(raw: string): SecurityHookPayload | null {
   try {

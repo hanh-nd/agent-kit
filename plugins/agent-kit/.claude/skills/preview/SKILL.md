@@ -11,7 +11,19 @@ model: sonnet
 
 This skill is **decoupled** from any system. It reads markdown from a path you give it and writes HTML next to it. It never calls `kit_*` tools, never hardcodes `.agent-kit/` paths, and never assumes the input is a "handoff." It works on *any* markdown.
 
-## Output Contract (non-negotiable)
+## Voice
+
+Write for a tired teammate, not a reviewer you're impressing.
+
+- Short sentences, one idea each. Cut every word that isn't load-bearing.
+- Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second. Never the reverse.
+- Bullets and tables over paragraphs. Three bullets max per point.
+- A question is one question plus one recommendation, under 5 lines.
+- No filler openers, no self-praise, no restating the request back.
+- If the explanation is longer than the thing it explains, delete the explanation.
+
+## Output rules (non-negotiable)
 
 - **One file:** a single self-contained `.html` — all CSS and JS inline. External resources via CDN only (Google Fonts, Mermaid v11, optional Chart.js).
 - **Output location — write `<output-dir>/PREVIEW.html`**, overwriting silently. Resolve `<output-dir>` exactly:
@@ -73,7 +85,7 @@ Author every diagram with the **`ck:mermaidjs-v11`** skill (v11 syntax, diagram-
 - **Never ship Mermaid's error "bomb."** Embed with the validate-before-render guard (`mermaid.parse()` → code-block fallback on failure). Pattern: `references/html-libraries.md` → "Render guard".
 - **Re-theme on toggle.** Mermaid can't switch theme reactively, so the theme-toggle handler must re-run the render function.
 
-## Distillation discipline
+## Distill, don't transcribe
 
 The whole point is to defeat the wall of text. Hold the line:
 
@@ -81,7 +93,7 @@ The whole point is to defeat the wall of text. Hold the line:
 - **Never drop information.** Everything from the source that doesn't make the hero goes into a `<details>` drill-down, so fidelity is preserved.
 - If your hero is mostly full paragraphs copied from the source, you have re-rendered, not distilled. Redo it.
 
-## Edge Cases
+## Edge cases
 
 | Scenario | Behavior |
 |---|---|
@@ -94,7 +106,7 @@ The whole point is to defeat the wall of text. Hold the line:
 | Input is a single file | Write `PREVIEW.html` into its parent directory |
 | Browser-open unavailable/fails | Print the saved path instead of erroring |
 
-## Quality Checklist (before reporting done)
+## Before you report done
 
 - [ ] Single self-contained `.html`; CSS/JS inline; CDN-only externals.
 - [ ] Written INSIDE the input folder (or the file's container) — `<output-dir>/PREVIEW.html`, never the parent — via a plain write (no `kit_*` tools).
@@ -107,7 +119,7 @@ The whole point is to defeat the wall of text. Hold the line:
 - [ ] Mermaid diagrams render (zoom controls for 10+ nodes); failed blocks degrade to code, not breakage.
 - [ ] Browser opened, or path printed if open unavailable.
 
-## Common Mistakes
+## Common mistakes
 
 | Mistake | Correction |
 |---|---|

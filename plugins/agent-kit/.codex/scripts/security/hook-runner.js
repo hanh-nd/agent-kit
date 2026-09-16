@@ -1,7 +1,7 @@
+import { isRecord } from '../utils.js';
 import { normalizeHookPayload } from './adapters.js';
 import { decideForPolicy, enforceDecision, evaluateOperation } from './evaluator.js';
 import { loadPolicy } from './policy.js';
-import { isRecord } from '../utils.js';
 function parsePayload(raw) {
     try {
         const parsed = JSON.parse(raw);

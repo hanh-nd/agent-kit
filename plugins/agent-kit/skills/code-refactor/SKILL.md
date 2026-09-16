@@ -1,268 +1,275 @@
 ---
 name: code-refactor
-version: 1.0.0
+version: 1.1.0
 description: Analyze structure and produce a Refactor Proposal. Analysis only; no files modified.
 ---
 
-## Core thesis
+# Code Refactor
 
-**Reachable behavior is preserved. Structure is negotiable. The design premise itself is on the table.**
+**Behavior stays. Structure is negotiable. The design premise is on the table.**
 
-This skill does not find things to clean up. It asks whether the current shape of a component is the right shape, and proposes structural changes when it isn't. Surface-level smells are treated as evidence, not as the thing to fix.
+This skill doesn't hunt for things to clean up. It asks whether a component is the right shape, and proposes a new one when it isn't. Surface smells are evidence, not the thing to fix.
 
-The skill's primary failure mode is **bottom-up cataloguing**: listing four symptoms, proposing four independent fixes, and missing that all four trace back to one upstream design decision. Guard against this above all else. Premise-first diagnosis is what makes this skill different from `code-simplify`, not "being bolder."
+## Voice
 
-The second failure mode is **cowardly compatibility**: preserving a bad internal interface because changing call sites feels disruptive. If the signature, dependency direction, wrapper, or module boundary is the disease, the refactor should break and reshape that internal surface atomically. Compatibility is sacred only at hard-stop surfaces: public exports, HTTP routes, webhook callbacks, event/message schemas, database fields, reflection targets, feature flags, and user-protected files.
+Write for a tired teammate, not a reviewer you're impressing.
 
-## Relationship to `code-simplify`
+- Short sentences, one idea each. Cut every word that isn't load-bearing.
+- Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second. Never the reverse.
+- Bullets and tables over paragraphs. Three bullets max per point.
+- A question is one question plus one recommendation, under 5 lines.
+- No filler openers, no self-praise, no restating the request back.
+- If the explanation is longer than the thing it explains, delete the explanation.
 
-These skills are orthogonal, not a spectrum.
+## The two ways this skill fails
 
-- `code-simplify` operates **within** the current structure. Accept the design, improve the expression. Signatures preserved, call sites untouched.
-- `code-refactor` operates **on** the current structure. Question the design, reshape it if wrong. Signatures negotiable, call sites reshape atomically.
+**Cataloguing from the bottom up.** Listing four symptoms, proposing four fixes, and missing that all four come from one upstream decision. Guard against this above everything else. Premise-first diagnosis is what makes this skill different from `code-simplify` — not "being bolder".
 
-A piece of code can need either, both, or neither. They do not interpolate.
+**Cowardly compatibility.** Keeping a bad internal interface because changing call sites feels disruptive. If the signature, dependency direction, wrapper, or module boundary is the disease, break and reshape it in one move. Compatibility is sacred only at hard-stop surfaces: public exports, HTTP routes, webhook callbacks, event and message schemas, database fields, reflection targets, feature flags, and files the user marked off-limits.
 
-If a user request is fundamentally about code expression (long method, unclear variable names, dedup within a function, style), route to `code-simplify`. If it involves questioning whether the current decomposition is right, this skill applies.
+## This skill vs `code-simplify`
+
+Different jobs, not degrees of the same job.
+
+- `code-simplify` works **within** the structure. Accept the design, improve how it reads. Signatures preserved, call sites untouched.
+- `code-refactor` works **on** the structure. Question the design, reshape it if it's wrong. Signatures negotiable, call sites reshape together.
+
+Code can need either, both, or neither.
+
+A request about how code reads — long method, unclear names, dedup inside a function, style — goes to `code-simplify`. A request that questions whether the decomposition is right belongs here.
 
 ## When to use
 
 - "Refactor this component / module / file / directory / diff"
-- "Clean up / restructure / modernize / untangle / rethink this code"
+- "Clean up / restructure / modernize / untangle this code"
 - "This signature is wrong" / "too many parameters" / "this name lies"
-- "This abstraction leaks" / "why is X taking Y as a parameter"
-- "Collapse these wrapper layers" / "merge these similar functions"
+- "This abstraction leaks" / "why does X take Y"
+- "Collapse these wrappers" / "merge these similar functions"
 - "Remove the old X now that Y is done"
-- User points at code and asks "is this design right?" or "what's wrong with this?"
+- User points at code: "is this design right?"
 
-## Prerequisites
+## Before you start
 
-1. **Topological boundary.** The user specifies what to look at as paths, globs, files, or a specific diff — not as semantic domains. Legacy code bleeds across semantic lines. If the user gives a semantic boundary ("the billing domain"), translate it to paths and confirm.
+1. **Paths, not domains.** The user names files, globs, paths, or a diff. Legacy code bleeds across domain lines. Given a domain ("the billing domain"), translate it to paths and confirm.
+2. **Know the test coverage.** Tests present or absent decides the confidence tier of every proposal. HIGH confidence on an untested surface is a contradiction.
+3. **codebase-dna, if it exists.** Read it — it prevents invented call relationships. Otherwise read files directly in Phase 1.
+4. **Feature-flag evidence, only if flag cleanup is in scope.** The user must say "Flag X is retired" or "fully rolled out as of [date]". Flag state lives in production, not in config files.
 
-2. **Awareness of test coverage.** Note whether tests exist for the boundary. Their presence or absence directly affects the confidence tier of every proposed change — a HIGH-confidence proposal on an untested surface is a contradiction.
-
-3. **codebase-dna artifact (optional).** If available, read it — it provides component context that prevents hallucinated call relationships. If not, read files directly during Phase 1.
-
-4. **Feature-flag evidence (only if flag cleanup is in scope).** The user must explicitly state "Flag X is retired" or "fully rolled out as of [date]." Require explicit user confirmation of flag state — it lives in production, not in config files.
+---
 
 ## The four phases
 
 ### Phase 1 — Survey
 
-Build a map of the component. For each key symbol in the boundary:
+Map the component. For each key symbol in the boundary:
 
-- What does it do (one sentence)?
+- What does it do, in one sentence?
 - Who calls it?
-- Who does it call?
-- What external surfaces does it expose (exports, HTTP handlers, event listeners, schemas, reflection targets)?
+- What does it call?
+- What does it expose — exports, HTTP handlers, event listeners, schemas, reflection targets?
 
-Use deterministic tools where available (`rg`, `grep`, language servers, `tsc`, `ts-prune`, `knip`, `vulture`, `gopls`) to find callers — do not rely on naming conventions. If no tools are available, read files.
+Use real tools to find callers (`rg`, language servers, `tsc`, `ts-prune`, `knip`, `vulture`, `gopls`). Never rely on naming conventions. No tools available → read the files.
 
-**For boundaries over ~10 files:** do not attempt to deep-survey every symbol. Survey everything shallowly first (file responsibilities, exports, obvious call relationships), then identify the 5–10 **load-bearing symbols** — widely called, central to the boundary's purpose, or exposed as external surface — and survey those deeply. Skim the rest: what does it do, is it reached from outside the boundary. Deep-surveying every symbol in a 50-file boundary produces a map that's exhaustive and useless. The load-bearing symbols are where design decisions live; the rest inherits from them.
+**Over ~10 files:** don't deep-survey everything. Skim it all first — file responsibilities, exports, obvious calls — then pick the 5–10 **load-bearing symbols** (widely called, central, or externally exposed) and survey those deeply. For the rest: what does it do, is it reached from outside. Deep-surveying every symbol in a 50-file boundary gives you a map that's exhaustive and useless. Design decisions live in the load-bearing symbols.
 
-Phase 1's output is an internal map. Keep it internal — present only if the user asks.
+Phase 1's map stays internal. Show it only if asked.
 
-### Phase 2 — Diagnose (premise-first)
+### Phase 2 — Diagnose, premise first
 
-**Step 2.0 — Premise check. Do this before anything else.**
+**Step 2.0 — Check the premise. Before anything else.**
 
-Ask: _what is this component trying to accomplish, and is the current shape the right way to accomplish it?_
+Ask: *what is this component for, and is the current shape the right way to do it?*
 
-Then, before listing individual issues, force this question: _are there multiple symptoms in this boundary that trace back to one upstream design decision?_
+Then, before listing issues: *do several symptoms here trace back to one upstream decision?*
 
-Examples of the pattern to look for:
+What that looks like:
 
-- Four places duplicate the same transform → **one upstream decision** (a helper doesn't exist, or the helper is in the wrong module) causes all four.
-- A class takes a dependency it never uses directly, just to pass it down → **one upstream decision** (the dependency is injected at the wrong layer) causes the leak.
-- Two code paths do similar work with different patterns → **one upstream decision** (an API shape) forces the divergence.
-- A parameter is threaded through four layers → **one upstream decision** (state lives in the wrong place) causes the threading.
+- Four places duplicate the same transform → **one decision**: the helper doesn't exist, or lives in the wrong module.
+- A class takes a dependency it never uses, just to pass it down → **one decision**: it's injected at the wrong layer.
+- Two paths do similar work differently → **one decision**: an API shape forces the split.
+- A parameter threaded through four layers → **one decision**: state lives in the wrong place.
 
-When you find a root-cause decision, propose **reversing that decision** as the primary refactor. Individual symptom-fixes become either unnecessary or trivial consequences. Do not catalogue the symptoms separately — list them as _consequences_ of the root cause.
+Found one? Propose **reversing that decision** as the primary refactor. The symptom fixes become unnecessary or trivial. List them as *consequences*, not as separate items.
 
-**Root-cause reversal bar:** Reverse the wrong decision directly. Do not preserve the old shape with adapters, wrappers, option flags, compatibility layers, or "temporary" dual paths unless the old shape crosses a hard-stop surface. Inside the confirmed boundary, migrate callers atomically and delete the wrong shape.
+**Reverse it directly.** No adapters, wrappers, option flags, compatibility layers, or "temporary" dual paths — unless the old shape crosses a hard stop. Inside the boundary, migrate callers together and delete the wrong shape.
 
-If no single upstream decision explains multiple symptoms, then — and only then — fall back to cataloguing individual issues.
+No single decision explains multiple symptoms? Only then fall back to cataloguing.
 
-**Step 2.1 — Individual structural issues (only after the premise check).**
+**Step 2.1 — Individual issues, after the premise check.**
 
-Look for these categories, but only list items that survive premise-check (i.e., are not already absorbed by a root-cause refactor):
+List only what the root-cause reversal doesn't already absorb.
 
-_Signature problems:_
+*Signature problems:*
 
-- Name lies about what the function does
-- Parameters unused at all call sites
-- Parameter order confusing or inconsistent with siblings
-- Boolean flag parameter that splits the function into two different behaviors
-- Return type leaks implementation detail the caller shouldn't know about
+- Name lies about what it does
+- Parameters unused at every call site
+- Parameter order confusing, or inconsistent with siblings
+- Boolean flag that splits the function into two behaviors
+- Return type leaks something the caller shouldn't know
 
-_Shape problems:_
+*Shape problems:*
 
-- Wrapper that adds nothing (forwards arguments with no transformation)
-- Abstraction introduced for flexibility that never materialized
-- Near-duplicate functions serving the same domain purpose
-- A function doing two unrelated things
-- Parameter threaded through layers to reach one usage site
-- Dependency injected into a class that never uses it directly
+- Wrapper that adds nothing
+- Abstraction built for flexibility that never arrived
+- Near-duplicate functions serving the same purpose
+- One function doing two unrelated things
+- Parameter threaded through layers to reach one use
+- Dependency injected into a class that never uses it
 
-_Dead code:_
+*Dead code:*
 
-- Exported symbol with zero callers (static language only)
-- Branch behind a condition that cannot be true (retired feature flag, user-confirmed)
-- Unused import, unreachable code after `return`/`throw`
+- Exported symbol with zero callers (static languages only)
+- Branch behind a condition that can't be true — retired flag, user-confirmed
+- Unused import, code after `return`/`throw`
 
-**Out of scope for this skill:**
+**Not this skill's job:**
 
-- "Old-looking" style — that's `code-simplify`'s job
-- Long functions without signature problems — that's `code-simplify`'s job
-- "Could use a design pattern here" — speculative abstractions are the #1 refactor failure mode
-- Defensive code without evidence of unreachability
+- "Old-looking" style → `code-simplify`
+- Long functions with fine signatures → `code-simplify`
+- "A design pattern would fit here" → speculative abstraction is the #1 refactor failure
+- Defensive code with no evidence it's unreachable
 
-**"Nothing meaningful to refactor" is a valid diagnosis.** A refactor skill that always finds something is a vandal. If the premise is sound and no structural issues survive, say so directly in Phase 3.
+**Before proposing any new helper, module, or abstraction:** search for one that already exists — by behavior, not by name. Check the nearest `utils/`, `lib/`, `shared/`, and sibling modules. "The helper doesn't exist" is a valid root cause; "I didn't look" is not. A new abstraction needs 3+ concrete callers already in the boundary.
+
+**"Nothing meaningful to refactor" is a real diagnosis.** A refactor skill that always finds something is a vandal. Premise sound and no issues survive → say so in Phase 3.
 
 ### Phase 3 — Propose
 
-The proposal's shape depends on what Phase 2 found. There are three cases, not two.
+Four cases.
 
-**Case A — Root-cause decision only, no residuals.** Lead with prose, not a table. Explain the upstream decision, why it's wrong, what the reversal looks like, and how the downstream symptoms become free consequences. Example shape:
+**Case A — Root cause only, nothing left over.** Lead with prose, not a table. Name the wrong decision, why it's wrong, what reversing it looks like, and which symptoms disappear for free:
 
-> The 2nd parameter on `createPublicBooking` is the wrong abstraction. Encryption is a test-setup concern and doesn't belong in the booking service. If you push the encrypted card into the payload at the call site, three things happen for free: the duplicated transform disappears, the VCC/regular inconsistency disappears (both use the same pattern), and the `apiEverVault` constructor leak in management services disappears (the service no longer needs to build encrypted payloads internally).
+> The 2nd parameter on `createPublicBooking` is the wrong abstraction. Encryption is a test-setup concern and doesn't belong in the booking service. Push the encrypted card into the payload at the call site and three things fix themselves: the duplicated transform disappears, the VCC/regular inconsistency disappears, and the `apiEverVault` constructor leak disappears.
 >
-> Proposed change: remove the 2nd parameter from `createPublicBooking`, `createChangeBooking`, `cancelBooking`, and `createHopperBooking`. Call sites pass `creditCard: { ...encryptedCard.cardToken, isEncrypted: true }` in the payload directly. Optionally, add `FinanceService.toEncryptedCardPayload(res, extra?)` as a one-liner to cover the VCC case with `chargeableAmount`.
+> Change: drop the 2nd parameter from `createPublicBooking`, `createChangeBooking`, `cancelBooking`, `createHopperBooking`. Call sites pass `creditCard: { ...encryptedCard.cardToken, isEncrypted: true }` directly.
 
-This is reviewer voice — a senior engineer explaining the real fix, not a cataloguer producing a severity matrix.
+That's reviewer voice — a senior engineer naming the real fix, not a cataloguer building a severity matrix.
 
-**Case B — Root cause AND residual independent issues.** Lead with the root-cause prose as in Case A. Then, underneath, add a short residuals section for the items the reversal does NOT absorb. Do not mix them — the root cause is the headline; the residuals are a follow-up note. Example shape:
+**Case B — Root cause plus leftovers.** Root-cause prose first, as in Case A. Then a short leftovers section for what the reversal doesn't absorb. Don't mix them — the root cause is the headline.
 
-> [root-cause prose, as in Case A]
+> **Leftovers (not absorbed by the reversal):**
 >
-> **Residual items (not absorbed by the reversal):**
->
-> | Change                                       | Files touched | Confidence | Why                                |
-> | -------------------------------------------- | ------------- | ---------- | ---------------------------------- |
-> | Rename `processStuff` → `reconcileInventory` | `stock.ts`    | HIGH       | Name lies; unrelated to root cause |
-> | Remove unused `debug` param from `logAudit`  | `audit.ts`    | HIGH       | Zero callers pass it               |
+> | Change | Files | Confidence | Why |
+> | :-- | :-- | :-- | :-- |
+> | Rename `processStuff` → `reconcileInventory` | `stock.ts` | HIGH | Name lies; unrelated to root cause |
+> | Drop unused `debug` param from `logAudit` | `audit.ts` | HIGH | Zero callers pass it |
 
-The residuals table follows the same confidence-tier rules as Case C. Keep it short — if the residuals table is longer than the root-cause prose, reconsider whether you actually found a root cause or whether it's really Case C.
+If the leftovers table is longer than the root-cause prose, you probably didn't find a root cause. It's Case C.
 
-**Case C — Bag of independent issues, no root cause.** List them as numbered refactor items, each with a confidence tier. Tables are appropriate for the top-level scan, but multi-file suggestions need stable IDs so the user can approve, reject, or delegate them independently. Example shape:
+**Case C — Independent issues, no root cause.** Numbered items with confidence tiers and stable IDs, so the user can approve or reject each one.
 
-| ID | Refactor                                          | Files touched            | Confidence | Why                                                 |
-| -- | ------------------------------------------------- | ------------------------ | ---------- | --------------------------------------------------- |
-| R1 | Remove unused `retryCount` param from `fetchUser` | `user.ts` + 7 call sites | HIGH       | Static, tool-confirmed zero usage                   |
-| R2 | Collapse `getUserData` wrapper around `fetchUser` | `user.ts` + 3 call sites | MEDIUM     | Wrapper adds no transformation                      |
-| R3 | Delete `legacyAuthFallback` function              | `auth.ts`                | LOW        | Exported, dynamic language, unprovable reachability |
+| ID | Refactor | Files | Confidence | Why |
+| -- | -- | -- | -- | -- |
+| R1 | Drop unused `retryCount` from `fetchUser` | `user.ts` + 7 call sites | HIGH | Tool-confirmed zero usage |
+| R2 | Collapse `getUserData` wrapper | `user.ts` + 3 call sites | MEDIUM | Wrapper adds no transformation |
+| R3 | Delete `legacyAuthFallback` | `auth.ts` | LOW | Exported, dynamic language, unprovable |
 
-For any item touching multiple files, crossing a module boundary, or requiring sequencing, add a short detail block under the table:
+Anything touching multiple files, crossing a module boundary, or needing sequencing gets a detail block:
 
 ```
 #### R2 — Collapse `getUserData` wrapper
 
 **Files:** `user.ts`, `profile.ts`, `orders.ts`
 **Call sites:** 3
-**Change:** Replace wrapper calls with direct `fetchUser` calls and delete the wrapper.
+**Change:** Replace wrapper calls with direct `fetchUser` calls, delete the wrapper.
 **Risk:** Medium — wrapper is internal, but call sites span 2 modules.
-**Verification:** `npm test -- user`
+**Verify:** `npm test -- user`
 ```
 
 **Confidence tiers:**
 
-- **HIGH**: static language + deterministic tool confirms + tests cover the surface
-- **MEDIUM**: some ambiguity — dynamic language, partial test coverage, or indirection
-- **LOW**: speculative abstraction change, similar-looking-function merge, possible-reflection-target deletion. Always require explicit per-item sign-off.
+- **HIGH** — static language, tool-confirmed, tests cover the surface
+- **MEDIUM** — some ambiguity: dynamic language, partial coverage, or indirection
+- **LOW** — speculative abstraction change, similar-function merge, possible reflection target. Always needs per-item sign-off.
 
-**Case D — Nothing to refactor.** State this directly. Explain what the premise check found (the design is sound) and what the individual sweep found (no structural issues survive). A clean bill of health needs no padding — do not produce a table or list to justify the conclusion. Skip Phase 4.
+**Case D — Nothing to refactor.** Say it directly. What the premise check found (design is sound), what the sweep found (nothing survives). A clean bill of health needs no padding — no table, no list. Skip Phase 4.
 
-**For every proposal**, state concrete numbers: "7 call sites," not "several." Vagueness is how silent drift starts.
+**Always give real numbers.** "7 call sites", not "several". Vague is how silent drift starts.
 
-Present the proposal and stop. This skill's output is a structured proposal — source files are not modified. Implementation is carried out separately by the user or the `code` skill.
+Present and stop. This skill proposes; it doesn't modify source. Implementation goes to the user or the `code` skill.
 
 ### Phase 4 — Report
-
-Wrap the proposal in a structured header and output it.
 
 ```markdown
 ## 🧱 Refactor Proposal
 
-**Boundary:** `[files / paths analyzed]`
-**Case:** `A root cause only | B root cause + residuals | C independent issues | D nothing to refactor`
-**Refactors Proposed:** `[N]`
+**Boundary:** `[files / paths]`
+**Case:** `A root cause | B root cause + leftovers | C independent issues | D nothing to refactor`
+**Proposed:** `[N]`
 **Confidence:** `HIGH | MEDIUM | LOW | mixed`
-**Hard Stops:** `[items requiring explicit per-item sign-off] | none`
-**Follow-ups:** `[suggested next steps] | none`
+**Hard stops:** `[items needing sign-off] | none`
+**Follow-ups:** `[next steps] | none`
 
 ### 🔁 Root-Cause Reversal
 
-[For Case A or B: proposal body from Phase 3. Explain the wrong upstream decision, the reversal, and the concrete call-site/module changes.]
+[Case A or B: the wrong decision, the reversal, the concrete call-site changes.]
 
 ### 🧭 Refactor Index
 
-| ID | Refactor | Files | Call Sites | Confidence | Why |
+| ID | Refactor | Files | Call sites | Confidence | Why |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| R1 | [short imperative change] | `[file list or count]` | `[N]` | `HIGH/MEDIUM/LOW` | [one-line evidence] |
-| R2 | [short imperative change] | `[file list or count]` | `[N]` | `HIGH/MEDIUM/LOW` | [one-line evidence] |
+| R1 | [imperative change] | `[files or count]` | `[N]` | `HIGH/MEDIUM/LOW` | [one-line evidence] |
 
-[Use this for Case B residuals and all Case C items. For Case A with one root-cause reversal, omit this section unless it helps summarize multiple affected file groups.]
+[Case B leftovers and all Case C items. Omit for a single Case A reversal.]
 
-### 🧩 Refactor Details
+### 🧩 Details
 
-#### R1 — [Refactor name]
+#### R1 — [name]
 
-**Files:** `[concrete files]`
+**Files:** `[files]`
 **Call sites:** `[N]`
-**Change:** [specific structural change]
-**Risk:** [what could break and why]
-**Verification:** [test command or manual check]
+**Change:** [the structural change]
+**Risk:** [what breaks and why]
+**Verify:** [command or manual check]
 
-[Repeat one subsection per item that needs detail. Omit detail subsections for trivial one-line HIGH-confidence items.]
+[One per item needing detail. Skip for trivial HIGH-confidence one-liners.]
 
 ### 🛑 Hard Stops
 
-- `[surface requiring explicit sign-off]` — [why implementation cannot proceed without explicit approval]
+- `[surface]` — [why this needs explicit approval]
 - `none`
 
-### 🔍 Evidence Checked
+### 🔍 Evidence
 
-- **Call sites:** `[N]` checked via `[tool/manual trace]`
-- **Tests:** `[coverage found / no coverage found]`
-- **External surfaces:** `[exports/routes/events/schemas/reflection targets checked]`
+- **Call sites:** `[N]` via `[tool or manual trace]`
+- **Tests:** `[coverage found / none]`
+- **External surfaces:** `[exports/routes/events/schemas/reflection checked]`
 
-### ✅ Recommended Next Step
+### ✅ Next Step
 
-[One concrete next action, such as "Run code-refactor implementation through the code skill after approving the hard-stop items" or "No refactor recommended."]
+[One concrete action.]
 ```
 
-If a section is not applicable, omit it unless the omission would hide a risk. Do not output empty placeholder sections. For Case D, output only the metadata, a short `### ✅ Result` section, and evidence checked.
+Omit sections that don't apply, unless omitting hides a risk. Never output empty placeholders. Case D gets metadata, a short `### ✅ Result`, and evidence — nothing else.
 
-## Hard stops — require explicit per-item sign-off
+---
 
-Halt at Phase 3 and flag these. General "looks good" approval is insufficient.
+## Hard stops — need per-item sign-off
+
+Halt at Phase 3 and flag these. "Looks good" is not enough.
 
 - Public package exports
-- HTTP route handlers, webhook callbacks, event listeners, message consumers
-- Database schemas, migration files, ORM model fields mapped to columns
+- HTTP routes, webhook callbacks, event listeners, message consumers
+- Database schemas, migrations, ORM fields mapped to columns
 - Cross-service contracts: message schemas, event payloads, gRPC/protobuf
 - Reflection targets, dynamic dispatch, codegen inputs
-- Feature flags without user-provided rollout evidence
-- Anything the user marks "do not touch"
+- Feature flags with no rollout evidence from the user
+- Anything the user marked "do not touch"
 
-## Language confidence tiers
+## Confidence by language
 
-**Static (TypeScript, Go, Rust, Kotlin, Java, Swift, C#):** dead-code and signature-refactor claims can reach HIGH when the language server confirms.
+**Static** (TypeScript, Go, Rust, Kotlin, Java, Swift, C#): dead-code and signature claims can reach HIGH when the language server confirms.
 
-**Dynamic (JS without TS, Python, Ruby):** no symbol reachable from outside a module exceeds MEDIUM. Exported symbols default to UNCERTAIN — never deleted without the user explicitly saying "I've confirmed X is dead."
+**Dynamic** (JS without TS, Python, Ruby): nothing reachable from outside a module goes above MEDIUM. Exported symbols are UNCERTAIN — never deleted unless the user says "I've confirmed X is dead".
 
-## Common pitfalls
+## Common mistakes
 
-1. **Cataloguer voice when reviewer voice is needed.** If Phase 2 found a root cause, Phase 3 must lead with prose that names the wrong decision and its reversal. Tables are for residuals or bags of independent changes, not root-cause refactors. Producing a severity matrix when the real answer is "the 2nd parameter shouldn't exist" is the exact failure this skill is designed to avoid.
-
-2. **Speculative abstraction.** "I could extract this into a strategy pattern" → almost always wrong. Only propose new abstractions when 3+ concrete uses demand it.
-
-3. **Pattern-matching on syntax, not semantics.** Two functions that look similar may serve different domain purposes. Merging them creates a god-function with a boolean flag.
-
-4. **Cowardly compatibility.** Keeping the old signature plus adding a new helper often preserves the disease. If no hard-stop surface requires compatibility, migrate callers and remove the old shape.
-
-5. **"Unused" that isn't.** A function with no static callers may be reached via DI containers, route registries, plugin loaders, reflection. Follows the dynamic-language tier rule above: UNCERTAIN, never deleted without explicit user confirmation.
-
-6. **Defensive-code removal.** A null check that "seems unnecessary" often catches a real production edge case. Require evidence of unreachability, not aesthetic judgment.
-
-7. **Feature-flag removal from config.** Require explicit user confirmation that the flag is retired — flag state lives in production, not in `config.yaml` or `launchdarkly.json`.
+1. **Cataloguer voice where reviewer voice belongs.** Found a root cause? Lead with prose naming the wrong decision. Tables are for leftovers and bags of independent changes. A severity matrix when the real answer is "the 2nd parameter shouldn't exist" is the exact failure this skill exists to prevent.
+2. **Speculative abstraction.** "I could extract a strategy pattern here" → almost always wrong. 3+ concrete uses, or don't.
+3. **Rebuilding what exists.** Proposing a new helper without searching for the one three files over.
+4. **Matching on syntax, not meaning.** Two similar-looking functions may serve different purposes. Merging them makes a god-function with a boolean flag.
+5. **Cowardly compatibility.** Old signature plus a new helper usually preserves the disease. No hard stop in the way → migrate callers, delete the old shape.
+6. **"Unused" that isn't.** No static callers doesn't mean unreachable — DI containers, route registries, plugin loaders, reflection. Dynamic language → UNCERTAIN, never deleted without confirmation.
+7. **Removing defensive code.** A null check that "seems unnecessary" often catches a real production case. Evidence, not aesthetics.
+8. **Flag removal from config.** The user confirms the flag is retired. Its state lives in production, not `config.yaml`.

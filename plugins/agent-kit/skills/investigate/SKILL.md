@@ -1,7 +1,7 @@
 ---
 name: investigate
 description: 'Use when investigating bugs, errors, crashes, failing tests, regressions, flaky behavior, unexpected runtime behavior, or unclear root causes before implementation.'
-version: 2.0.0
+version: 2.1.0
 providers:
   claude:
     effort: high
@@ -13,150 +13,170 @@ providers:
 
 ---
 
-## The Iron Law
+## The iron law
 
-**No conclusions without evidence.** A hypothesis without proof is a guess. Your job is to find and confirm the root cause — not to fix it. Source code changes are out of scope; this skill produces an Investigation Report for a developer or the `code` skill.
+**No conclusions without evidence.** A hypothesis without proof is a guess.
 
-## Core Mental Model
+Your job is to find and confirm the root cause, not to fix it. No source changes. The output is an Investigation Report for a developer or the `code` skill.
 
-Debugging is not explaining the bug. Debugging is eliminating possible worlds until only one mechanically proven world remains:
+## Voice
+
+Write for a tired teammate, not a reviewer you're impressing.
+
+- Short sentences, one idea each. Cut every word that isn't load-bearing.
+- Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second. Never the reverse.
+- Bullets and tables over paragraphs. Three bullets max per point.
+- A question is one question plus one recommendation, under 5 lines.
+- No filler openers, no self-praise, no restating the request back.
+- If the explanation is longer than the thing it explains, delete the explanation.
+
+## How to think
+
+Debugging isn't explaining the bug. It's eliminating possible worlds until one proven world is left.
 
 ```
 Observe → localize → hypothesize → distinguish → verify → trace back → hand off
 ```
 
-The decisive question at every step: **What did I directly verify that would have been different if this hypothesis were false?**
+The question at every step: **what did I directly verify that would look different if this hypothesis were false?**
 
-**Confirmation standard:** a root cause is `CONFIRMED` only when the investigation observes the suspected condition in the failing path, or runs a targeted test separating it from plausible alternatives. Static code reading and "this would explain it" are leads — they support `PROBABLE`, never confirm.
+**When it counts as confirmed:** you observed the suspected condition on the failing path, or ran a targeted test separating it from the alternatives. Reading code and thinking "this would explain it" is a lead. Leads support `PROBABLE`. They never confirm.
 
-Generate hypotheses from your knowledge of common failure modes (races, null propagation, state corruption, integration/config drift, caching, off-by-one, dependency conflicts, serialization, auth) freely — but a catalog match is a *lead*, never a conclusion. When evidence allows more than one cause, hold 2–3 competing hypotheses and name what observation distinguishes them:
+Generate hypotheses freely from known failure modes — races, null propagation, state corruption, config drift, caching, off-by-one, dependency conflicts, serialization, auth. But a pattern match is a *lead*, never a conclusion.
+
+When the evidence allows more than one cause, hold 2–3 and name what tells them apart:
 
 ```
-The root cause might be X because Y.
-It would be confirmed by A.
-It would be refuted by B.
-The fastest distinguishing observation is C.
+Root cause might be X because Y.
+Confirmed by A.
+Refuted by B.
+Fastest way to tell: C.
 ```
 
-A known-good comparison in the same codebase (input shape, config, call order, state) is evidence; a generic pattern match is only a lead. A file patched repeatedly for similar issues signals architecture, not coincidence.
+A known-good comparison in the same codebase — input shape, config, call order, state — is evidence. A generic pattern match isn't. A file patched repeatedly for similar issues is telling you something about the architecture, not a coincidence.
 
 ---
 
-## Phase 1: Observe Reality
+## Phase 1 — Observe
 
-Capture what is actually happening before forming any theory.
+Capture what's happening before forming any theory.
 
-1. **Capture baseline:** exact command run, full error/test output, stack trace, timestamped logs, `git status --short`. This before-state is what `code` verifies against after fixing.
-2. **Collect symptoms verbatim** — error messages, stack traces, repro steps.
-3. **Reproduce** deterministically; if intermittent, document appearing conditions.
-4. **Preserve uncertainty** — no root-cause sentence yet; only observed facts.
+1. **Baseline:** exact command, full error and test output, stack trace, timestamped logs, `git status --short`. This is what `code` verifies against after the fix.
+2. **Symptoms, verbatim** — error messages, stack traces, repro steps.
+3. **Reproduce** deterministically. Intermittent → document when it appears.
+4. **No root-cause sentence yet.** Observed facts only.
 
-## Phase 2: Localize the Boundary
+## Phase 2 — Localize
 
-1. **Name the smallest visible failing layer:** test harness, UI, API, job, database, dependency, configuration, environment, external service.
-2. **Reduce broad triggers** to the smallest test/input/route/fixture that still fails — but don't minimize for its own sake once the cause is directly exposed.
-3. **Trace execution backward** from the localized failure through callers, data flow, config, state, dependency boundaries.
-4. **Check history:** `git log --oneline -20 -- <affected-files>` for recent regressions.
+1. **Name the smallest failing layer:** test harness, UI, API, job, database, dependency, config, environment, external service.
+2. **Shrink the trigger** to the smallest test, input, route, or fixture that still fails — but stop minimizing once the cause is exposed.
+3. **Trace backward** through callers, data flow, config, state, dependency boundaries.
+4. **Check history:** `git log --oneline -20 -- <affected-files>`.
 
-## Phase 3: Distinguish and Verify
+## Phase 3 — Distinguish and verify
 
-Define proof before testing: state confirm evidence, refute evidence, and the fastest safe test first. Then:
+Define the proof before testing: what confirms it, what refutes it, and the fastest safe test. Then:
 
-1. **Prefer discriminating tests** that separate plausible causes; re-confirming the same symptom without narrowing cause is weak evidence.
-2. **Verify the suspected condition itself** — the bad value, branch, state transition, response, or call order actually occurring on the failing path — not just the symptom.
-3. **Instrument only when needed**, with temporary logs/assertions at the suspected cause; remove them all afterward.
-4. **Read the output** — never infer from command success/failure alone.
-5. **Record each hypothesis** `CONFIRMED / REFUTED / INCONCLUSIVE` with the distinguishing observation, not merely the reproducing command.
-6. **3-strike rule:** three consecutive refuted hypotheses → stop; the cause is architectural or needs unavailable context. Status `INCONCLUSIVE`; document what was ruled out.
+1. **Run tests that separate causes.** Re-confirming the same symptom without narrowing anything is weak evidence.
+2. **Verify the condition itself** — the bad value, branch, state transition, response, or call order actually happening on the failing path. Not just the symptom.
+3. **Instrument only when needed.** Temporary logs and assertions at the suspected cause. Remove every one afterward.
+4. **Read the output.** Never infer from exit code alone.
+5. **Record each hypothesis** `CONFIRMED / REFUTED / INCONCLUSIVE`, with the observation that decided it — not just the command that reproduced it.
+6. **Three strikes.** Three refuted hypotheses in a row → stop. The cause is architectural, or needs context you don't have. Status `INCONCLUSIVE`, document what's ruled out.
 
-## Phase 4: Trace the Causal Chain
+## Phase 4 — Trace the chain
 
-After confirmation, trace backward:
+After confirming, trace backward:
 
 ```
-Symptom → immediate cause → contributing factor(s) → root cause
+Symptom → immediate cause → contributing factors → root cause
 ```
 
-Root cause = earliest actionable trigger inside the codebase or its configuration boundary. A chain stopping where the error appeared caps status at `PROBABLE`. Recommended Actions target the root cause, not the symptom location.
+Root cause is the earliest actionable trigger inside the codebase or its config. A chain that stops where the error appeared caps the status at `PROBABLE`. Recommended actions target the root cause, not where the symptom showed up.
+
+**Recommending the fix:** prefer the guard, validator, or utility the codebase already has over a new one. One guard in the shared function is a smaller change than a guard in every caller — and patching only the path in the ticket leaves every sibling caller broken. Before recommending a new helper, search for the existing one.
 
 ---
 
-## Phase 5: Persist & Handoff
+## Phase 5 — Save and hand off
 
-1. **Constraint check:** no temporary instrumentation remains in source.
-2. **Persist immediately.** If `$ARGUMENTS` contains `.agent-kit/handoffs/<slug>/...`, extract `<slug>` verbatim; otherwise derive a short slug. Call `kit_save_handoff(type: "investigation", slug: <slug>, files: { "README.md": <full report> })`.
+1. **Check:** no temporary instrumentation left in source.
+2. **Save immediately.** If `$ARGUMENTS` contains `.agent-kit/handoffs/<slug>/...`, use `<slug>` exactly. Otherwise derive a short one. Call `kit_save_handoff(type: "investigation", slug: <slug>, files: { "README.md": <full report> })`.
 
 ```
-# 🔍 INVESTIGATION REPORT: [Short Descriptive Title]
+# 🔍 INVESTIGATION REPORT: [Short Title]
 
 > **Status:** [CONFIRMED | PROBABLE | INCONCLUSIVE]
-> **Pattern Match:** [Named failure mode, or "None"]
+> **Known failure mode:** [named pattern, or "None"]
 
 ---
 
-## 📌 Executive Summary
-* **Symptom:** [observed behavior/error + steps to reproduce]
-* **Root Cause:** [high-level mechanical explanation]
-* **Blast Radius:** [number of files] — [systems/modules affected]
-* **Verification Target:** [exact command/step failing now that should pass after fix]
+## 📌 Summary
+* **Symptom:** [what happens + how to reproduce]
+* **Root cause:** [the mechanism, plainly]
+* **What else it touches:** [N files] — [systems affected]
+* **Verification target:** [exact command failing now that should pass after the fix]
 
 ---
 
-## 🛠 Technical Deep Dive
+## 🛠 Detail
 
-### 0. Baseline Captured
+### 0. Baseline
 | Item | Evidence |
 | :--- | :--- |
-| Command / Repro Step | `[exact command or steps]` |
-| Error / Output | `[verbatim failure output]` |
-| Logs / Stack Trace | `[relevant excerpt, timestamped]` |
-| Git State | `[git status --short summary]` |
-| Localized Boundary / Reduced Repro | `[failing layer + smallest repro, or "not reduced because ..."]` |
+| Command / repro | `[exact command or steps]` |
+| Error / output | `[verbatim]` |
+| Logs / stack trace | `[excerpt, timestamped]` |
+| Git state | `[git status --short]` |
+| Failing layer / smallest repro | `[layer + repro, or "not reduced because ..."]` |
 
-### 1. Root Cause Analysis
-* **Root Cause Chain:** Symptom → immediate cause → contributing factor(s) → root cause
-* **Direct Verification:** [the observed condition confirming it occurs on the failing path; if unavailable, why status is PROBABLE/INCONCLUSIVE]
-* **[Primary Issue]:** [detailed explanation]
-* **[Contributing Factor]:** [detailed explanation]
+### 1. Root Cause
+* **Chain:** symptom → immediate cause → contributing factors → root cause
+* **Directly verified:** [what you observed on the failing path; if nothing, why the status is PROBABLE or INCONCLUSIVE]
+* **[Primary issue]:** [explanation]
+* **[Contributing factor]:** [explanation]
 
 ### 2. Hypothesis Ledger
-| Hypothesis | Confirm Evidence | Refute Evidence | Result | Evidence Used |
+| Hypothesis | Confirms it | Refutes it | Result | Evidence |
 | :--- | :--- | :--- | :--- | :--- |
-| [Root cause is X because Y] | ... | ... | CONFIRMED / REFUTED / INCONCLUSIVE | [file:line, output, log, observation] |
+| [Root cause is X because Y] | ... | ... | CONFIRMED / REFUTED / INCONCLUSIVE | [file:line, output, observation] |
 
-### 3. Evidence & Observations
-| Location (File:Line) | Observation | Significance |
+### 3. Evidence
+| Location | Observation | Why it matters |
 | :--- | :--- | :--- |
-| `path/to/file:line` | [output/snippet/state value] | [how this confirms the hypothesis] |
+| `path/to/file:line` | [output/snippet/value] | [how it confirms the hypothesis] |
 
 ---
 
 ## 🚀 Recommended Actions
-[Steps for `code`/a developer targeting the root cause — not symptom patches unless proven identical.]
-1.  **[File/Component]:** [specific fix logic]
+[For `code` or a developer. Target the root cause. No symptom patches unless proven identical.]
+1.  **[File/Component]:** [the specific fix]
 
-### Prevention Needed
-[Every report names prevention or states why none applies.]
-* **Regression Coverage:** [test/manual assertion failing before fix, passing after]
-* **Guard / Validation:** [boundary check, type guard, timeout, transaction, etc., if applicable]
-* **Observability:** [log/error context making recurrence diagnosable, or "none needed"]
+**Reuse:** [existing guard/validator/utility this fix should use, with path — or "none applies"]
+
+### Prevention
+[Every report names prevention, or says why none applies.]
+* **Regression coverage:** [test or assertion that fails before the fix, passes after]
+* **Guard:** [boundary check, type guard, timeout, transaction — if applicable]
+* **Observability:** [log or error context making a recurrence diagnosable, or "none needed"]
 
 ---
 
-## 🔗 Metadata & Context
-* **Related History:** [prior bugs here, TODOs, architectural notes]
-* **Investigation Path:** [hypothesis ledger summary — especially refuted paths future agents should not retry]
-* **Hard Stop Notes:** [if Blast Radius > 5 files or reproduction impossible, explain]
+## 🔗 Context
+* **History:** [prior bugs here, TODOs, architectural notes]
+* **Path taken:** [ledger summary — especially the refuted paths future agents shouldn't retry]
+* **Hard stop notes:** [if more than 5 files affected, or reproduction impossible]
 ```
 
-**Status definitions:** `CONFIRMED` (traced + directly evidenced) · `PROBABLE` (strong but not directly verified — static analysis only, intermittent, restricted environment) · `INCONCLUSIVE` (3-strike triggered).
+**Status meanings:** `CONFIRMED` — traced and directly evidenced. `PROBABLE` — strong, not directly verified (static reading only, intermittent, restricted environment). `INCONCLUSIVE` — three strikes.
 
-3. **Present the menu** for `CONFIRMED`/`PROBABLE`: saved path + choice of `1) Execute fix now — start /code with this report` or `2) Done`. For `INCONCLUSIVE`: save the report, print the path, and instruct to continue investigating before implementation.
+3. **Show the menu.** For `CONFIRMED` / `PROBABLE`: the saved path, then `1) Fix it now — start /code with this report` or `2) Done`. For `INCONCLUSIVE`: save, print the path, say to keep investigating before implementing.
 
 ---
 
-## Hard Stops
+## Hard stops
 
-- **Blast radius > 5 files** — likely architectural; note in report, recommend planning before any fix.
-- **Reproduction impossible** and environment difference unclear — note the gap, cap status at `PROBABLE`/`INCONCLUSIVE`.
-- **Root cause in a dependency** — document and stop; do not trace into the package/service.
+- **More than 5 files affected** — likely architectural. Note it, recommend planning before any fix.
+- **Can't reproduce**, and the environment difference is unclear — note the gap, cap the status at `PROBABLE` or `INCONCLUSIVE`.
+- **Root cause is in a dependency** — document it and stop. Don't trace into the package.

@@ -1,6 +1,6 @@
 ---
 name: review
-version: 1.0.0
+version: 1.1.0
 description: Review local uncommitted changes with Jira context. Accepts an optional base branch/commit.
 ---
 
@@ -9,12 +9,24 @@ description: Review local uncommitted changes with Jira context. Accepts an opti
 **Target Base:** `$ARGUMENTS` _(defaults to `HEAD` — reviews all staged and unstaged changes to tracked files)_
 
 Thin orchestrator for reviewing local code changes. Computes the diff, detects Jira context from the current branch, invokes the `code-review` skill, and assembles the output. Review criteria, severity, and output format are owned by `code-review` — this skill does not duplicate them.
+## Voice
+
+Write for a tired teammate, not a reviewer you're impressing.
+
+- Short sentences, one idea each. Cut every word that isn't load-bearing.
+- Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second. Never the reverse.
+- Bullets and tables over paragraphs. Three bullets max per point.
+- A question is one question plus one recommendation, under 5 lines.
+- No filler openers, no self-praise, no restating the request back.
+- If the explanation is longer than the thing it explains, delete the explanation.
+
 
 ---
 
-## Execution Pipeline
+## Pipeline
 
-### Phase 1 — Acquire Changes
+### Phase 1 — Get the changes
 
 Compute the diff with JS/TS noise excluded:
 
@@ -57,15 +69,15 @@ FILES_CHANGED=$(git diff "$BASE_TARGET" --name-only -- . | wc -l | tr -d ' ')
 UNTRACKED_COUNT=$(git ls-files --others --exclude-standard | wc -l | tr -d ' ')
 ```
 
-Notes on scope:
+Scope notes:
 
 - `.env*` files are intentionally NOT excluded. If one shows up in the diff, it should surface as a secret-leak finding via the `code-review` skill's Trust Boundaries category, not be silently hidden.
 - Migration files are NOT excluded. Destructive operations are in scope for review.
 - Untracked files are outside `git diff` and cannot be reviewed here. They're reported as a footnote only.
 
-**Empty diff handling:** If `DIFF` is empty, stop and tell the user there are no changes between the working tree and `$BASE_TARGET`. Suggest `git status` or passing a different base. Do not invoke `code-review` on an empty diff.
+**Empty diff:** stop. Tell the user there are no changes between the working tree and `$BASE_TARGET`, and suggest `git status` or a different base. Never invoke `code-review` on an empty diff.
 
-### Phase 2 — Detect Jira Intent (optional)
+### Phase 2 — Find the ticket (optional)
 
 Extract a ticket ID from the current branch name:
 
@@ -76,7 +88,7 @@ TICKET_ID=$(echo "$CURRENT_BRANCH" | grep -oE '[A-Z]+-[0-9]+' | head -1 || true)
 - If `TICKET_ID` is non-empty: call `kit_jira_get_ticket(ticketId: "$TICKET_ID")` and pass the ticket body as intent to the child skill. If the tool call fails, proceed without intent — do not block the review.
 - If `TICKET_ID` is empty: proceed with no intent. Do not warn, do not prompt. This is the expected case for branches without ticket references.
 
-### Phase 3 — Route to Reviewer
+### Phase 3 — Route it
 
 Inspect the diff from Phase 1 to determine the review path:
 
@@ -90,9 +102,9 @@ Pass to the chosen skill(s):
 - **Intent** — Jira ticket body if available; otherwise absent.
 - **Codebase access** — always full (running locally in the target repository).
 
-The child skill(s) own framing, Scope Drift (when intent is available), Blast Radius, sweep phases, self-critique, and final report formatting. Do not re-run those phases here.
+The child skill owns framing, scope drift, the consumer check, the category sweep, self-critique, and report formatting. Don't re-run those here.
 
-### Phase 4 — Report Assembly
+### Phase 4 — Assemble the report
 
 Prepend this header to the child skill's report:
 
@@ -113,10 +125,10 @@ If `UNTRACKED_COUNT > 0`, append to the report footer:
 
 ---
 
-## What this skill does NOT do
+## What this skill doesn't do
 
-- Does not define review criteria, severity, or output format — those belong to `code-review` or `e2e-review`.
-- Does not mutate git state: no staging, no stashing, no commits, no branch switches.
-- Does not review untracked files by default.
-- Does not silently drop `.env*` files or migrations from the diff — those need eyes on them.
-- Does not re-assess Scope Drift, Blast Radius, or category coverage — the child owns those.
+- Define review criteria, severity, or output format. Those belong to `code-review` or `e2e-review`.
+- Touch git state. No staging, stashing, commits, or branch switches.
+- Review untracked files by default.
+- Drop `.env*` files or migrations from the diff. Those need eyes on them.
+- Re-assess scope drift, consumers, or category coverage. The child owns those.

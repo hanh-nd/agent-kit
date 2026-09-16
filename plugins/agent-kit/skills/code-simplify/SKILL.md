@@ -1,186 +1,201 @@
 ---
 name: code-simplify
-version: 1.0.0
+version: 1.1.0
 description: Improve readability — better names, guard clauses, dead-code removal — without changing behavior or signatures.
 ---
 
 # Code Simplify
 
-Improve the readability of existing code without changing what it does or how it's shaped externally. Accept the design; sharpen the expression.
+Make existing code easier to read without changing what it does or its shape from outside. Accept the design; sharpen the expression.
 
-**Core thesis:** every change must earn its rent. A rename that confuses more than it clarifies is worse than the original. An explaining variable used once is overhead without benefit. A constant introduced for a single-use literal adds indirection for no gain. The skill's job is to apply changes that make the next reader's life easier — not to apply changes that look like cleanup.
+**Every change must earn its rent.** A rename that confuses more than it clarifies is worse than the original. An explaining variable used once is overhead. A constant for a single literal is indirection for nothing. The job is to make the next reader's life easier — not to apply changes that look like cleanup.
 
-Simplification is measured by reader effort, not line count. Explicit, debuggable code is often simpler than compact code. A change whose only measurable win is fewer lines fails rent.
+Simplicity is measured in reader effort, not line count. Explicit, debuggable code often beats compact code. A change whose only win is fewer lines fails rent.
 
-**The primary failure mode this skill guards against is pattern-matching on hunks.** A rule like "rename `data` to something specific" fires correctly only when you've read the whole file and understand what `data` holds in context. Reading the diff hunk alone produces confident-looking bad renames.
+## Voice
 
-**The secondary failure mode is removing protective awkwardness.** Some code looks noisy because it encodes a boundary, a historical bug, a platform quirk, or a debugging affordance. If you cannot explain what the awkwardness protects, do not simplify it yet.
+Write for a tired teammate, not a reviewer you're impressing.
 
-## Relationship to `code-refactor`
+- Short sentences, one idea each. Cut every word that isn't load-bearing.
+- Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second. Never the reverse.
+- Bullets and tables over paragraphs. Three bullets max per point.
+- A question is one question plus one recommendation, under 5 lines.
+- No filler openers, no self-praise, no restating the request back.
+- If the explanation is longer than the thing it explains, delete the explanation.
 
-These skills are orthogonal, not a spectrum.
+## The two ways this skill fails
 
-- `code-simplify` works **within** the current structure. Signatures preserved (external ABI: types, arity, observable side effects, error surface). Call sites untouched.
-- `code-refactor` works **on** the current structure. Signatures negotiable, call sites reshape atomically, design premise on the table.
+**Pattern-matching on hunks.** A rule like "rename `data` to something specific" only fires correctly once you've read the whole file and know what `data` holds here. Reading the diff alone produces confident-looking bad renames.
 
-If triage reveals that the real improvement requires signature changes, cross-file merges, or reversing a design choice, this skill **stops and routes out** rather than degrading the change into a within-signature half-measure.
+**Removing protective awkwardness.** Some code looks noisy because it encodes a boundary, an old bug, a platform quirk, or a debugging affordance. Can't say what the awkwardness protects? Don't touch it yet.
+
+## This skill vs `code-refactor`
+
+Different jobs, not degrees of the same job.
+
+- `code-simplify` works **within** the structure. Signatures preserved — types, arity, side effects, error surface. Call sites untouched.
+- `code-refactor` works **on** the structure. Signatures negotiable, call sites reshape together, design premise on the table.
+
+If the real improvement needs signature changes, cross-file merges, or reversing a design choice, **stop and route out**. Don't degrade it into a within-signature half-measure.
 
 ---
 
 ## Inputs
 
-Three things are needed. If invoked directly, request what's missing:
+Three things. Ask for whatever's missing:
 
-1. **The target.** A diff, a set of changed files, or explicit paths. Defaults to staged + unstaged changes (`git diff HEAD`).
-2. **Read access to the full files**, not just the diff. File-scope context is required.
-3. **Project conventions.** Infer from 2–3 non-modified files in the same module. Conventions matter for naming, constant placement, and import style.
+1. **The target.** A diff, changed files, or paths. Defaults to `git diff HEAD`.
+2. **Full file access**, not just the diff. File-scope context is required.
+3. **Project conventions.** Infer from 2–3 unmodified files in the same module — naming, constant placement, import style.
 
-If the target is empty, stop and tell the user.
+Empty target → stop and say so.
 
 ---
 
-## Execution — Four Ordered Phases
+## The four phases
 
 ### Phase 1 — Orient
 
 Read each changed file **in full** before considering any change. The diff hunk is never enough.
 
-For each file, internally answer:
+For each file, answer internally:
 
-- What is this file's responsibility? (one sentence)
-- What naming conventions does the file already follow? (camelCase, what kinds of names for what kinds of values)
-- What constants, enums, or helpers already exist in or near this file that a new change might duplicate?
-- What behavior anchors exist? (nearby tests, callers, error paths, side effects, comments that explain why the code is shaped this way)
-- What does the surrounding module look like? (glance at sibling files if helpful — do not read the whole codebase)
+- What is this file responsible for? One sentence.
+- What naming conventions does it already follow?
+- What constants, enums, or helpers already exist in or near this file that a change might duplicate?
+- What anchors the behavior — nearby tests, callers, error paths, side effects, comments explaining the shape?
+- What does the surrounding module look like? Glance at siblings. Don't read the whole codebase.
 
-This phase produces no output. Its purpose is to install the context that every later decision depends on. Skipping it is the skill's top failure mode.
+No output. This installs the context every later decision depends on. Skipping it is this skill's top failure.
 
 ### Phase 2 — Triage
 
-For each modified unit, classify what's present. Use these categories — and only flag items that belong to each:
+Classify what's in each modified unit.
 
-**Simplify-in-scope (Phase 3 applies):**
+**In scope — Phase 3 applies:**
 
-- Name lies about what a value holds, misleads in its context, or breaks symmetry with siblings.
-- Nested conditionals where guard clauses would flatten without changing logic.
-- Literal value repeated within the file, or a new literal that duplicates an existing named constant elsewhere in the file.
-- Dead code: unused variables, commented-out blocks, `console.log` not part of intentional logging, logically impossible branches.
-- Comments that restate what the code does in English ("What" comments).
-- Comments that contradict the current code.
+- A name lies about what it holds, misleads in context, or breaks symmetry with siblings.
+- Nested conditionals that guard clauses would flatten without changing logic.
+- A literal repeated in the file, or a new literal duplicating a named constant already there.
+- Dead code: unused variables, commented-out blocks, stray `console.log`, impossible branches.
+- Comments restating what the code does.
+- Comments that contradict the code.
 
-**Simplify-out-of-scope — route to `code-refactor`:**
+**Out of scope — route to `code-refactor`:**
 
-- Function signature is wrong (misnamed, parameters unused at all call sites, boolean flag splitting the function into two behaviors, return type leaks implementation detail).
-- Two functions in the same file or module that serve the same domain purpose.
-- A wrapper that adds nothing (forwards arguments unchanged).
-- Parameter threaded through layers to reach one usage site.
-- Abstraction introduced for flexibility that never materialized.
-- Any change that would alter external ABI.
+- Wrong signature: misnamed, parameters unused at every call site, boolean flag splitting behavior, return type leaking internals.
+- Two functions in the same module serving the same purpose.
+- A wrapper that adds nothing.
+- A parameter threaded through layers to reach one use.
+- An abstraction built for flexibility that never arrived.
+- Anything that changes the external interface.
 
 **Accept and skip:**
 
-- Redundancy that aids readability (nil-check before length check; explicit `else` after an early `return` that some teams prefer).
-- Established convention mismatches that are project-wide, not local. Don't fight the codebase.
-- Style preferences not grounded in a specific rule the project enforces.
-- Names that are generic _and correct in context_ (`data` in a data-handling function; `item` in a small loop body).
+- Redundancy that helps reading — nil-check before length check, explicit `else` after an early return where the team prefers it.
+- Convention mismatches that are project-wide, not local. Don't fight the codebase.
+- Style preferences with no rule behind them.
+- Names that are generic *and correct here* — `data` in a data-handling function, `item` in a small loop.
 
-**Triage exits:**
+**Exits:**
 
-- If the unit has zero simplify-in-scope items and zero out-of-scope items → `✓ Code is already clean. No changes needed.` Stop.
-- If the unit has only out-of-scope items → do not simplify. Surface them as a route-out message (see Phase 4 output). Stop.
-- If mixed → proceed to Phase 3 with the in-scope items; record the out-of-scope items for the report.
+- Nothing in scope and nothing out of scope → `✓ Code is already clean. No changes needed.` Stop.
+- Only out-of-scope items → don't simplify. Output the route-out message. Stop.
+- Mixed → Phase 3 with the in-scope items, record the rest for the report.
 
-### Phase 3 — Apply (with rent check and invariance)
+### Phase 3 — Apply
 
-Apply changes in place. Every change must pass two checks before it goes in:
+Every change passes two checks before it goes in.
 
-**Rent check** — ask for each change: _is the file actually easier to read after this?_ If the answer is "same, maybe slightly different," revert the change. Specifically:
+**Rent check** — *is the file actually easier to read now?* "Same, maybe different" → revert.
 
-- An explaining variable is only warranted when (a) the expression is reused in scope, or (b) the expression requires domain knowledge the reader can't derive inline. One-use explaining variables fail rent.
-- Do not inline a named intermediate value if the name carries domain meaning, documents a business concept, or makes debugging easier.
-- A named constant is only warranted when (a) the literal appears 2+ times in the file, (b) a named version already exists elsewhere in the file that should be reused, or (c) the literal's meaning isn't self-evident from context. A single-use `'PENDING'` in a status assignment does not need a constant.
-- A function extraction is only warranted when the logic block is duplicated in the file. "3+ steps with coherent purpose" and "describable in 4 words" are not sufficient reasons — they license speculative extraction.
-- A rename is only warranted when the original name is misleading _in its context_. Generic names in generic contexts can stay.
-- Do not collapse separated branches when they encode distinct business cases, even if the expressions can be mechanically combined.
-- Do not prefer clever expressions over stepwise code that is easier to inspect in a debugger.
-- Do not delete, flatten, inline, or rename code that looks awkward until you can state what purpose it currently serves. If the purpose is unknown, skip it or log it as a route-out/context concern.
+Before adding anything — a constant, a helper, an explaining variable — check whether one already exists in or near the file. Reuse beats introduce, every time. Then:
 
-**Invariance check** — the following must not change:
+- An explaining variable earns rent only when the expression is reused in scope, or needs domain knowledge the reader can't get inline. One-use variables fail.
+- Don't inline a named value if the name carries domain meaning, documents a business concept, or helps debugging.
+- A named constant earns rent only when the literal appears 2+ times, a named version already exists in the file, or its meaning isn't obvious. A single `'PENDING'` needs no constant.
+- A function extraction earns rent only when the block is duplicated in the file. "3+ coherent steps" and "describable in 4 words" are not reasons — they license speculative extraction. One caller is not a helper.
+- A rename earns rent only when the original misleads *in context*. Generic names in generic contexts stay.
+- Don't collapse branches that encode distinct business cases, even when the expressions combine mechanically.
+- Don't prefer clever expressions over stepwise code that's easier to step through in a debugger.
+- Don't delete, flatten, inline, or rename code that looks awkward until you can say what it's doing there. Unknown purpose → skip it, or log it.
 
-- Function parameter types, parameter count, return type.
-- Observable side effects (mutations, I/O, logging) and the conditions that trigger them.
-- Thrown errors or rejected promises and the conditions that trigger them.
+**Nothing may change:**
+
+- Parameter types, parameter count, return type.
+- Side effects — mutations, I/O, logging — and what triggers them.
+- Thrown errors and rejected promises, and what triggers them.
 - Public exports.
 
-Parameter _names_ are internal unless a call site uses named arguments. If any call site uses named arguments (Python kwargs, TypeScript destructuring at the call site), the rename is a call-site reshape — route out, do not apply here.
+Parameter *names* are internal, unless a call site uses named arguments (Python kwargs, destructuring at the call site). If one does, renaming is a call-site reshape — route out.
 
 **Apply rules:**
 
-- Changes are file-local. Do not modify call sites or files outside the changed set.
-- Order within a file is not meaningful — apply each change as its own atomic edit.
-- Match the project's existing convention for constant placement (top of file, `constants.ts`, etc.). Do not invent a new convention.
+- File-local only. Don't touch call sites or files outside the changed set.
+- One atomic edit per change. Order within a file doesn't matter.
+- Match the project's convention for constant placement. Don't invent a new one.
 
-**Scope limits:**
+**Off-limits:**
 
-- **Tests are untouched.** If a test looks wrong, log it in the report as a separate concern — fixing tests mixes test maintenance into a readability diff and makes both changes harder to review.
-- **Performance improvements are out of scope.** A readability change that happens to be faster is acceptable; a change motivated by performance belongs in a dedicated session.
-- **Bugs noticed during the run are logged and left unchanged.** Fixing a bug changes behavior. This skill's invariance contract is that behavior is preserved — a behavior change embedded in a readability diff is invisible to reviewers who assume simplify-only diffs are safe to approve quickly. Log it, route it to a separate session.
+- **Tests.** A test that looks wrong gets logged, not fixed. Mixing test maintenance into a readability diff makes both harder to review.
+- **Performance.** A readability change that happens to be faster is fine. A change motivated by speed belongs elsewhere.
+- **Bugs.** Log them, leave them. This skill's contract is that behavior is preserved — a behavior change hidden in a readability diff is invisible to a reviewer who assumes simplify diffs are safe to approve fast.
 
-### Phase 4 — Self-Review and Log
+### Phase 4 — Self-review and log
 
-After all changes are applied, re-read each modified file as if seeing it for the first time. For each change you made, ask:
+Re-read each modified file as if seeing it fresh. For every change:
 
-1. **Rent re-check** — does this change actually make the file easier to read, or does it just look like a cleanup rule fired?
-2. **Context fit** — does the renamed identifier fit the file's broader naming style, or does it stand out?
-3. **Introduced indirection** — did I add an explaining variable, constant, or helper that the reader now has to scroll to understand? If yes, was the inlined version genuinely worse?
-4. **Protective awkwardness re-check** — did I remove code whose original reason I still cannot explain?
-5. **Invariance re-check** — did any edit accidentally change a type, a return path, or a side-effect condition?
+1. **Rent** — easier to read, or did a cleanup rule just fire?
+2. **Fit** — does the new name match the file's style, or stand out?
+3. **Indirection** — did I add something the reader now has to scroll to understand? Was the inline version genuinely worse?
+4. **Protective awkwardness** — did I remove something whose reason I still can't explain?
+5. **Nothing changed** — did any edit alter a type, a return path, or a side-effect condition?
 
-Revert any change that fails self-review. Reverts tagged `[self-review]` in the log.
+Revert what fails. Tag reverts `[self-review]`.
 
-If tests fail after applying changes, that signals a violated invariance check — revert the offending change and log it as `[invariance-violation]`. The tests are not wrong; the change was.
+Tests failing after your changes means a behavior check was violated. Revert the offending change, log it `[invariance-violation]`. The tests aren't wrong; the change was.
 
-**Produce the log:**
+**The log:**
 
 ```markdown
-## Refactor Log
+## Simplify Log
 
 ### Files Modified
 
-- `path/to/file.ts` — N changes applied, M reverted on self-review
-- ...
+- `path/to/file.ts` — N applied, M reverted on self-review
 
-### Changes Applied
+### Applied
 
-- **Rename:** `data` → `bookingPayload` in `createBooking()` — original misled in context (file handles multiple payload types).
-- **Guard clause:** early-return for null `userId` in `validateBooking()` — removed one nesting level.
-- **Constant reuse:** inline `'PENDING'` → `BOOKING_STATUS.PENDING` — constant already exists in same file (3 other call sites).
+- **Rename:** `data` → `bookingPayload` in `createBooking()` — original misled; file handles several payload types.
+- **Guard clause:** early return for null `userId` in `validateBooking()` — one less nesting level.
+- **Constant reuse:** `'PENDING'` → `BOOKING_STATUS.PENDING` — already in this file, 3 other call sites.
 - **Dead code:** removed unused `tempResult`, 2 debug `console.log`.
-- **Comment hygiene:** deleted 4 "What" comments; kept 1 "Why" comment explaining Twilio retry.
+- **Comments:** deleted 4 that restated the code; kept the one explaining the Twilio retry.
 
-### Changes Reverted on Self-Review
+### Reverted
 
-- **[self-review]** Explaining variable `isActiveAdmin` — used once, inlined version reads clearly in context.
+- **[self-review]** Explaining variable `isActiveAdmin` — used once, inline reads fine.
 
 ### Route-Out to `code-refactor`
 
-- `processOrder()` in `order.service.ts` takes a boolean `isExpress` that splits the function into two different behaviors. This is a signature-level issue — outside simplify's scope.
-- `getUserData()` wraps `fetchUser()` with no transformation. Wrapper collapse requires call-site updates.
+- `processOrder()` in `order.service.ts` takes a boolean `isExpress` that splits it into two behaviors. Signature-level, out of scope here.
+- `getUserData()` wraps `fetchUser()` with no transformation. Collapsing it needs call-site updates.
 
-Run `/code-refactor order.service.ts user.service.ts` to address these.
+Run `/code-refactor order.service.ts user.service.ts`.
 
-### Test Status
+### Tests
 
-- Adjacent test files found: `order.service.test.ts`, `booking.service.test.ts`.
-- Run them to confirm behavior preservation. No tests found for `date.utils.ts` — behavior-preservation verified by code review only.
+- Adjacent tests: `order.service.test.ts`, `booking.service.test.ts`. Run them to confirm behavior held.
+- No tests for `date.utils.ts` — behavior preservation checked by review only.
 ```
 
-If the triage exited early with `No changes needed` or route-out-only, the log is just the relevant message — no empty sections.
+Early exit with `No changes needed` or route-out only → the log is just that message. No empty sections.
 
 ---
 
-## Operating principles
+## How to operate
 
-- **Conservative by default.** When two cleanup paths are valid, take the less invasive one.
-- **Silence over noise.** "Nothing to simplify" is a perfectly valid and common result. A skill that always finds something to change is vandalism.
-- **Reviewer voice in the log.** Each change entry says _why_ this change earns its rent, not just _what_ changed. The user should be able to audit each decision without re-reading the diff.
+- **Conservative by default.** Two valid paths → take the less invasive one.
+- **Silence over noise.** "Nothing to simplify" is a normal, valid result. A skill that always finds something is vandalism.
+- **Reviewer voice in the log.** Each entry says *why* the change earns its rent, not just what changed. The user should be able to audit it without re-reading the diff.

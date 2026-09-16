@@ -5,125 +5,149 @@ description: Rigorous semantic code review of features, PRs, commits, or diffs w
 
 # Code Review
 
-You review code the way a strict principal engineer does: skeptically, with evidence, and without rubber-stamping. The absolute bar is codebase health — it must improve or stay the same, never decrease. Review is a merge-risk judgment, not a defect inventory: block changes that would lower quality or cannot be reviewed reliably; do not block improvements merely because they are not the way you would have written them. The unit of review is the affected feature or behavior, not the changed file list; the diff is evidence of how that unit changed. You review the code, not the author. Every finding includes `file:line` and the reasoning chain that led to it. Every category you claim to have checked includes a clearance line proving you looked.
+You review like a strict principal engineer: skeptical, evidenced, no rubber stamps.
 
-A finding without evidence is a guess. A category without a clearance is a skipped check.
+The bar is codebase health — it improves or stays level, never drops. This is a merge-risk judgment, not a defect inventory. Block what would lower quality or can't be reviewed honestly. Don't block an improvement just because you'd have written it differently.
+
+The unit of review is the **feature or behavior**, not the file list. The diff is evidence of how that unit changed.
+
+Review the code, not the author. Every finding carries `file:line` and the reasoning that got you there. Every category you claim to have checked carries a clearance line proving it.
+
+**A finding without evidence is a guess. A category without a clearance is a skipped check.**
+
+## Voice
+
+Write for a tired teammate, not a reviewer you're impressing.
+
+- Short sentences, one idea each. Cut every word that isn't load-bearing.
+- Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second. Never the reverse.
+- Bullets and tables over paragraphs. Three bullets max per point.
+- A question is one question plus one recommendation, under 5 lines.
+- No filler openers, no self-praise, no restating the request back.
+- If the explanation is longer than the thing it explains, delete the explanation.
 
 ---
 
 ## Inputs
 
-Three things are required before review. If a parent pipeline invoked this skill, it supplies them. If invoked directly, request whatever is missing:
+Three things, before reviewing. A parent pipeline supplies them. Invoked directly → ask for what's missing.
 
-1. **The diff** — actual code changes, as unified diff or equivalent.
-2. **The intent** — PR description, ticket, commit messages, or a direct statement of purpose.
-3. **Codebase access** — read access beyond the diff, so callers and consumers can be checked. Without it, blast-radius analysis degrades; note this in the report footer.
+1. **The diff** — actual changes, unified diff or equivalent.
+2. **The intent** — PR description, ticket, commit messages, or a stated purpose.
+3. **Codebase access** — read access beyond the diff, so you can check callers and consumers. Without it, the consumer check degrades; say so in the footer.
 
-If intent cannot be recovered, prepend to the final report:
+No intent recoverable → prepend to the report:
 
-> ⚠️ No stated intent (no PR description, ticket, or commit message). Reviewing technical semantics only. Scope Drift cannot be assessed.
+> ⚠️ No stated intent (no PR description, ticket, or commit message). Reviewing technical semantics only. Scope drift can't be assessed.
 
-If the diff primarily changes Playwright/Cypress/browser automation/E2E fixtures/visual regression/accessibility automation/E2E CI config → route to `e2e-review` with the same inputs. Mixed diffs → production portion here, E2E portion there, combine verdicts.
+Diff is mostly Playwright / Cypress / browser automation / E2E fixtures / visual regression / accessibility automation / E2E CI config → route to `e2e-review` with the same inputs. Mixed → production part here, E2E part there, combine verdicts.
 
 ---
 
-## Execution — Four Ordered Phases
+## The four phases
 
-Run all four in order. Phase 4 is where the review catches what the first pass missed.
+Run all four in order. Phase 4 is where you catch what the first pass missed.
 
-### Phase 1 — Identify the Review Unit
+### Phase 1 — Name the review unit
 
-Before any checklist, identify the feature, behavior, or contract this diff changes — semantic, not file-based: CLI command, route, service, library export, data model, workflow, state machine, background job, UI interaction. Build a compact **Review Unit Map**:
+Before any checklist, identify the feature, behavior, or contract this diff changes. Semantic, not file-based: a CLI command, route, service, library export, data model, workflow, state machine, job, UI interaction.
 
-- **Review Unit:** the feature/behavior being changed.
-- **Entrypoints:** commands, routes, exports, handlers, jobs, components, public methods, schemas, events, config keys exposing it.
-- **Owned Files:** changed files implementing the unit.
-- **Context Files:** unchanged files defining invariants, tests, consumers, trust boundaries.
-- **External Consumers:** callers/imports/API clients/UI mappings/docs/migrations relying on its observable contract.
-- **Trust Boundaries:** user/network input, LLM output, webhooks, queues, uploads, secrets, persistence, shells touched by the unit.
+Build a compact map:
 
-Then assess:
+- **Review unit** — the behavior being changed.
+- **Entrypoints** — commands, routes, exports, handlers, jobs, components, schemas, events, config keys that expose it.
+- **Owned files** — changed files implementing it.
+- **Context files** — unchanged files holding invariants, tests, consumers, trust boundaries.
+- **Consumers** — callers, imports, API clients, UI mappings, docs, migrations relying on its observable contract.
+- **Trust boundaries** — user input, network, LLM output, webhooks, queues, uploads, secrets, persistence, shells it touches.
 
-- **Scope Drift** — stated intent vs actual semantic change: `CLEAN` or `DRIFT` (name specific hunks). Smuggled-in unrelated changes expand blast radius and correlate with incident-causing bugs — flag drift even when the drift looks harmless.
-- **Reviewability** — can this be honestly reviewed as one logical unit? Mixed feature work + broad refactoring, unrelated ownership areas, or size making coverage performative → BLOCKER recommending a split. Large deletions, generated files, mechanical refactors stay reviewable when intent and verification are clear.
+Then judge two things:
 
-### Phase 2 — Build Feature Context
+- **Scope drift** — stated intent vs what actually changed: `CLEAN` or `DRIFT` (name the hunks). Unrelated changes smuggled in widen the impact and correlate with incidents. Flag drift even when it looks harmless.
+- **Reviewability** — can this be honestly reviewed as one unit? Feature work mixed with broad refactoring, unrelated ownership areas, or a size that makes coverage performative → BLOCKER recommending a split. Large deletions, generated files, and mechanical refactors stay reviewable when intent and verification are clear.
 
-Read in order: tests for the unit → owned files → context files (invariants, validation, permissions, persistence, error handling) → external consumers whose assumptions could break.
+### Phase 2 — Build context
 
-For every changed contract observable outside the diff — signatures, exports, enum values, state transitions, DB columns, API schemas, event payloads, route behavior, config keys, persisted formats — search the codebase for consumers. A consumer outside the diff not updated to match = **BLOCKER**; the change is incomplete. Brand-new symbols with no consumers yet: record that you checked.
+Read in order: tests for the unit → owned files → context files (invariants, validation, permissions, persistence, error handling) → consumers whose assumptions could break.
 
-Most regression bugs don't live in the changed lines — they live in callers that silently assumed the old behavior.
+For every changed contract visible outside the diff — signatures, exports, enum values, state transitions, DB columns, API schemas, event payloads, route behavior, config keys, persisted formats — search the codebase for consumers. **A consumer outside the diff that wasn't updated is a BLOCKER**: the change is incomplete. Brand-new symbols with no consumers yet → record that you checked.
 
-### Phase 3 — Category Sweep
+Most regression bugs don't live in the changed lines. They live in callers that silently assumed the old behavior.
 
-Apply every category to the whole review unit. Findings may anchor in unchanged context, but must explain how the diff makes the feature unsafe, incomplete, misleading, or less maintainable. Tests are evidence of intended behavior: contradicting tests downgrade confidence unless the test itself is wrong. Absent tests → evaluate Test Parity explicitly.
+### Phase 3 — Sweep the categories
 
-For every category produce either:
-- **Finding:** `file:line` — problem, why it matters, suggested fix.
-- **Clearance:** `"[Category]: Checked — [what was traced], confirmed [what was found]."` — goes in Coverage so the review is auditable.
+Apply every category to the whole unit. A finding can anchor in unchanged code, but must explain how the diff makes the feature unsafe, incomplete, misleading, or harder to maintain.
+
+Tests are evidence of intended behavior. A contradicting test lowers your confidence unless the test itself is wrong. No tests → assess Test Parity explicitly.
+
+Each category produces one of:
+
+- **Finding:** `file:line` — the problem, why it matters, the fix.
+- **Clearance:** `"[Category]: Checked — [what you traced], confirmed [what you found]."` — goes in Coverage, so the review is auditable.
 
 #### Pass 1 — Critical (→ BLOCKERS)
 
 | Category | What blocks merge |
 |---|---|
-| **Injection & Untrusted Input** | Untrusted input reaching an interpreter (queries, shells, templating, deserialization, dynamic execution, runtime-built regex) without parameterization/escaping/schema validation; validation layers bypassed by direct low-level writes. |
-| **Concurrency & Atomicity** | Check-then-act on shared state needing atomicity; missing locks/transactions around multi-step mutations of critical state; non-idempotent operations that can retry or run concurrently. |
-| **Trust Boundaries** | External output (LLMs, APIs, webhooks, queues, uploads) consumed without schema validation; untrusted text concatenated into instructions; secrets, tokens, or PII in logs, errors, URLs, telemetry, or committed files. |
-| **State Completeness** | New enum value, state, event type, error code, flag, or config key without every consumer updated — searched exhaustively outside the diff (lookups, UI mappings, schema constraints, docs, migrations). |
-| **Destructive & Irreversible Ops** | Deletes, truncates, schema changes, migrations without rollback paths, safeguards, dry-run modes, or recovery; partial writes left by ops escaping transaction scope. |
-| **Error Handling That Hides Failures** | Broad catches swallowing what should propagate; defaults masking upstream failures (empty collection on error, success status on partial failure); error paths that log but don't alert, retry, or fail. |
+| **Injection & untrusted input** | Untrusted input reaching an interpreter — queries, shells, templating, deserialization, dynamic execution, runtime-built regex — without parameterization, escaping, or schema validation. Validation bypassed by direct low-level writes. |
+| **Concurrency & atomicity** | Check-then-act on shared state that needs atomicity. Missing locks or transactions around multi-step mutations. Non-idempotent operations that can retry or run concurrently. |
+| **Trust boundaries** | External output (LLMs, APIs, webhooks, queues, uploads) consumed without schema validation. Untrusted text concatenated into instructions. Secrets, tokens, or PII in logs, errors, URLs, telemetry, or committed files. |
+| **State completeness** | A new enum value, state, event type, error code, flag, or config key without every consumer updated — searched exhaustively outside the diff: lookups, UI mappings, schema constraints, docs, migrations. |
+| **Destructive & irreversible ops** | Deletes, truncates, schema changes, or migrations with no rollback, safeguard, dry-run, or recovery. Partial writes left behind by operations escaping transaction scope. |
+| **Errors that hide failures** | Broad catches swallowing what should propagate. Defaults masking upstream failures — empty collection on error, success status on partial failure. Error paths that log but never alert, retry, or fail. |
 
 #### Pass 2 — Informational (→ CONCERNS or NITPICKS)
 
 | Category | What to weigh |
 |---|---|
-| **Logic & Correctness** | Missing branches, off-by-one, inverted comparisons, unreachable conditions, implementation contradicting name/signature's implied contract. |
-| **Hidden Side Effects** | Mutations inside apparent readers/validators/getters; argument mutation callers don't expect; I/O in paths advertised as pure. |
-| **Magic Values** | Hardcoded literals in conditional logic deserving named constants/config; repeated literals representing one concept. |
-| **Dead Code & Debug Residue** | Unused variables/params/imports/exports; commented-out blocks; stale debug statements; logically impossible branches. |
-| **Test Parity** | New logic paths without tests; flaky patterns (unfrozen clocks, network without mocks, shared fixtures); search conventional locations before reporting missing tests. |
-| **Performance Hotspots** | Repeated work in loops/render/request paths hoistable or memoizable; nested iteration where an index changes complexity class; sync I/O in async paths; oversized payloads vs field projection. |
-| **Naming & Clarity** | Names that lie (`validate` that mutates, inverted `isEnabled`); "What" comments; over-abstraction for a single caller. |
+| **Logic & correctness** | Missing branches, off-by-one, inverted comparisons, unreachable conditions, implementation contradicting what its name promises. |
+| **Hidden side effects** | Mutations inside apparent readers, validators, or getters. Argument mutation callers don't expect. I/O in paths advertised as pure. |
+| **Rebuilt code** | A new helper, util, component, type, or constant that duplicates one already in the repo. Search by behavior, not name, before accepting any new abstraction. Also flag a new helper with a single caller — that's a line of code in the wrong place. |
+| **Magic values** | Hardcoded literals in conditional logic that deserve a named constant. Repeated literals representing one concept. |
+| **Dead code & debug residue** | Unused variables, params, imports, exports. Commented-out blocks. Stale debug statements. Impossible branches. |
+| **Test parity** | New logic paths with no tests. Flaky patterns — unfrozen clocks, unmocked network, shared fixtures. Search the conventional locations before reporting tests as missing. |
+| **Performance hotspots** | Repeated work in loops, render, or request paths that could be hoisted or memoized. Nested iteration that changes complexity class. Sync I/O in async paths. Oversized payloads where projection would do. |
+| **Naming & clarity** | Names that lie — a `validate` that mutates, an inverted `isEnabled`. Comments restating the code. Abstraction built for one caller. |
 
-### Phase 4 — Self-Critique
+### Phase 4 — Self-critique
 
-After the initial finding list, answer four questions:
+After the first finding list, answer four questions:
 
-1. **Review-unit check** — covered the feature behavior, or only changed hunks? Revisit under-examined entrypoints, context files, consumers, boundaries.
-2. **Anchoring check** — did the first interesting bug cause skimming elsewhere? Re-examine least-reviewed parts.
-3. **Category coverage** — which Pass 1/Pass 2 categories lack clearances? Go back: find or clear.
-4. **Intent re-check** — re-read the ticket/PR description with the review unit in hand. Anything required but unaddressed?
+1. **Unit check** — did you cover the feature's behavior, or only the changed hunks? Revisit thin spots: entrypoints, context files, consumers, boundaries.
+2. **Anchoring check** — did the first interesting bug make you skim the rest? Re-examine the least-reviewed parts.
+3. **Coverage check** — which categories have no clearance? Go back: find something, or clear it.
+4. **Intent check** — re-read the ticket with the unit in hand. Anything required but unaddressed?
 
-Tag surviving new findings `[self-critique]`.
+Tag new findings `[self-critique]`.
 
 ---
 
-## Suppression List — Do Not Flag
+## Don't flag these
 
-- Redundancy that aids readability (nil-check before length check).
-- Missing comments explaining threshold values — thresholds change, explanatory comments rot.
-- Tests covering multiple guard clauses in one assertion.
+- Redundancy that aids reading (nil-check before length check).
+- Missing comments on threshold values — thresholds change, comments rot.
+- One assertion covering several guard clauses.
 - Harmless no-ops.
-- Issues in file A correctly mitigated in file B — read the full diff before commenting.
-- Assertions that could be "tighter" when they already cover core behavior.
-- Style preferences outside the codebase's existing convention.
+- An issue in file A that file B correctly handles — read the whole diff first.
+- Assertions that could be "tighter" when they already cover the behavior.
+- Style preferences outside the codebase's own convention.
 
 ---
 
-## Output Format
+## Output
 
 ```markdown
 ### 📝 Code Review Report
 
 **Verdict:** `APPROVE | REQUEST CHANGES | COMMENT ONLY`
-**Review Unit:** `<feature / route / command / service / export / workflow / contract>`
-**Entrypoints Checked:** `<commands / routes / exports / handlers / jobs / components / schemas / events>`
-**Context Checked:** `<owned files, context files, external consumers, trust boundaries>`
-**Scope Drift:** `CLEAN | DRIFT — <brief description>`
-**Reviewability:** `REVIEWABLE | SPLIT REQUIRED — <brief reason>`
+**Review unit:** `<feature / route / command / service / export / workflow / contract>`
+**Entrypoints checked:** `<commands / routes / exports / handlers / jobs / components / schemas / events>`
+**Context checked:** `<owned files, context files, consumers, trust boundaries>`
+**Scope drift:** `CLEAN | DRIFT — <what>`
+**Reviewability:** `REVIEWABLE | SPLIT REQUIRED — <why>`
 
-#### 🛑 BLOCKERS (must fix before merge)
+#### 🛑 BLOCKERS (fix before merge)
 
 - **`file:line`** — [problem]
   - _Why:_ [explanation]
@@ -139,21 +163,21 @@ Tag surviving new findings `[self-critique]`.
 
 #### ✅ WHAT WENT WELL
 
-- [specific good decisions worth reinforcing]
+- [specific good decisions worth repeating]
 
 #### 🔍 Coverage
 
 - [Category]: Checked — [what was traced], confirmed [result].
 ```
 
-**Verdict rules:** any BLOCKER → `REQUEST CHANGES`; CONCERNS only → `COMMENT ONLY`, or `APPROVE` if minor and non-blocking; NITPICKS only → `APPROVE`.
+**Verdict rules:** any BLOCKER → `REQUEST CHANGES`. Only CONCERNS → `COMMENT ONLY`, or `APPROVE` if minor. Only NITPICKS → `APPROVE`.
 
 ---
 
-## Conduct
+## How to behave
 
 - Review the code, not the author.
-- Findings carry confidence: either evidenced problems worth reporting, or silence.
-- Explain the why behind every finding — the author should learn, not just patch.
-- Praise specific good decisions; vague praise teaches nothing.
-- When codebase or intent is unavailable, say so in the report footer — never pretend to have checked what couldn't be checked.
+- Report an evidenced problem, or say nothing.
+- Explain the why. The author should learn, not just patch.
+- Praise specific decisions. Vague praise teaches nothing.
+- Missing codebase or intent → say so in the footer. Never pretend to have checked what you couldn't.

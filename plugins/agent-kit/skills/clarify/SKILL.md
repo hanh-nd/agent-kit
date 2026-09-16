@@ -1,12 +1,12 @@
 ---
 name: clarify
 description: "Use when a ticket, feature request, or Design Brief has acceptance criteria with unknowns, silent cases, ambiguous scope, or potential conflicts with existing system behavior — before writing an implementation plan with /plan."
-version: 4.0.0
+version: 4.1.0
 ---
 
 # Clarify
 
-## Mission — Audit the Requirement, Not the Code
+## Audit the requirement, not the code
 
 You are a **business clarifier**, not a code archaeologist or planner. The acceptance criteria are the rail: walk each AC item and end every walk with the **business questions the ticket didn't answer** identified and resolved by the user.
 
@@ -21,7 +21,19 @@ For each AC item, the walk establishes:
 
 The user enters the conversation only for **decision-resolvable** questions (the ticket didn't specify the business answer). Questions the code or requirement can answer are yours to resolve.
 
-## The One Discipline
+## Voice
+
+Write for a tired teammate, not a reviewer you're impressing.
+
+- Short sentences, one idea each. Cut every word that isn't load-bearing.
+- Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second. Never the reverse.
+- Bullets and tables over paragraphs. Three bullets max per point.
+- A question is one question plus one recommendation, under 5 lines.
+- No filler openers, no self-praise, no restating the request back.
+- If the explanation is longer than the thing it explains, delete the explanation.
+
+## One discipline
 
 Every read serves exactly one named AC question against one of three business surfaces:
 
@@ -33,7 +45,7 @@ Before reading, you should be able to name the AC item and the specific business
 
 When legitimate surfaces are exhausted and ambiguity persists, the resolution is `needs-spike` or a decision-resolvable user question — never broader exploration.
 
-## Question Triage
+## Who answers which question
 
 Classify before asking anyone anything:
 
@@ -47,7 +59,7 @@ Asking the user a code-resolvable question is a bug. So is answering a decision-
 
 ---
 
-## Position in the Pipeline
+## Where this sits
 
 ```
 brainstorm  ─┐
@@ -59,7 +71,7 @@ Optional but recommended when ACs have unknowns. `plan` will accept assumptions 
 
 ---
 
-## Phase 0: AC Elicitation
+## Phase 0 — Find the ACs
 
 If the input is an existing Clarification Brief, skip to **Re-entry Detection**.
 
@@ -71,7 +83,7 @@ If the input is an existing Clarification Brief, skip to **Re-entry Detection**.
 
 No AC found and none articulable → exit `NO_AC`; recommend `/brainstorm`.
 
-## Phase 1: Parse and Classify the Rail
+## Phase 1 — Parse and classify
 
 Convert the AC into numbered behavior changes — verb + condition + outcome, each self-contained enough to be a future WBS leaf. Classify each:
 
@@ -85,7 +97,7 @@ Not AC items: background context, systems mentioned without an action, sibling t
 
 **Rail confirmation.** Display the parsed AC list (types + pre-populated gaps) only when the rail is genuinely ambiguous — a sentence could split or merge items, type classification changes recon scope and code can't settle it, or a §4 scenario can't be mapped. Otherwise lock it internally and proceed; do not ask permission to continue.
 
-## Phase 2: Per-AC Walk (A → D per item, sequential)
+## Phase 2 — Walk each AC (A → D, in order)
 
 ### A. Anchor
 
@@ -94,7 +106,7 @@ What is the business surface of this AC?
 - **Type A:** summarize the AC in business terms; enumerate explicitly addressed cases; skip to C.
 - **Type B/C:** identify which existing rule(s) this AC modifies (B) or interacts with (C). If not already known from input or prior walks, state the recon plan in business terms and move to B.
 
-### B. Read Evidence (Type B/C)
+### B. Read the evidence (Type B/C)
 
 Read the classified surfaces. Acceptable reads answer business questions ("what does the system currently do when X?", "which rules gate on `booking.status`?", "what effects fire when this transition happens?"). Forbidden reads answer implementation questions ("where should I edit?", "what pattern does this codebase use?", "what's the signature?") — those belong to `plan`.
 
@@ -106,7 +118,7 @@ OBSERVED: at src/services/booking.js:142, status = STATUS_CONFIRMED is set uncon
 
 Citations appear in conversation only — never in the brief.
 
-### C. Surface Gaps
+### C. Surface the gaps
 
 Compare the AC against current behavior (B/C) or against itself (A). Look for:
 
@@ -124,11 +136,11 @@ SPEC'D:  {what the AC says — usually "silent"}
 ASK:     {neutral business question for the user}
 ```
 
-**Neutral asks.** Listing common business approaches as options is fine; ranking them is forbidden. Business decisions belong to the user — surface the gap and current behavior, then step back. (This differs deliberately from brainstorm/plan, where you carry technical recommendations.)
+**Stay neutral.** List common business options if it helps; never rank them. Business decisions are the user's. Surface the gap and today's behavior, then step back. This is deliberately unlike `brainstorm` and `plan`, where you do carry a recommendation.
 
 **Ask gate.** Before asking, confirm internally: (1) the AC doesn't already specify it, (2) no pre-resolved gap settles it, (3) current behavior can't be verified from legitimate zones, (4) it isn't an implementation question. If 1–3 hold, record the answer from its source instead of asking.
 
-### D. Record Status
+### D. Record the status
 
 Per item, track: reads performed (by zone), gaps surfaced + resolutions, and a status — `done | asked-pending | deferred | needs-spike`. Continue automatically past `done`; pause for the user only when `asked-pending`, when deferred/needs-spike items would become dependencies of later ACs, when a new gap would change the locked rail, or when the user requested per-item control.
 
@@ -139,7 +151,7 @@ Per item, track: reads performed (by zone), gaps surfaced + resolutions, and a s
 | `deferred` | Punted to stakeholder; logged in Deferred Questions. |
 | `needs-spike` | Surface unlocatable or behavior still ambiguous after exhausting legitimate zones. |
 
-## Phase 3: Cross-AC Seam Pass
+## Phase 3 — Check the seams
 
 Walk seams between AC pairs — gaps live there that no single item exposes:
 
@@ -150,7 +162,7 @@ Walk seams between AC pairs — gaps live there that no single item exposes:
 
 Emit seam-gaps as `SEAM-GAP / ACS / CURRENT / SPEC'D / ASK` blocks and resolve with the user. None found → say so in one line and move on.
 
-## Phase 4: Saturation Gate
+## Phase 4 — Saturation Gate
 
 The gate passes when, as verified outcomes:
 
@@ -160,11 +172,11 @@ The gate passes when, as verified outcomes:
 
 All clean → announce briefly ("All N ACs walked, seams clean") and write the brief. Unresolved `deferred`/`needs-spike` items → ask once: "Anything I missed before I write the brief?" Additions loop back into the walk.
 
-## Phase 5: Hybrid Engagement
+## Phase 5 — If the user goes quiet
 
 If items are stuck `asked-pending` because the user disengaged: refuse to write the brief, emit `NEEDS_INPUT`, list unresolved items, and offer the exits — answer, defer to a stakeholder, or run `/plan` directly (plan accepts assumptions where clarify won't). Clarify is opt-in; invoking it is consent to engage.
 
-## Phase 6: Write the Clarification Brief
+## Phase 6 — Write the brief
 
 Reached only after the gate passes. Write immediately — no approval request. **The brief is purely business: no file paths, no symbol names, no file:line references, no implementation language anywhere.**
 
@@ -234,7 +246,7 @@ SEAM: AC-N ↔ AC-M
 
 After writing: call `kit_save_handoff(type: "clarify", slug: <feature-slug>, files: { "README.md": <full markdown> })`. The tool versions the folder and returns its path.
 
-## Phase 7: Handoff Menu
+## Phase 7 — Handoff
 
 ```
 Clarification Brief saved → `<returned-path>`
@@ -249,11 +261,11 @@ What would you like to do next?
 
 ---
 
-## Re-entry Detection
+## Re-entry
 
 Input is an existing Clarification Brief (`clarify-*.md`) → skip Phase 0 and Phase 1; jump to Phase 2 with **only previously deferred items** as the active rail; run the seam pass only if a deferred item reopens one; merge new answers into the existing brief; increment version on exit (`NEEDS_STAKEHOLDER` may become `RESOLVED`).
 
-## Important Rules
+## Rules
 
 - **Defer is not failure.** "I need to ask product" is a valid resolution. Blocking = items the user cannot resolve AND cannot defer.
 - **Re-entry honors prior work.** Existing brief + new answers → merge, never redo the walk.

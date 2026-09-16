@@ -9,7 +9,19 @@ description: 'Fetch a Jira ticket and route to the planning pipeline'
 
 ---
 
-## Execution
+## Voice
+
+Write for a tired teammate, not a reviewer you're impressing.
+
+- Short sentences, one idea each. Cut every word that isn't load-bearing.
+- Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second. Never the reverse.
+- Bullets and tables over paragraphs. Three bullets max per point.
+- A question is one question plus one recommendation, under 5 lines.
+- No filler openers, no self-praise, no restating the request back.
+- If the explanation is longer than the thing it explains, delete the explanation.
+
+## Steps
 
 1. Extract the ticket ID from `$ARGUMENTS`.
    - If it's a URL (e.g., `https://jira.com/browse/PROJ-123`), extract `PROJ-123`.
