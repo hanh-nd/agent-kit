@@ -385,10 +385,8 @@ When deciding how to render content:
 
 ## AI Image Generation
 
-If `/ck:ai-multimodal` skill is available and image generation is appropriate, it can be used for hero banners, conceptual illustrations, and decorative accents that establish the page's visual tone.
+If an image-generation tool is available and an image adds meaning, use it for hero banners, conceptual illustrations, and decorative accents that establish the page's visual tone.
 
 **When to use:** Hero banners, conceptual illustrations for abstract systems, educational diagrams benefiting from artistic rendering, decorative accents reinforcing the aesthetic.
 
 **When to skip:** Anything Mermaid or CSS handles well. Generic decoration that doesn't convey meaning. Data-heavy pages where images would distract. Always degrade gracefully — the page should stand on its own with CSS and typography alone.
-
-For `--slides` presentation-grade output, consider invoking `/ck:ui-ux-pro-max` for richer style selection and distinctive font/palette pairing.

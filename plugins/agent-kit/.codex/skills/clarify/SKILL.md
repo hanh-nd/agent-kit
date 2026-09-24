@@ -243,7 +243,7 @@ SEAM: AC-N ↔ AC-M
 
 **Slug Rule:** If `$ARGUMENTS` contains a path matching `.agent-kit/handoffs/<slug>/...`, extract `<slug>` verbatim. Only derive a slug from the feature name when no handoffs path is present.
 
-After writing: call `kit_save_handoff(type: "clarify", slug: <feature-slug>, files: { "README.md": <full markdown> })`. The tool versions the folder and returns its path.
+After writing: call `kit_save_handoff(type: "clarification", slug: <feature-slug>, files: { "README.md": <full markdown> })`. The tool versions the folder and returns its path.
 
 ## Phase 7 — Handoff
 
