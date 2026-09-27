@@ -379,14 +379,4 @@ When deciding how to render content:
 | Data table | HTML `<table>` | Semantic markup, accessibility, copy-paste |
 | Timeline | CSS (central line + cards) | Simple linear layout |
 | Dashboard | CSS Grid + Chart.js | Card grid with embedded charts |
-| Simple A→B→C flows in slides | CSS Pipeline cards | Mermaid renders too small for simple linear flows |
-
----
-
-## AI Image Generation
-
-If an image-generation tool is available and an image adds meaning, use it for hero banners, conceptual illustrations, and decorative accents that establish the page's visual tone.
-
-**When to use:** Hero banners, conceptual illustrations for abstract systems, educational diagrams benefiting from artistic rendering, decorative accents reinforcing the aesthetic.
-
-**When to skip:** Anything Mermaid or CSS handles well. Generic decoration that doesn't convey meaning. Data-heavy pages where images would distract. Always degrade gracefully — the page should stand on its own with CSS and typography alone.
+| Simple A→B→C flows | CSS Pipeline cards | Mermaid renders too small for simple linear flows |

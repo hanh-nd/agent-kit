@@ -13,12 +13,10 @@ description: 'Delegate a task to an external agent CLI (Gemini, Claude, or Codex
 
 Write for a tired teammate, not a reviewer you're impressing.
 
-- Short sentences, one idea each. Cut every word that isn't load-bearing.
-- Plain words. "What else this touches", not "blast radius".
-- Answer first, reason second. Never the reverse.
-- Bullets and tables over paragraphs. Three bullets max per point.
-- A question is one question plus one recommendation, under 5 lines.
-- No filler openers, no self-praise, no restating the request back.
+- Short sentences, one idea each. Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second.
+- Bullets and tables over paragraphs.
+- No filler openers, no self-praise, no restating the request.
 - If the explanation is longer than the thing it explains, delete the explanation.
 
 ## Steps
@@ -37,8 +35,7 @@ Examples:
 
 ---
 
-> The server streams Gemini's output in real-time as MCP log notifications.
-> You will see progress appear in the conversation as the agent runs.
+The server streams the agent's output as MCP log notifications while it runs.
 
 Call `kit_trigger_agent(agent: <agent>, task: <task>)`.
 
@@ -49,3 +46,4 @@ Report the full output to the user.
 - Agent fails — timeout, CLI not installed — report the error plainly and stop.
 - Never retry.
 - Never post-process, summarize, or edit the agent's output. Report it raw.
+- Called by another skill (e.g. `plan` → parallel batches): hand over only sizeable, independent work. A task the caller can finish in a handful of edits stays with the caller.

@@ -10,41 +10,27 @@ You run scenarios without the skill (RED - watch agent fail), write skill addres
 
 **Core principle:** If you didn't watch an agent fail without the skill, you don't know if the skill prevents the right failures.
 
-**REQUIRED BACKGROUND:** You MUST understand [test-driven-development](test-driven-development.md) before using this skill. That skill defines the fundamental RED-GREEN-REFACTOR cycle. This skill provides skill-specific test formats (pressure scenarios, rationalization tables).
+The cycle itself lives in `SKILL.md > RED-GREEN-REFACTOR for Skills`. This file holds the test formats: pressure scenarios, rationalization tables, meta-testing.
 
 **Complete worked example:** See examples/CLAUDE_MD_TESTING.md for a full test campaign testing CLAUDE.md documentation variants.
 
 ## When to Use
 
-Test skills that:
+Pressure-test skills that:
 - Enforce discipline (TDD, testing requirements)
 - Have compliance costs (time, effort, rework)
 - Could be rationalized away ("just this once")
 - Contradict immediate goals (speed over quality)
 
-Don't test:
+Don't pressure-test (use the over-constraint test below instead):
 - Pure reference skills (API docs, syntax guides)
-- Skills without rules to violate
-- Skills agents have no incentive to bypass
-
-## TDD Mapping for Skill Testing
-
-| TDD Phase | Skill Testing | What You Do |
-|-----------|---------------|-------------|
-| **RED** | Baseline test | Run scenario WITHOUT skill, watch agent fail |
-| **Verify RED** | Capture rationalizations | Document exact failures verbatim |
-| **GREEN** | Write skill | Address specific baseline failures |
-| **Verify GREEN** | Pressure test | Run scenario WITH skill, verify compliance |
-| **REFACTOR** | Plug holes | Find new rationalizations, add counters |
-| **Stay GREEN** | Re-verify | Test again, ensure still compliant |
-
-Same cycle as code TDD, different test format.
+- Workflow and technique skills with no rule an agent is tempted to bypass
 
 ## RED Phase: Baseline Testing (Watch It Fail)
 
 **Goal:** Run test WITHOUT the skill - watch agent fail, document exact failures.
 
-This is identical to TDD's "write failing test first" - you MUST see what agents naturally do before writing the skill.
+Same as "write the failing test first": see what agents do without the skill before writing it.
 
 **Process:**
 
@@ -138,8 +124,6 @@ Forces explicit choice.
 | **Pragmatic** | "Being pragmatic vs dogmatic" |
 
 **Best tests combine 3+ pressures.**
-
-**Why this works:** See [persuasion-principles.md](persuasion-principles.md) (in this directory) for research on how authority, scarcity, and commitment principles increase compliance pressure.
 
 ### Key Elements of Good Scenarios
 
@@ -305,31 +289,7 @@ Meta-test: "Skill was clear, I should follow it"
 
 **Bulletproof achieved.**
 
-## Testing Checklist (TDD for Skills)
-
-Before deploying skill, verify you followed RED-GREEN-REFACTOR:
-
-**RED Phase:**
-- [ ] Created pressure scenarios (3+ combined pressures)
-- [ ] Ran scenarios WITHOUT skill (baseline)
-- [ ] Documented agent failures and rationalizations verbatim
-
-**GREEN Phase:**
-- [ ] Wrote skill addressing specific baseline failures
-- [ ] Ran scenarios WITH skill
-- [ ] Agent now complies
-
-**REFACTOR Phase:**
-- [ ] Identified NEW rationalizations from testing
-- [ ] Added explicit counters for each loophole
-- [ ] Updated rationalization table
-- [ ] Updated red flags list
-- [ ] Updated description with violation symptoms
-- [ ] Re-tested - agent still complies
-- [ ] Meta-tested to verify clarity
-- [ ] Agent follows rule under maximum pressure
-
-## Common Mistakes (Same as TDD)
+## Common Mistakes
 
 **❌ Writing skill before testing (skipping RED)**
 Reveals what YOU think needs preventing, not what ACTUALLY needs preventing.
@@ -355,30 +315,13 @@ Agents resist single pressure, break under multiple.
 Tests pass once ≠ bulletproof.
 ✅ Fix: Continue REFACTOR cycle until no new rationalizations.
 
-## Quick Reference (TDD Cycle)
+## Over-constraint test (workflow and technique skills)
 
-| TDD Phase | Skill Testing | Success Criteria |
-|-----------|---------------|------------------|
-| **RED** | Run scenario without skill | Agent fails, document rationalizations |
-| **Verify RED** | Capture exact wording | Verbatim documentation of failures |
-| **GREEN** | Write skill addressing failures | Agent now complies with skill |
-| **Verify GREEN** | Re-test scenarios | Agent follows rule under pressure |
-| **REFACTOR** | Close loopholes | Add counters for new rationalizations |
-| **Stay GREEN** | Re-verify | Agent still complies after refactoring |
+Most kit skills (`plan`, `code`, reviews) fail the other way: the skill makes a capable model *worse* — more stops, longer artifacts, more tokens, same or lower quality. Pressure tests can't see that. Compare with and without the skill instead:
 
-## The Bottom Line
+1. Pick 2–3 real tasks the skill targets, sized S and M.
+2. Run each once WITHOUT the skill and once WITH it, same model and effort.
+3. Compare: task correct? user stops forced? output length? tokens and time? anything a never-cut item dropped?
+4. The skill passes when it wins on correctness or safety, or ties on both and costs less. More stops or longer output for the same result is a regression — cut the instruction that caused it.
 
-**Skill creation IS TDD. Same principles, same cycle, same benefits.**
-
-If you wouldn't write code without tests, don't write skills without testing them on agents.
-
-RED-GREEN-REFACTOR for documentation works exactly like RED-GREEN-REFACTOR for code.
-
-## Real-World Impact
-
-From applying TDD to TDD skill itself (2025-10-03):
-- 6 RED-GREEN-REFACTOR iterations to bulletproof
-- Baseline testing revealed 10+ unique rationalizations
-- Each REFACTOR closed specific loopholes
-- Final VERIFY GREEN: 100% compliance under maximum pressure
-- Same process works for any discipline-enforcing skill
+This is how [ponytail](https://github.com/DietrichGebert/ponytail) measures itself: same agent, with and without, scored on the diff it leaves.

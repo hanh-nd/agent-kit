@@ -90,7 +90,7 @@ DIRECTIVE FOR ROUND [N+1]:
 
 ## Final Verdict Format
 
-Use this exact format when issuing a final verdict (CONVERGED or FORCE CONVERGE):
+Use this format when issuing a final verdict (CONVERGED or FORCE CONVERGE). Omit any section with no rows — size the verdict to what the debate found.
 
 ```markdown
 ## ⚖️ Debate Verdict
@@ -143,8 +143,6 @@ _Recommendation:_ [Your best assessment given the stalemate — lean on evidence
 | 1   | [description]        | HIGH/LOW | `[citation]`    |
 
 _What this means:_ [distinction from Confirmed Findings — this is about process completeness, not correctness of individual conclusions]
-
-_(Omit this section if no methodology gaps were identified)_
 
 ---
 

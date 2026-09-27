@@ -14,18 +14,16 @@ effort: high
 
 **No conclusions without evidence.** A hypothesis without proof is a guess.
 
-Your job is to find and confirm the root cause, not to fix it. No source changes. The output is an Investigation Report for a developer or the `code` skill.
+Your job is to find and confirm the root cause, not to fix it. No source changes, except temporary instrumentation you remove before saving. The output is an Investigation Report for a developer or the `code` skill.
 
 ## Voice
 
 Write for a tired teammate, not a reviewer you're impressing.
 
-- Short sentences, one idea each. Cut every word that isn't load-bearing.
-- Plain words. "What else this touches", not "blast radius".
-- Answer first, reason second. Never the reverse.
-- Bullets and tables over paragraphs. Three bullets max per point.
-- A question is one question plus one recommendation, under 5 lines.
-- No filler openers, no self-praise, no restating the request back.
+- Short sentences, one idea each. Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second.
+- Bullets and tables over paragraphs.
+- No filler openers, no self-praise, no restating the request.
 - If the explanation is longer than the thing it explains, delete the explanation.
 
 ## How to think
@@ -40,7 +38,7 @@ The question at every step: **what did I directly verify that would look differe
 
 **When it counts as confirmed:** you observed the suspected condition on the failing path, or ran a targeted test separating it from the alternatives. Reading code and thinking "this would explain it" is a lead. Leads support `PROBABLE`. They never confirm.
 
-Generate hypotheses freely from known failure modes — races, null propagation, state corruption, config drift, caching, off-by-one, dependency conflicts, serialization, auth. But a pattern match is a *lead*, never a conclusion.
+Generate hypotheses freely from known failure modes. A pattern match is a *lead*, never a conclusion.
 
 When the evidence allows more than one cause, hold 2–3 and name what tells them apart:
 
@@ -80,7 +78,7 @@ Define the proof before testing: what confirms it, what refutes it, and the fast
 3. **Instrument only when needed.** Temporary logs and assertions at the suspected cause. Remove every one afterward.
 4. **Read the output.** Never infer from exit code alone.
 5. **Record each hypothesis** `CONFIRMED / REFUTED / INCONCLUSIVE`, with the observation that decided it — not just the command that reproduced it.
-6. **Three strikes.** Three refuted hypotheses in a row → stop. The cause is architectural, or needs context you don't have. Status `INCONCLUSIVE`, document what's ruled out.
+6. **Three strikes.** Three refuted hypotheses in a row with nothing narrowed → stop. The cause is architectural, or needs context you don't have. Status `INCONCLUSIVE`, document what's ruled out.
 
 ## Phase 4 — Trace the chain
 
@@ -92,14 +90,15 @@ Symptom → immediate cause → contributing factors → root cause
 
 Root cause is the earliest actionable trigger inside the codebase or its config. A chain that stops where the error appeared caps the status at `PROBABLE`. Recommended actions target the root cause, not where the symptom showed up.
 
-**Recommending the fix:** prefer the guard, validator, or utility the codebase already has over a new one. One guard in the shared function is a smaller change than a guard in every caller — and patching only the path in the ticket leaves every sibling caller broken. Before recommending a new helper, search for the existing one.
+**Recommending the fix:** prefer the guard, validator, or utility the codebase already has — search by behavior before recommending a new helper. One guard in the shared function beats a guard in every caller; patching only the path in the ticket leaves sibling callers broken. Never recommend cutting validation at trust boundaries, data-loss error handling, or security checks to make the fix smaller.
 
 ---
 
 ## Phase 5 — Save and hand off
 
-1. **Check:** no temporary instrumentation left in source.
-2. **Save immediately.** If `$ARGUMENTS` contains `.agent-kit/handoffs/<slug>/...`, use `<slug>` exactly. Otherwise derive a short one. Call `kit_save_handoff(type: "investigation", slug: <slug>, files: { "README.md": <full report> })`.
+1. **Remove all temporary instrumentation.** `git status --short` matches the Phase 1 baseline.
+2. **Size the report to the bug.** An obvious one-cause bug gets a short report. Drop any section with nothing to say, but always keep what `code` reads: Status, Symptom, Root cause and its chain, Directly verified, Affected files, Baseline, Verification target, Recommended Actions, and the ruled-out paths in the ledger.
+3. **Save immediately.** If `$ARGUMENTS` contains `.agent-kit/handoffs/<slug>/...`, use `<slug>` exactly. Otherwise derive a short one. Call `kit_save_handoff(type: "investigation", slug: <slug>, files: { "README.md": <full report> })`.
 
 ```
 # 🔍 INVESTIGATION REPORT: [Short Title]
@@ -112,7 +111,8 @@ Root cause is the earliest actionable trigger inside the codebase or its config.
 ## 📌 Summary
 * **Symptom:** [what happens + how to reproduce]
 * **Root cause:** [the mechanism, plainly]
-* **What else it touches:** [N files] — [systems affected]
+* **Affected files:** `path/a`, `path/b` — the files the fix changes
+* **What else it touches:** [systems affected beyond those files, or "none"]
 * **Verification target:** [exact command failing now that should pass after the fix]
 
 ---
@@ -168,7 +168,7 @@ Root cause is the earliest actionable trigger inside the codebase or its config.
 
 **Status meanings:** `CONFIRMED` — traced and directly evidenced. `PROBABLE` — strong, not directly verified (static reading only, intermittent, restricted environment). `INCONCLUSIVE` — three strikes.
 
-3. **Show the menu.** For `CONFIRMED` / `PROBABLE`: the saved path, then `1) Fix it now — start /code with this report` or `2) Done`. For `INCONCLUSIVE`: save, print the path, say to keep investigating before implementing.
+4. **Show the menu.** For `CONFIRMED` / `PROBABLE`: the saved path, then `1) Fix it now — start /code with this report` or `2) Done`. For `INCONCLUSIVE`: save, print the path, say to keep investigating before implementing.
 
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: review
 description: Review local uncommitted changes with Jira context. Accepts an optional base branch/commit.
+effort: high
 ---
 
 # Review Local Changes
@@ -8,18 +9,16 @@ description: Review local uncommitted changes with Jira context. Accepts an opti
 **Target Base:** `$ARGUMENTS` _(defaults to `HEAD` — reviews all staged and unstaged changes to tracked files)_
 
 Thin orchestrator for reviewing local code changes. Computes the diff, detects Jira context from the current branch, invokes the `code-review` skill, and assembles the output. Review criteria, severity, and output format are owned by `code-review` — this skill does not duplicate them.
+
 ## Voice
 
 Write for a tired teammate, not a reviewer you're impressing.
 
-- Short sentences, one idea each. Cut every word that isn't load-bearing.
-- Plain words. "What else this touches", not "blast radius".
-- Answer first, reason second. Never the reverse.
-- Bullets and tables over paragraphs. Three bullets max per point.
-- A question is one question plus one recommendation, under 5 lines.
-- No filler openers, no self-praise, no restating the request back.
+- Short sentences, one idea each. Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second.
+- Bullets and tables over paragraphs.
+- No filler openers, no self-praise, no restating the request.
 - If the explanation is longer than the thing it explains, delete the explanation.
-
 
 ---
 
@@ -101,7 +100,7 @@ Pass to the chosen skill(s):
 - **Intent** — Jira ticket body if available; otherwise absent.
 - **Codebase access** — always full (running locally in the target repository).
 
-The child skill owns framing, scope drift, the consumer check, the category sweep, self-critique, and report formatting. Don't re-run those here.
+The child skill owns framing, scope drift, the consumer check, finding, judging, and report formatting. Don't re-run those here.
 
 ### Phase 4 — Assemble the report
 
@@ -126,8 +125,5 @@ If `UNTRACKED_COUNT > 0`, append to the report footer:
 
 ## What this skill doesn't do
 
-- Define review criteria, severity, or output format. Those belong to `code-review` or `e2e-review`.
 - Touch git state. No staging, stashing, commits, or branch switches.
 - Review untracked files by default.
-- Drop `.env*` files or migrations from the diff. Those need eyes on them.
-- Re-assess scope drift, consumers, or category coverage. The child owns those.

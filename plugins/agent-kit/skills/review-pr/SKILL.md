@@ -1,7 +1,10 @@
 ---
 name: review-pr
-version: 1.1.0
+version: 2.0.0
 description: Fetch a PR, check out locally, run code-review, return a full review.
+providers:
+  claude:
+    effort: high
 ---
 
 # Review PR
@@ -9,18 +12,16 @@ description: Fetch a PR, check out locally, run code-review, return a full revie
 **PR Target:** $ARGUMENTS
 
 This skill is a thin orchestrator. It handles fetching the PR, pulling its Jira ticket, and setting up the local codebase so the `code-review` skill can run with full context. Review criteria, severity levels, output format, and judgment all live in `code-review` — this skill does not duplicate or override them.
+
 ## Voice
 
 Write for a tired teammate, not a reviewer you're impressing.
 
-- Short sentences, one idea each. Cut every word that isn't load-bearing.
-- Plain words. "What else this touches", not "blast radius".
-- Answer first, reason second. Never the reverse.
-- Bullets and tables over paragraphs. Three bullets max per point.
-- A question is one question plus one recommendation, under 5 lines.
-- No filler openers, no self-praise, no restating the request back.
+- Short sentences, one idea each. Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second.
+- Bullets and tables over paragraphs.
+- No filler openers, no self-praise, no restating the request.
 - If the explanation is longer than the thing it explains, delete the explanation.
-
 
 ---
 
@@ -40,13 +41,12 @@ Collect what `code-review` needs:
 
 Check out the source branch locally so `code-review` can read the whole codebase — it needs that to check consumers:
 
-1. `git branch --show-current` → save as `originalBranch`.
+1. `git branch --show-current` → save as `originalRef`. Empty (detached HEAD) → save `git rev-parse HEAD` instead.
 2. `git status --porcelain` → if non-empty, mark `checkoutState = UNHAPPY` (dirty working tree; checkout would destroy uncommitted work).
 3. `git remote get-url origin` → if the URL does not contain both `workspace` and `repoSlug` from Phase 1, mark `checkoutState = UNHAPPY` (wrong repo).
 4. If not marked `UNHAPPY`:
    - `git fetch origin`
-   - `git checkout {sourceBranch}`
-   - `git reset --hard origin/{sourceBranch}`
+   - `git checkout --detach origin/{sourceBranch}` — detached, so a local `{sourceBranch}` with unpushed commits is never moved or reset.
    - Set `checkoutState = CHECKED_OUT`.
 5. If `UNHAPPY`: skip checkout. Never stash, never force. Record the reason (`dirty working tree` or `mismatched repo`).
 
@@ -64,7 +64,7 @@ Pass to the chosen skill(s):
 - **Intent** — PR description and Jira ticket body (when available). If neither exists, pass what you have and let the child skill handle the missing-intent case.
 - **Codebase access** — full if `checkoutState = CHECKED_OUT`, degraded if `UNHAPPY`. Tell the child which one, so its consumer check can adjust.
 
-The child skill owns framing, scope drift, the consumer check, both sweep passes, self-critique, and report formatting. Don't re-run those here, and don't second-guess its verdict.
+The child skill owns framing, scope drift, the consumer check, finding, judging, and report formatting. Don't re-run those here, and don't second-guess its verdict.
 
 ### Phase 4 — Assemble the report
 
@@ -87,22 +87,16 @@ If `checkoutState = UNHAPPY`, append this to the report footer:
 
 ### Phase 5 — Restore git state (always runs)
 
-Runs before returning the report, even if Phases 1–4 errored. Cleanup that survives failure:
+Runs before returning the report, even if Phases 1–4 errored:
 
-- If `checkoutState = CHECKED_OUT`: `git checkout {originalBranch}`.
+- If `checkoutState = CHECKED_OUT`: `git checkout {originalRef}`.
 - If `checkoutState = UNHAPPY`: nothing to restore; skip.
 
 If the restore itself fails, say so clearly in the output. A silent failure leaves the user on an unexpected branch — worse than the review problem they started with.
-
-**Rule:** Phase 5 is mandatory. Hit an error mid-pipeline → run Phase 5 before you finish the response.
 
 ---
 
 ## What this skill doesn't do
 
-Keeping the boundary with `code-review` clean:
-
-- Define review criteria, severity, category checklists, or output sections. Those belong to `code-review` or `e2e-review`.
 - Produce findings of its own. A PR-level concern the child missed is a reason to improve `code-review`, not to duplicate logic here.
 - Touch the PR. No comments, no approve or reject. The review is advisory; the human decides.
-- Re-assess scope drift, consumers, or category coverage. The child reports those once, in its own format.

@@ -2,6 +2,7 @@
 name: code
 description: 'Implement a WBS plan or Investigation Report end-to-end — edits files in place, runs tests, halts on logic gaps.'
 model: sonnet
+effort: low
 ---
 
 # 💻 Code
@@ -24,12 +25,10 @@ When execution genuinely changes the contract, record it in `DECISIONS.md` — n
 
 Write for a tired teammate, not a reviewer you're impressing.
 
-- Short sentences, one idea each. Cut every word that isn't load-bearing.
-- Plain words. "What else this touches", not "blast radius".
-- Answer first, reason second. Never the reverse.
-- Bullets and tables over paragraphs. Three bullets max per point.
-- A question is one question plus one recommendation, under 5 lines.
-- No filler openers, no self-praise, no restating the request back.
+- Short sentences, one idea each. Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second.
+- Bullets and tables over paragraphs.
+- No filler openers, no self-praise, no restating the request.
 - If the explanation is longer than the thing it explains, delete the explanation.
 - Code first, then at most three lines about it.
 
@@ -40,7 +39,7 @@ Write for a tired teammate, not a reviewer you're impressing.
 The contract names files and symbols. Anything you'd add beyond that — a helper, a util, a type, a wrapper, a new file — climbs this ladder first. Stop at the first rung that holds.
 
 1. **Does it need to exist?** No task requires it → don't write it.
-2. **Already in this repo?** Search by behavior, not by name — verb + domain noun, and the nearest `utils/`, `lib/`, `shared/`, `helpers/`, and sibling modules. Check `ARCHITECTURE.md > Reuse Map` first; the plan may have found it already. Re-implementing what lives three files over is the most common failure of this skill.
+2. **Already in this repo?** Search by behavior, not by name — verb + domain noun, and the nearest `utils/`, `lib/`, `shared/`, `helpers/`, and sibling modules. Check the plan's Reuse Map (`PLAN.md` or `ARCHITECTURE.md`) first; the plan may have found it already. Re-implementing what lives three files over is the most common failure of this skill.
 3. **Stdlib or language builtin?** Use it.
 4. **Framework or platform feature already installed?** Use it. CSS over JS, DB constraint over app code.
 5. **Existing dependency?** Use it. Never add one for what five lines cover.
@@ -51,6 +50,12 @@ A helper with one caller is a line of code in the wrong place. Extract on the se
 
 If you reach rung 7 for something the contract never named, that's a `plan_gap` — write the record, or halt if it changes a file boundary.
 
+## When not to cut
+
+Smallest diff never removes: validation at trust boundaries, error handling that prevents data loss, security measures, accessibility basics, anything the contract asked for.
+
+A deliberate corner cut with a known ceiling (global lock, O(n²) scan, naive heuristic) gets a one-line code comment naming the ceiling and the upgrade path, plus an EDR.
+
 ---
 
 ## Rules
@@ -58,9 +63,9 @@ If you reach rung 7 for something the contract never named, that's a `plan_gap` 
 | Rule | Meaning |
 | --- | --- |
 | **Stay in scope** | Only the files, symbols, and behaviors the contract names. Anything else gets logged as an observation, never edited. |
-| **Nothing invented** | Every symbol, function, type, or path you import must exist in the codebase, the stdlib, or a dependency. If the contract references something missing, halt. An invented symbol compiles fine and fails at runtime with an error nobody can trace back to the contract. |
+| **Nothing invented** | Every symbol, function, type, or path you import must exist in the codebase, the stdlib, or a dependency. If the contract references something missing → Logic Gap for that task (Phase 3). An invented symbol compiles fine and fails at runtime with an error nobody can trace back to the contract. |
 | **Nothing half-done** | Every change is complete and runnable. No pseudo-code, no stubs, no `TODO`. |
-| **Match the local style** | The project's existing style wins, always. Match the file's indentation, quotes, semicolons, export style, naming case, type strictness, error handling, and idioms exactly. Never impose your own because it reads cleaner. |
+| **Match the local style** | The project's existing style wins. Match the file's indentation, quotes, semicolons, export style, naming case, type strictness, error handling, and idioms exactly. Contract asks for a pattern that contradicts local convention → follow the convention, record a `code_reality_mismatch` EDR, continue. Halt only if the convention would break an AC. |
 | **No new abstractions** | Climb the ladder above. If the contract didn't name it, you probably don't need it. |
 | **No drive-by fixes** | Smells in files you're editing get logged, not fixed. Refactoring is `code-refactor`. Simplification is `code-simplify`. |
 | **One task, one edit set** | Apply each task as a coherent set of edits. Don't mix unrelated tasks in one hunk. |
@@ -72,14 +77,14 @@ If you reach rung 7 for something the contract never named, that's a `plan_gap` 
 
 An implementation contract, required. Either:
 
-- **WBS plan** from `plan` — a handoff folder or inline content.
+- **WBS plan** from `plan` — a handoff folder or inline content. Either an S plan (`PLAN.md` alone) or the M+ set (`README.md`, `ARCHITECTURE.md`, `TASKS.md`, optional `TESTS.md`).
 - **Investigation Report** from `investigate` — a handoff folder or inline content with root-cause evidence and recommended actions.
 
 No contract → stop and ask for one. References to files that don't exist → surface them in Phase 3, never invent paths.
 
 **Routing:**
 
-- **WBS plan:** execute every saved file exactly as written. No test file and no test tasks → write no tests.
+- **WBS plan:** execute every saved file exactly as written. No `TESTS.md`, no `PLAN.md > Checks`, and no test tasks → write no tests.
 - **Investigation Report:** fix the documented root cause, nothing else. No cleanup, no refactor, no speculative hardening. Status `INCONCLUSIVE` → halt. Status `PROBABLE` → implement only if the evidence names the affected files and the failure mechanism; otherwise ask first.
 
 ---
@@ -123,7 +128,16 @@ Nothing happened? Say so in `DECISIONS.md`.
 
 Read all of `$ARGUMENTS`. Classify it as WBS plan or Investigation Report.
 
-**WBS plan** — extract: goal and ACs, file list, layer order and `[P]` / `[S: id]` dependencies, per-task inputs/outputs/edge cases, the "What Must Be True" statements from `ARCHITECTURE.md`, the Reuse Map, the file list, and what's out of scope. Missing or contradictory → halt and ask for a re-plan. Don't guess.
+**WBS plan** — extract from `PLAN.md` (S) or the M+ set:
+
+| Piece | S (`PLAN.md`) | M+ |
+| :--- | :--- | :--- |
+| Goal, ACs, decisions, Component Manifest, Scope | `PLAN.md` | `README.md` |
+| What Must Be True, Failure Cases, Reuse Map, Data Contracts | `PLAN.md` | `ARCHITECTURE.md` |
+| Tasks, `[P]` / `[S: id]` dependencies, AC coverage | `PLAN.md > Tasks` (flat IDs) | `TASKS.md` (layers) |
+| Test obligations | `PLAN.md > Checks` | `TESTS.md` |
+
+A piece missing that blocks a task → Logic Gap for that task (Phase 3 format), keep going on unblocked tasks. Two tasks asserting incompatible things → Contract Conflict, halt. Don't guess.
 
 **Investigation Report** — extract: status, symptom and reproduction baseline, root cause and evidence chain, affected files, recommended actions, ruled-out hypotheses. `INCONCLUSIVE` → halt. Missing root cause, evidence, affected files, or recommended actions → halt.
 
@@ -131,7 +145,7 @@ Read all of `$ARGUMENTS`. Classify it as WBS plan or Investigation Report.
 
 Read every file the contract touches, in full. For new files, read 2 siblings in the target directory and copy their conventions: export style, indentation, naming case, type strictness, error handling.
 
-**Then run the reuse sweep** — once, before writing anything. For each new behavior the contract introduces, search the repo for something that already does it. Start from `ARCHITECTURE.md > Reuse Map`, then search the shared directories yourself. This sweep is mandatory even when the plan looks complete; plans miss existing code.
+**Then a targeted reuse check** — once, before writing anything. Trust the plan's Reuse Map and the searches in its Component Manifest. Search the shared directories yourself only for a CREATE with no reuse check, and for anything you'd add that the plan didn't name.
 
 Anything you find that the plan planned to rebuild → `code_reality_mismatch`. Use the existing code, record the decision.
 
@@ -152,7 +166,7 @@ Keep going on unblocked tasks. For Investigation Reports, also check the reporte
 
 ### Phase 4 — Implement
 
-Follow layer order and dependencies. Each task meets the contract's stated inputs, outputs, error cases, behavior statements, and edge cases word-for-word.
+Follow layer order (M+) and `[S: id]` dependencies. Each task meets the contract's stated inputs, outputs, error cases, behavior statements, and edge cases word-for-word.
 
 Before every new symbol: ladder. If the contract named it, build it. If it didn't, rungs 1–6 first.
 
@@ -162,7 +176,7 @@ Smells, dead code, or design problems outside the lines you're editing: log unde
 
 ### Phase 5 — Tests
 
-Only when the contract has `TESTS.md` or explicit test tasks. The planner owns that call.
+Only when the contract has `TESTS.md`, a `PLAN.md > Checks` section, or explicit test tasks. The planner owns that call.
 
 When present, add or update tests only where they prove behavior the contract promised: the main success path plus every edge case it names (WBS plans), or a regression test for the reported symptom where a surface exists (investigations). Mock external boundaries — DB, network, filesystem, time. Use the project's existing test framework and style. Never introduce a new one.
 
@@ -174,23 +188,22 @@ Run the project's own scripts, never the underlying binaries: `npm run lint`, no
 
 For each failure:
 
-1. Your change caused it → fix it.
+1. Your change caused it → fix it and re-run. Iterate until green.
 2. It fails on the baseline too → record as pre-existing, don't fix.
-3. **One repair attempt each.** A fix that creates a new failure → halt and surface it. Don't chain repairs.
+3. Halt and surface when the same failure survives 2–3 attempts, or a fix breaks something outside the contract's files.
 
 ### Phase 7 — Self-audit
 
-One pass, before reporting. Not a validator loop.
+Before reporting:
 
-- Every task accounted for — done, blocked by a logged gap, or deferred per the plan. Or, for an investigation, the change addresses the documented root cause rather than the symptom.
-- Every modified file is one the contract named. No drive-by fixes. No placeholders.
-- Every new symbol is imported or declared. Conventions match the siblings.
-- **Every helper you added has two or more callers, or is inlined.** Every new file the contract didn't name has a `DECISIONS.md` record.
-- Lint and tests ran. Failures accounted for.
-- Every AC demonstrably met (WBS plans).
-- Decision triggers checked and recorded, or none occurred.
+- Every task is done, blocked by a logged gap, or deferred per the plan.
+- Every modified file is one the contract named.
+- Every helper you added has two or more callers, or is inlined.
+- Lint and tests ran; every failure is fixed or recorded.
+- Every AC maps to a test or manual check (WBS plans).
+- Every new file the contract didn't name has an EDR.
 
-Fix what you find, once. What you can't fix in-pass goes to "Open Issues".
+Anything that doesn't hold and can't be fixed goes to "Open Issues".
 
 ### Phase 8 — Save and report
 
@@ -285,10 +298,10 @@ kit_save_handoff({
 
 Stop when any of these happen. Don't invent your way around them.
 
-- **Logic Gap** — the contract references something that isn't in the codebase.
+- **Logic Gap** — the contract references something that isn't in the codebase. Halts that task, not the run.
 - **Contract Conflict** — two tasks or actions assert incompatible things.
-- **Lint or Test Cascade** — three or more failures from your change with no trivial explanation.
+- **Lint or Test Cascade** — the Phase 6 halt: a failure from your change survives 2–3 repair attempts, or fixes keep breaking things outside the contract's files.
 - **Out-of-Scope Necessity** — it can't be implemented without touching files you weren't authorized for.
-- **Convention Conflict** — the contract wants a pattern that contradicts existing convention. Don't silently override either.
+- **Convention Conflict** — following local convention would break an AC.
 - **Unauthorized Dependency** — implementation seems to need a package the contract doesn't authorize.
 - **Unplanned Abstraction** — you reached rung 7 for a new file or module boundary the contract never named.

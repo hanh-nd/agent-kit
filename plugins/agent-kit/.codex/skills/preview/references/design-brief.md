@@ -21,7 +21,7 @@ For Design Briefs (typically a `README.md` decision-log + `DETAIL.md` technical 
    - the rejected alternative as a struck/muted "not X" tag;
    - a small **RISK** chip if present.
    Lay cards in a responsive grid (`html-css-patterns.md` → "Card Grid").
-3. **Flow / architecture diagram** — render the Mermaid diagram from `DETAIL.md` → `## System Flow`. If none exists, synthesize a simple flowchart from the decisions/entities. Center it; add zoom controls if 10+ nodes.
+3. **Flow / architecture diagram** — render the Mermaid diagram from `DETAIL.md` → `## System Flow`. Optional in the brief: absent → skip this panel, don't invent a diagram. Center it; add zoom controls if 10+ nodes.
 4. **Scope columns** — three columns: **IN** / **OUT** / **Future**, as compact chip lists. Pull from `## Scope`. This is the fastest "what's covered" signal — keep it tight.
 
 ## Drill-downs (collapsible `<details>`, below the hero — full fidelity, nothing dropped)

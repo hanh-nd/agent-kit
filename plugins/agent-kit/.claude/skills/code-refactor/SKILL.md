@@ -1,6 +1,7 @@
 ---
 name: code-refactor
 description: Analyze structure and produce a Refactor Proposal. Analysis only; no files modified.
+effort: medium
 ---
 
 # Code Refactor
@@ -13,12 +14,10 @@ This skill doesn't hunt for things to clean up. It asks whether a component is t
 
 Write for a tired teammate, not a reviewer you're impressing.
 
-- Short sentences, one idea each. Cut every word that isn't load-bearing.
-- Plain words. "What else this touches", not "blast radius".
-- Answer first, reason second. Never the reverse.
-- Bullets and tables over paragraphs. Three bullets max per point.
-- A question is one question plus one recommendation, under 5 lines.
-- No filler openers, no self-praise, no restating the request back.
+- Short sentences, one idea each. Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second.
+- Bullets and tables over paragraphs.
+- No filler openers, no self-praise, no restating the request.
 - If the explanation is longer than the thing it explains, delete the explanation.
 
 ## The two ways this skill fails
@@ -50,7 +49,7 @@ A request about how code reads — long method, unclear names, dedup inside a fu
 
 ## Before you start
 
-1. **Paths, not domains.** The user names files, globs, paths, or a diff. Legacy code bleeds across domain lines. Given a domain ("the billing domain"), translate it to paths and confirm.
+1. **Paths, not domains.** The user names files, globs, paths, or a diff. Legacy code bleeds across domain lines. Given a domain ("the billing domain"), translate it to paths, state them in the report's **Boundary**, and proceed. Ask only when two readings would give very different boundaries.
 2. **Know the test coverage.** Tests present or absent decides the confidence tier of every proposal. HIGH confidence on an untested surface is a contradiction.
 3. **codebase-dna, if it exists.** Read it — it prevents invented call relationships. Otherwise read files directly in Phase 1.
 4. **Feature-flag evidence, only if flag cleanup is in scope.** The user must say "Flag X is retired" or "fully rolled out as of [date]". Flag state lives in production, not in config files.
@@ -127,9 +126,15 @@ List only what the root-cause reversal doesn't already absorb.
 - "Old-looking" style → `code-simplify`
 - Long functions with fine signatures → `code-simplify`
 - "A design pattern would fit here" → speculative abstraction is the #1 refactor failure
-- Defensive code with no evidence it's unreachable
 
-**Before proposing any new helper, module, or abstraction:** search for one that already exists — by behavior, not by name. Check the nearest `utils/`, `lib/`, `shared/`, and sibling modules. "The helper doesn't exist" is a valid root cause; "I didn't look" is not. A new abstraction needs 3+ concrete callers already in the boundary.
+**Before proposing anything new** — helper, module, abstraction — stop at the first rung that holds:
+
+1. **Does it need to exist?** Deleting or inlining the wrong shape often beats replacing it.
+2. **Already in this repo?** Search by behavior, not by name — the nearest `utils/`, `lib/`, `shared/`, and sibling modules. "The helper doesn't exist" is a valid root cause; "I didn't look" is not.
+3. **Stdlib, platform feature, or installed dependency?** Use it.
+4. **Only then:** the smallest new shape. A helper needs 2+ concrete callers already in the boundary. An abstraction (interface, strategy, factory, config) needs 3+ concrete uses — never one implementation.
+
+**When not to cut.** Never propose removing validation at trust boundaries, error handling that prevents data loss, security measures, accessibility basics, or defensive code without evidence it's unreachable. A null check that "seems unnecessary" often catches a real production case.
 
 **"Nothing meaningful to refactor" is a real diagnosis.** A refactor skill that always finds something is a vandal. Premise sound and no issues survive → say so in Phase 3.
 
@@ -164,17 +169,7 @@ If the leftovers table is longer than the root-cause prose, you probably didn't 
 | R2 | Collapse `getUserData` wrapper | `user.ts` + 3 call sites | MEDIUM | Wrapper adds no transformation |
 | R3 | Delete `legacyAuthFallback` | `auth.ts` | LOW | Exported, dynamic language, unprovable |
 
-Anything touching multiple files, crossing a module boundary, or needing sequencing gets a detail block:
-
-```
-#### R2 — Collapse `getUserData` wrapper
-
-**Files:** `user.ts`, `profile.ts`, `orders.ts`
-**Call sites:** 3
-**Change:** Replace wrapper calls with direct `fetchUser` calls, delete the wrapper.
-**Risk:** Medium — wrapper is internal, but call sites span 2 modules.
-**Verify:** `npm test -- user`
-```
+Anything touching multiple files, crossing a module boundary, or needing sequencing gets a detail block (see `🧩 Details` in Phase 4).
 
 **Confidence tiers:**
 
@@ -186,7 +181,7 @@ Anything touching multiple files, crossing a module boundary, or needing sequenc
 
 **Always give real numbers.** "7 call sites", not "several". Vague is how silent drift starts.
 
-Present and stop. This skill proposes; it doesn't modify source. Implementation goes to the user or the `code` skill.
+This skill proposes; it doesn't modify source. Implementation goes to the user or the `code` skill.
 
 ### Phase 4 — Report
 
@@ -246,7 +241,7 @@ Omit sections that don't apply, unless omitting hides a risk. Never output empty
 
 ## Hard stops — need per-item sign-off
 
-Halt at Phase 3 and flag these. "Looks good" is not enough.
+List these under `🛑 Hard Stops` in the proposal. Each needs explicit per-item approval; "looks good" is not enough.
 
 - Public package exports
 - HTTP routes, webhook callbacks, event listeners, message consumers
@@ -264,11 +259,6 @@ Halt at Phase 3 and flag these. "Looks good" is not enough.
 
 ## Common mistakes
 
-1. **Cataloguer voice where reviewer voice belongs.** Found a root cause? Lead with prose naming the wrong decision. Tables are for leftovers and bags of independent changes. A severity matrix when the real answer is "the 2nd parameter shouldn't exist" is the exact failure this skill exists to prevent.
-2. **Speculative abstraction.** "I could extract a strategy pattern here" → almost always wrong. 3+ concrete uses, or don't.
-3. **Rebuilding what exists.** Proposing a new helper without searching for the one three files over.
-4. **Matching on syntax, not meaning.** Two similar-looking functions may serve different purposes. Merging them makes a god-function with a boolean flag.
-5. **Cowardly compatibility.** Old signature plus a new helper usually preserves the disease. No hard stop in the way → migrate callers, delete the old shape.
-6. **"Unused" that isn't.** No static callers doesn't mean unreachable — DI containers, route registries, plugin loaders, reflection. Dynamic language → UNCERTAIN, never deleted without confirmation.
-7. **Removing defensive code.** A null check that "seems unnecessary" often catches a real production case. Evidence, not aesthetics.
-8. **Flag removal from config.** The user confirms the flag is retired. Its state lives in production, not `config.yaml`.
+1. **Matching on syntax, not meaning.** Two similar-looking functions may serve different purposes. Merging them makes a god-function with a boolean flag.
+2. **"Unused" that isn't.** No static callers doesn't mean unreachable — DI containers, route registries, plugin loaders, reflection.
+3. **Flag removal from config.** The user confirms the flag is retired. Its state lives in production, not `config.yaml`.

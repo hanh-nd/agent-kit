@@ -13,12 +13,10 @@ description: 'Fetch a Jira ticket and route to the planning pipeline'
 
 Write for a tired teammate, not a reviewer you're impressing.
 
-- Short sentences, one idea each. Cut every word that isn't load-bearing.
-- Plain words. "What else this touches", not "blast radius".
-- Answer first, reason second. Never the reverse.
-- Bullets and tables over paragraphs. Three bullets max per point.
-- A question is one question plus one recommendation, under 5 lines.
-- No filler openers, no self-praise, no restating the request back.
+- Short sentences, one idea each. Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second.
+- Bullets and tables over paragraphs.
+- No filler openers, no self-praise, no restating the request.
 - If the explanation is longer than the thing it explains, delete the explanation.
 
 ## Steps
@@ -29,7 +27,7 @@ Write for a tired teammate, not a reviewer you're impressing.
 
 2. Call `kit_jira_get_ticket(ticketId: "<extracted_id>")` to fetch the ticket.
 
-3. If the ticket description contains Confluence links, evaluate each one based on its page title and surrounding context to determine whether it is likely to contain requirements, acceptance criteria, or a product spec for this ticket. Fetch those using `kit_confluence_get_page` and append their content to the brief. List any remaining links as references without fetching them.
+3. Confluence links in the description: fetch the ones likely to hold requirements, ACs, or a spec for this ticket (judge by title and context) with `kit_confluence_get_page` and append them to the brief. List the rest as references, unfetched.
 
 4. Format the ticket as a clean markdown brief:
 
@@ -48,19 +46,24 @@ Write for a tired teammate, not a reviewer you're impressing.
 
 5. Call `kit_save_handoff(type: "ticket", slug: "<extracted_id>", files: { "README.md": <formatted brief> })`.
 
-6. The tool returns the saved folder path. Present the execution choices as an interactive TUI menu using arrow keys (use `AskUserQuestion` tool or `ask_user` with type of `choice`) with the following format:
+6. The tool returns the saved folder path. Present the next step as a choice menu (`AskUserQuestion`, or `ask_user` with type `choice`):
 
 ```
 ✅ Ticket brief saved → `<returned-path>`
 
 What would you like to do next?
 
-1) Plan        — Start /plan with this ticket
-2) Done        — No further action
+1) Clarify     — Resolve unknowns in the ACs first (/clarify)
+2) Plan        — Start /plan with this ticket
+3) Done        — No further action
+4) Custom      — Something else
 ```
+
+Recommend **Clarify** when the ACs have unknowns, silent cases, or ambiguous scope; otherwise recommend **Plan**. Mark the recommendation in the menu.
 
 **On user selection:**
 
-- **1 — Plan:** Invoke `/plan @<saved-path>` to hand the ticket brief folder directly to the planning skill.
-- **2 — Done:** Output `Ticket saved. No further action.` and stop.
-- **3 — Custom:** The user types their request. Treat it as continuing the conversation — brainstorm the approach, ask questions about the ticket, or anything else they need.
+- **1 — Clarify:** Invoke `/clarify @<saved-path>`.
+- **2 — Plan:** Invoke `/plan @<saved-path>`.
+- **3 — Done:** Output `Ticket saved. No further action.` and stop.
+- **4 — Custom:** The user types their request. Treat it as continuing the conversation — brainstorm the approach, ask questions about the ticket, or anything else they need.

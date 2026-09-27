@@ -610,15 +610,4 @@ Define as CSS variables for easy reference:
 
 The first 5 pairings are recommended for most use cases. Vary across consecutive diagrams.
 
-### Typography by Content Voice
-
-For prose-heavy pages (documentation, articles, essays), match typography to the content's voice:
-
-| Voice | Fonts | Best For |
-|-------|-------|----------|
-| **Literary / Thoughtful** | Literata, Lora, Newsreader, Merriweather | Essays, personal posts, long-form articles |
-| **Technical / Precise** | IBM Plex Sans + Mono, Geist + Geist Mono, Source family | Documentation, READMEs, API references |
-| **Bold / Contemporary** | Bricolage Grotesque, Space Grotesk, DM Sans | Product pages, feature announcements |
-| **Minimal / Focused** | Source Serif 4 + Source Sans 3, Karla + Inconsolata | Tutorials, how-tos, focused reading |
-
-**Literata** deserves special mention — it has optical sizing designed specifically for screen reading. Google's answer to Georgia, but modernized.
+Typography by content voice: see `html-design-guidelines.md` → "Typography by Content Voice".

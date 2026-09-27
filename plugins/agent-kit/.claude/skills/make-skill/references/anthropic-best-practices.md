@@ -1,5 +1,7 @@
 # Skill authoring best practices
 
+> Snapshot of Anthropic's [Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices). The online page is the source of truth; where they differ, it wins. Model-specific prompting guidance lives in `SKILL.md > Authoring principles`.
+
 > Learn how to write effective Skills that Claude can discover and use successfully.
 
 Good Skills are concise, well-structured, and tested with real usage. This guide provides practical authoring decisions to help you write Skills that Claude can discover and use effectively.

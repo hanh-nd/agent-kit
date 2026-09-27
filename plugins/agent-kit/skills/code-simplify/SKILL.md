@@ -1,6 +1,6 @@
 ---
 name: code-simplify
-version: 1.1.0
+version: 2.0.0
 description: Improve readability — better names, guard clauses, dead-code removal — without changing behavior or signatures.
 ---
 
@@ -16,12 +16,10 @@ Simplicity is measured in reader effort, not line count. Explicit, debuggable co
 
 Write for a tired teammate, not a reviewer you're impressing.
 
-- Short sentences, one idea each. Cut every word that isn't load-bearing.
-- Plain words. "What else this touches", not "blast radius".
-- Answer first, reason second. Never the reverse.
-- Bullets and tables over paragraphs. Three bullets max per point.
-- A question is one question plus one recommendation, under 5 lines.
-- No filler openers, no self-praise, no restating the request back.
+- Short sentences, one idea each. Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second.
+- Bullets and tables over paragraphs.
+- No filler openers, no self-praise, no restating the request.
 - If the explanation is longer than the thing it explains, delete the explanation.
 
 ## The two ways this skill fails
@@ -43,10 +41,8 @@ If the real improvement needs signature changes, cross-file merges, or reversing
 
 ## Inputs
 
-Three things. Ask for whatever's missing:
-
 1. **The target.** A diff, changed files, or paths. Defaults to `git diff HEAD`.
-2. **Full file access**, not just the diff. File-scope context is required.
+2. **Full files**, not just the diff. Read them yourself.
 3. **Project conventions.** Infer from 2–3 unmodified files in the same module — naming, constant placement, import style.
 
 Empty target → stop and say so.
@@ -106,9 +102,7 @@ Classify what's in each modified unit.
 
 ### Phase 3 — Apply
 
-Every change passes two checks before it goes in.
-
-**Rent check** — *is the file actually easier to read now?* "Same, maybe different" → revert.
+**Rent check** — every change, before it goes in: *is the file actually easier to read now?* "Same, maybe different" → don't make it. Two valid paths → take the less invasive one.
 
 Before adding anything — a constant, a helper, an explaining variable — check whether one already exists in or near the file. Reuse beats introduce, every time. Then:
 
@@ -127,6 +121,7 @@ Before adding anything — a constant, a helper, an explaining variable — chec
 - Side effects — mutations, I/O, logging — and what triggers them.
 - Thrown errors and rejected promises, and what triggers them.
 - Public exports.
+- Validation at trust boundaries, error handling that prevents data loss, security checks, accessibility attributes — even when they look redundant.
 
 Parameter *names* are internal, unless a call site uses named arguments (Python kwargs, destructuring at the call site). If one does, renaming is a call-site reshape — route out.
 
@@ -142,19 +137,13 @@ Parameter *names* are internal, unless a call site uses named arguments (Python 
 - **Performance.** A readability change that happens to be faster is fine. A change motivated by speed belongs elsewhere.
 - **Bugs.** Log them, leave them. This skill's contract is that behavior is preserved — a behavior change hidden in a readability diff is invisible to a reviewer who assumes simplify diffs are safe to approve fast.
 
-### Phase 4 — Self-review and log
+### Phase 4 — Prove invariance and log
 
-Re-read each modified file as if seeing it fresh. For every change:
+Run the adjacent tests, and the type check if the project has one, with the project's own scripts (`npm test -- <pattern>`), not the underlying binaries.
 
-1. **Rent** — easier to read, or did a cleanup rule just fire?
-2. **Fit** — does the new name match the file's style, or stand out?
-3. **Indirection** — did I add something the reader now has to scroll to understand? Was the inline version genuinely worse?
-4. **Protective awkwardness** — did I remove something whose reason I still can't explain?
-5. **Nothing changed** — did any edit alter a type, a return path, or a side-effect condition?
+A failure means a change altered behavior. The tests aren't wrong; the change was. Revert the offending change, tag it `[invariance-violation]`, re-run. Iterate until green. Can't isolate the offending change after 2–3 reverts → revert the whole file and log it.
 
-Revert what fails. Tag reverts `[self-review]`.
-
-Tests failing after your changes means a behavior check was violated. Revert the offending change, log it `[invariance-violation]`. The tests aren't wrong; the change was.
+No adjacent tests → say so; behavior preservation rests on the rent check and "Nothing may change".
 
 **The log:**
 
@@ -163,7 +152,7 @@ Tests failing after your changes means a behavior check was violated. Revert the
 
 ### Files Modified
 
-- `path/to/file.ts` — N applied, M reverted on self-review
+- `path/to/file.ts` — N applied, M reverted
 
 ### Applied
 
@@ -175,7 +164,7 @@ Tests failing after your changes means a behavior check was violated. Revert the
 
 ### Reverted
 
-- **[self-review]** Explaining variable `isActiveAdmin` — used once, inline reads fine.
+- **[invariance-violation]** Guard clause in `applyDiscount()` — changed which branch logs; `discount.test.ts` caught it.
 
 ### Route-Out to `code-refactor`
 
@@ -186,16 +175,10 @@ Run `/code-refactor order.service.ts user.service.ts`.
 
 ### Tests
 
-- Adjacent tests: `order.service.test.ts`, `booking.service.test.ts`. Run them to confirm behavior held.
-- No tests for `date.utils.ts` — behavior preservation checked by review only.
+- Ran: `npm test -- order booking` — pass.
+- No tests for `date.utils.ts` — behavior preservation rests on review only.
 ```
 
 Early exit with `No changes needed` or route-out only → the log is just that message. No empty sections.
 
----
-
-## How to operate
-
-- **Conservative by default.** Two valid paths → take the less invasive one.
-- **Silence over noise.** "Nothing to simplify" is a normal, valid result. A skill that always finds something is vandalism.
-- **Reviewer voice in the log.** Each entry says *why* the change earns its rent, not just what changed. The user should be able to audit it without re-reading the diff.
+Each log entry says *why* the change earns its rent, not just what changed. "Nothing to simplify" is a normal, valid result — a skill that always finds something is vandalism.

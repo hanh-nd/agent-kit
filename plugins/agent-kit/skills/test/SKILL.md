@@ -1,7 +1,7 @@
 ---
 name: test
 description: 'Add or update tests given an existing implementation plan or WBS.'
-version: 2.1.0
+version: 3.0.0
 providers:
   claude:
     effort: medium
@@ -27,55 +27,55 @@ This skill adds and updates tests. It doesn't change production behavior, except
 
 Write for a tired teammate, not a reviewer you're impressing.
 
-- Short sentences, one idea each. Cut every word that isn't load-bearing.
-- Plain words. "What else this touches", not "blast radius".
-- Answer first, reason second. Never the reverse.
-- Bullets and tables over paragraphs. Three bullets max per point.
-- A question is one question plus one recommendation, under 5 lines.
-- No filler openers, no self-praise, no restating the request back.
+- Short sentences, one idea each. Plain words. "What else this touches", not "blast radius".
+- Answer first, reason second.
+- Bullets and tables over paragraphs.
+- No filler openers, no self-praise, no restating the request.
 - If the explanation is longer than the thing it explains, delete the explanation.
-
-## How this skill fails
-
-- **Method worship** — one test per method instead of one per behavior.
-- **Implementation coupling** — asserting private helpers, call order, internal structure, whole-object equality, or incidental formatting.
-- **Mock theater** — proving the mocks were configured, not that the system works.
-- **Flaky signal** — depending on time, randomness, network, filesystem, DB state, test order, shared state, or timing.
-- **Opaque failure** — it fails, and nothing in the name, setup, or assertion says what broke.
-- **Coverage laundering** — testing getters, setters, pass-throughs, or dead branches to move a percentage.
-- **Rebuilt fixtures** — writing a new factory, builder, or helper when one already exists two files over.
 
 ## Before you write a helper or fixture
 
-Test files reinvent utilities more often than production code does. Before adding one:
+Test files reinvent utilities more often than production code does. Stop at the first rung that holds:
 
 1. **Does it need to exist?** One test needs it → inline it.
-2. **Already here?** Check the sibling test files, the shared test-utils directory, and the project's existing factories and builders. Search by behavior, not by name.
+2. **Already here?** Sibling test files, the shared test-utils directory, existing factories and builders. Search by behavior, not by name.
 3. **Does the test framework do it?** Built-in fakes, timers, snapshots, fixtures.
 4. **Already-installed test dependency?** Use it. Never add one for what five lines cover.
 5. **Only then:** the smallest helper that works, placed where the project puts them.
 
 A fixture with one caller belongs in the test that uses it.
 
+## When not to cut
+
+Fewest tests never means skipping:
+
+- Every obligation the plan lists (`TESTS.md > Test Mapping`, `PLAN.md > Checks`, or explicit test tasks).
+- Validation at trust boundaries, error handling that prevents data loss, security paths, accessibility basics — when the change touches them.
+- The regression case for an Investigation Report.
+
+No plan obligations → one runnable check per piece of non-trivial logic (a branch, a loop, a parser, a money or security path). Trivial one-liners need none. No per-function suites unless asked.
+
 ## Input gate
 
-Proceed only when the intent already exists:
+Proceed when the intent already exists:
 
-- a WBS plan with ACs or behavior statements
-- an Investigation Report with a symptom, root cause, and verification target
-- an existing feature whose public behavior you can read from code and callers
+| Source | Where the obligations live |
+| :--- | :--- |
+| S plan (`PLAN.md`) | `Checks` (contract → task), `What Must Be True`, `Failure Cases`, flat task IDs (`Task 1`) |
+| M+ plan | `TESTS.md > Test Mapping` and `Gaps`, `ARCHITECTURE.md > What Must Be True` / `Failure Cases`, `TASKS.md` (layered IDs) |
+| Investigation Report | Symptom, root cause, `Verification target`, `Prevention > Regression coverage` |
+| Existing feature, no plan | Public behavior read from code and callers |
+
+The plan owns test scope. Honor its obligations; don't widen them. Plan says tests are off (no `TESTS.md`, no `Checks`, no test tasks) and the user still invoked this skill → proceed on the user's request, and say so in one line.
 
 Expected behavior is a business decision nobody made → route to `clarify`. Implementation approach still unknown → route to `plan`.
 
 ## How to operate
 
-- **Gather context, then stop.** Read the intent, then the target source, nearby tests, and the runner config. Stop once you know the behavior, the right layer, the local style, and the focused command to run.
-- **Don't keep scanning.** Once local conventions and the target surface are clear, stop searching. Search again only if the first attempt fails.
-- **Escalate once.** Contract and code disagree → one focused check against the source or callers. Still unresolved → stop and route to `clarify`, `plan`, or `investigate`. Never write assumption-driven tests.
-- **Decide alone, or ask.** Pick test names, fixtures, and assertions yourself when behavior is specified. Ask only when expected behavior is a business decision, or when a testability seam would change production design.
-- **Signal beats coverage.** Every time.
-- **Local style is law.** Mirror the naming, structure, assertions, fixtures, and formatting of the surrounding tests and the code they exercise. Never impose your own style on a codebase with conventions.
-- **Done means:** every test maps to a stated obligation, rejected candidates are explained, and verification ran or its limits are stated.
+- **Gather context, then write.** Read the intent, the target source, nearby tests, and the runner config. Stop searching once you know the behavior, the layer, the local style, and the focused command. Search again only if a run fails for a reason you don't understand.
+- **Decide alone.** Pick names, fixtures, and assertions yourself when behavior is specified. Ask only when expected behavior is a business decision, or a testability seam would change production design.
+- **Contract and code disagree** → one focused check against source or callers. Still unresolved → skip that obligation, record it under `Blocked`, route to `clarify`, `plan`, or `investigate`, and keep going on the rest. Never write assumption-driven tests.
+- **Local style is law.** Mirror the naming, structure, assertions, fixtures, and formatting of the surrounding tests.
 
 ## Workflow
 
@@ -83,7 +83,7 @@ Expected behavior is a business decision nobody made → route to `clarify`. Imp
 
 Classify each thing you're proving:
 
-- **Contract** — proves an AC or public behavior.
+- **Contract** — proves an AC, a `BC` statement, or public behavior.
 - **Regression** — proves a known bug can't come back.
 - **Boundary** — invalid input, auth, external failure, state transition, trust boundary.
 - **Characterization** — locks existing behavior before a refactor.
@@ -94,7 +94,7 @@ State it in observable terms:
 Given [precondition], when [public action], then [observable result]
 ```
 
-If the target is "private helper returns X", ask what public contract that helper serves. No contract → reject the test, or recommend extracting the behavior behind a real interface first.
+"Private helper returns X" → ask what public contract that helper serves. No contract → reject the test, or recommend extracting the behavior behind a real interface first.
 
 ### Phase 2 — Pick the layer and the doubles
 
@@ -106,20 +106,16 @@ Narrowest layer that proves the behavior with enough confidence:
 - **Fake or stub** over a mock when you can observe the outcome directly.
 - **Mock** only when the interaction *is* the contract: "publishes event X", "doesn't charge the card twice".
 
-Don't mock more just because the tooling makes it easy. If understanding the test means stepping through production code, it's coupled too tightly.
-
 ### Phase 3 — Reject these
 
-- Mirrors implementation structure
-- Tests private helper mechanics with no behavioral claim
-- Exists only to raise coverage
-- Would fail for many unrelated reasons
-- Duplicates coverage that exists at a better layer
-- Asserts a whole complex object when one field matters
-- Verifies mock choreography when a real outcome is observable
-- Depends on wall clock, randomness, network, filesystem, DB, test order, or shared state with no seam
-- Contains branching, loops, computed expectations, or setup complex enough to need its own tests
-- Tests trivial getters, setters, constructors, or pass-throughs with no decision logic
+- **Method worship** — one test per method instead of one per behavior.
+- **Implementation coupling** — asserting private helpers, call order, internal structure, whole-object equality when one field matters, or incidental formatting.
+- **Mock theater** — verifying mock choreography when a real outcome is observable.
+- **Flaky signal** — wall clock, randomness, network, filesystem, DB, test order, or shared state with no seam.
+- **Opaque failure** — nothing in the name, setup, or assertion says what broke.
+- **Coverage laundering** — getters, setters, constructors, pass-throughs, or dead branches with no decision logic.
+- **Duplicate coverage** — already proven at a better layer.
+- **Logic in the test** — branching, loops, computed expectations, or setup complex enough to need its own tests.
 
 ### Phase 4 — Shape
 
@@ -133,37 +129,32 @@ One reason to fail, per test:
 - Smallest input that proves the behavior. Name any non-obvious constant.
 - Setup local to the test, unless a helper makes intent clearer without hiding state that matters.
 
-Parameterized tests are fine when every row proves the same behavior. Different behaviors → split.
+Parameterized tests are fine when every row proves the same behavior. Different behaviors → split. Characterizing before a refactor: lock observable behavior, not formatting, call order, or private structure.
 
-### Phase 5 — The minimal set
+### Phase 5 — Write and run
 
-- One happy path, if not already covered.
-- One to three edge or failure cases, each a *distinct* kind of scenario.
-- One regression case for an Investigation Report.
-- No exhaustive matrix unless the domain truly needs it. Parameterize when inputs share a behavior.
+Put tests beside the existing test surface unless the repo has a clear central convention.
 
-Characterizing before a refactor: lock the observable behavior, not formatting, call order, or private structure.
+Run the most focused command first, then the broader one if it's cheap. Use the project's scripts (`npm test -- <pattern>`), not the underlying binary.
 
-### Phase 6 — Write and verify
+For each failure:
 
-Read nearby tests first and follow them exactly — naming, setup, mocking, fixtures, assertions. Match the production code's conventions too. Put tests beside the existing test surface unless the repo has a clear central convention.
+1. **The test is wrong** (setup, fixture, assertion) → fix it and re-run. Iterate until green.
+2. **The code is wrong** (the test proves a stated obligation the code breaks) → keep the test, don't change production code, report it under `Failing obligations`.
+3. **Flaky** → not a pass. Find whether the nondeterminism is in the test, the code, or the infrastructure.
+4. The same failure survives 2–3 attempts → stop on that test and report it.
 
-Before running, audit the signal:
-
-- Would this fail if the behavior broke?
-- Would it still pass after a behavior-preserving refactor?
-- When it fails, do the name and assertion point at what broke?
-- Is every nondeterministic dependency controlled by a seam, fake, or fixture?
-
-Run the most focused command first, then the broader one if it's cheap. Expensive or unavailable → say so. A flaky result is not a pass — find out whether the nondeterminism is in the test, the code, or the infrastructure.
+Command expensive or unavailable → say so.
 
 ## Output
+
+Size it to the work. One added test gets a few lines; drop any section with nothing in it.
 
 ```markdown
 ## Test Design
 
 ### What we're proving
-- [contract / regression / boundary / characterization] ...
+- [contract / regression / boundary / characterization] — <obligation ID, e.g. BC1 / Task 2 / AC3> ...
 
 ### Layer & doubles
 - Layer: unit / small integration / other — because ...
@@ -176,7 +167,13 @@ Run the most focused command first, then the broader one if it's cheap. Expensiv
 - `path/to/test.ts` — proves ...
 
 ### Rejected
-- [candidate] — mirrors implementation / duplicated at a better layer / low signal / would be flaky
+- [candidate] — method worship / coupling / duplicate / low signal / flaky
+
+### Blocked
+- <obligation> — contract and code disagree: <one line>; route to <skill>
+
+### Failing obligations
+- <test> — proves <obligation>; code returns <actual>
 
 ### Verification
 - Command: ...

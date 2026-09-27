@@ -1,18 +1,84 @@
 # Plan Artifact Templates
 
-Compose targets for Phase 4. Fill every placeholder — a template shipped with `<angle brackets>` intact is an unfinished artifact.
+Compose targets for Phase 4. Fill every placeholder — a template shipped with `<angle brackets>` intact is unfinished. Drop an optional section rather than filling it with "n/a".
+
+Size decides the set: **S** → `PLAN.md` only. **M / L / XL** → `README.md`, `ARCHITECTURE.md`, `TASKS.md`, `TESTS.md` (tests on).
+
+Each fact has one home:
+
+| Fact | S | M+ |
+| :--- | :--- | :--- |
+| Goal, ACs, decisions, scope, dropped options, risks, component manifest | `PLAN.md` | `README.md` |
+| Flow, contracts, What Must Be True, failure cases, reuse map | `PLAN.md` | `ARCHITECTURE.md` |
+| Tasks, AC coverage | `PLAN.md` | `TASKS.md` |
+| Contract → test mapping, gaps | `PLAN.md > Checks` | `TESTS.md` |
 
 ---
 
-## README.md
+## PLAN.md (S)
 
 ```markdown
 # Plan: <Feature Name>
 
-> **Status:** APPROVED
-> **Created:** <YYYY-MM-DD>
-> **Source:** <ticket-id / design-brief-path / user-request>
-> **Complexity:** <S | M | L | XL>
+> **Status:** APPROVED · **Created:** <YYYY-MM-DD> · **Source:** <ticket-id / brief-path / user-request> · **Complexity:** S
+
+## Goal
+<One sentence>
+
+## Acceptance Criteria
+- [ ] AC1: <observable, verifiable condition>
+
+## Decisions
+1. **<Area>:** <chose X> (NOT <Y>) — WHY: <one line>. RISK: <main risk, or "none identified">.
+
+## Component Manifest
+| Action | Path | Purpose | Reuse check |
+| :--- | :--- | :--- | :--- |
+| MODIFY | `path/to/file.ts` | <one line> | — |
+| CREATE | `path/to/new.ts` | <one line> | searched `<terms>` → no match |
+
+## What Must Be True
+| ID | Must hold | Covers |
+| :--- | :--- | :--- |
+| BC1 | Given <precondition>, <subject> MUST <observable outcome> | AC1 |
+
+## Failure Cases
+<!-- optional: omit when nothing can realistically fail -->
+| # | What goes wrong | What the system does | Handled by |
+| :--- | :--- | :--- | :--- |
+| F1 | <failure> | <response> | Task 2 |
+
+## Reuse Map
+| Existing asset | Path | Used for |
+| :--- | :--- | :--- |
+| <function/pattern> | `path/to/file.ts:42` | <where this plan uses it> |
+
+## Tasks
+- [ ] [P] **Task 1:** In `<file_path>`, <change> per BC1.
+  - _Contract:_ <inputs and outputs — or the one line, when that is the whole change>
+  - _Error:_ <exception and exact trigger>
+- [ ] [S: 1] **Task 2:** ...
+
+AC coverage: AC1 → Task 1.
+
+## Checks
+<!-- omit when tests are off; record why in Decisions -->
+| Contract | Checked by |
+| :--- | :--- |
+| BC1 | Task 1 |
+
+## Scope
+**OUT:** <excluded item — one line reason>
+```
+
+---
+
+## README.md (M+)
+
+```markdown
+# Plan: <Feature Name>
+
+> **Status:** APPROVED · **Created:** <YYYY-MM-DD> · **Source:** <ticket-id / brief-path / user-request> · **Complexity:** <M | L | XL>
 
 ## Goal
 <One sentence: what we're building and why>
@@ -26,12 +92,12 @@ Compose targets for Phase 4. Fill every placeholder — a template shipped with 
    - WHY: <one line>
    - HOW: <concrete approach>
    - RISK: <main risk, or "none identified">
-2. **<Next>:** ...
+
+Defaults taken without asking are listed here too, marked `(default — override if wrong)`.
 
 ## Component Manifest
 
-Every CREATE row carries the search that proves nothing existing fits.
-No search, no CREATE — reuse instead.
+Built from the paths in `TASKS.md`. No search, no CREATE.
 
 | Action | Path | Purpose | Reuse check |
 | :--- | :--- | :--- | :--- |
@@ -47,47 +113,33 @@ No search, no CREATE — reuse instead.
 - <excluded item — one line reason>
 
 ## Considered and dropped
-- <architectural option we looked at — one line why not>
+- <option we looked at — one line why not>
 
 ## Risks
 - <project-level risk the user should see>
-
-## File Map
-- `README.md` (this file) — decisions, component manifest, summary
-- `ARCHITECTURE.md` — diagrams, contracts, failure cases, reuse map
-- `TASKS.md` — the work breakdown + AC coverage
-- `TESTS.md` — codepaths, test mapping, gaps
-
-## Summary
-- Scope challenge: <accepted as-is | cut per recommendation | skipped (Design Brief)>
-- Architecture: <N issues, N resolved>
-- Code quality: <N issues, N resolved>
-- Tests: <N gaps, N critical>
-- Performance: <N issues, N resolved>
-- Existing code reused: <N places>
-- Critical gaps: <N>
 ```
 
 ---
 
-## ARCHITECTURE.md
+## ARCHITECTURE.md (M+)
 
 ```markdown
 # Architecture: <Feature Name>
 
-> See `README.md` for goal, decisions, and component manifest.
-> See `TASKS.md` for the work breakdown referencing the contracts below.
+> Goal and decisions: `README.md`. Tasks: `TASKS.md`.
 
 ## System Flow
+<!-- optional: only when there is real flow to show -->
 <Mermaid: sequence, flowchart, or state diagram of the new or changed behavior>
 
 ## Data Contracts
 
 \```ts
 // path/to/file.ts
-export interface FooContract { ... }
 export function bar(input: X): Y;
 \```
+
+Only contracts that cross a boundary or that tasks reference. No interface with one implementation.
 
 ## What Must Be True
 
@@ -98,41 +150,36 @@ export function bar(input: X): Y;
 
 ## Failure Cases
 
-| # | What goes wrong | What the system does | Handled where |
+| # | What goes wrong | What the system does | Handled by |
 | :--- | :--- | :--- | :--- |
 | F1 | <failure case> | <technical response> | <TASKS.md task ID> |
 
 ## Reuse Map
 
-What this plan leans on instead of rebuilding. One row per rung-2 hit from the ladder.
+One row per rung-2 hit from the ladder.
 
 | Existing asset | Path | Used for |
 | :--- | :--- | :--- |
 | <function/class/pattern> | `path/to/file.ts:42` | <where this plan uses it> |
-
-## Considered and dropped
-- <architectural option we looked at — one line why not>
 ```
 
 ---
 
-## TASKS.md
+## TASKS.md (M+)
 
 ```markdown
 # Tasks: <Feature Name>
 
-> See `README.md` for goal and decisions.
-> See `ARCHITECTURE.md` for the contracts referenced below.
+> Contracts and IDs: `ARCHITECTURE.md`.
+> **Notation:** `[P]` = safe to run in parallel inside its layer. `[S: id]` = waits on the listed tasks. Layers run in order.
 
-> **Notation:** `[P]` = safe to run in parallel inside its layer. `[S: id]` = waits on the listed tasks. Layers always run in order.
-
-## Layer 1: Foundation & Types
-- [ ] [P] **Task 1.1:** In `<file_path>`, export interface `<Name>` per `ARCHITECTURE.md > Data Contracts > <Name>`.
-- [ ] [P] **Task 1.2:** ...
+## Layer 1: Foundation
+<!-- schema, migrations, shared contracts other tasks depend on; omit when none -->
+- [ ] [P] **Task 1.1:** In `<file_path>`, <change> per `ARCHITECTURE.md > Data Contracts > <Name>`.
 
 ## Layer 2: Core Logic & Edge Cases
-- [ ] [P] **Task 2.1:** In `<file_path>`, implement `<funcName>(input: <Type>): <Return>` per `ARCHITECTURE.md > Data Contracts > <Name>`.
-  - _Contract:_ <inputs and outputs only — no algorithm>
+- [ ] [P] **Task 2.1:** In `<file_path>`, implement `<funcName>(input: <Type>): <Return>` per BC1.
+  - _Contract:_ <inputs and outputs only — or the one line, when that is the whole change>
   - _Error:_ <exception type and exact trigger>
 - [ ] [S: 2.1] **Task 2.2:** ...
 
@@ -144,43 +191,32 @@ What this plan leans on instead of rebuilding. One row per rung-2 hit from the l
 | AC ID | Covered by |
 | :--- | :--- |
 | AC1 | Task 2.1, Task 3.1 |
-| AC2 | Task 2.3 |
-
-An AC with no task means the plan is incomplete. Add the task before saving.
+| AC2 | Task 2.2 |
 ```
 
 ---
 
-## TESTS.md
+## TESTS.md (M+, tests on)
 
 ```markdown
 # Tests: <Feature Name>
 
-> See `README.md` for goal and ACs.
-> See `TASKS.md` for the task IDs below.
-> See `ARCHITECTURE.md` for the BC and F IDs below.
+> BC and F IDs: `ARCHITECTURE.md`. Task IDs: `TASKS.md`.
 
-## Codepath Diagram
-<Mermaid: every new codepath, annotated with which contract it exercises>
+One runnable check per piece of non-trivial logic. Trivial one-liners need none.
 
 ## Test Mapping
 
-| Contract ID | Covers | Tested by |
-| :--- | :--- | :--- |
-| BC1 | AC1 | Task 2.1 |
-| BC2 | F1 | Task 2.3 |
+| Contract ID | Tested by |
+| :--- | :--- |
+| BC1 | Task 2.1 |
+| F1 | Task 2.2 |
 
 ## Gaps
 
-Anything in `ARCHITECTURE.md` with no test task. Each needs a task, or a written note on how it gets verified without one.
+Anything in `ARCHITECTURE.md` with no test task. Each gets a task, or a note on how it's verified without one. No handling **and** silent (no log, no error, no user signal) → **CRITICAL**, add a task.
 
-| Item | Test task? | Verified another way? | Resolution |
-| :--- | :--- | :--- | :--- |
-| BC1 | yes (Task 2.1) | n/a | covered |
-| F2 | NO | no — fails silently | **CRITICAL — add Task X.Y to TASKS.md** |
-
-## Critical Gaps
-
-Gaps where nothing handles the error AND the failure is silent — no log, no user-facing signal, no exception:
-- <none / explicit list>
+| Item | Verified how | Resolution |
+| :--- | :--- | :--- |
+| F2 | nothing — fails silently | **CRITICAL — Task X.Y added** |
 ```

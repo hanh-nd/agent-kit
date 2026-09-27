@@ -24,7 +24,7 @@ Infer from the artifact content alone — never from who produced it.
 
 | Signal                                                | Inferred type  | Lenses applied                                                      |
 | ----------------------------------------------------- | -------------- | ------------------------------------------------------------------- |
-| Markdown with `## WBS`, `[P]`, `[S: id]`              | `wbs-plan`     | Goal Coverage, Internal Consistency, Completeness, Scope Discipline |
+| `PLAN.md` / `TASKS.md`, or Markdown with `## Tasks`, `## Layer N`, `## WBS`, `[P]`, `[S: id]` | `wbs-plan`     | Goal Coverage, Internal Consistency, Completeness, Scope Discipline |
 | Markdown with `## Acceptance Criteria`, `## Approach` | `design-brief` | Goal Coverage, Internal Consistency, Completeness                   |
 | `.ts`, `.js`, `.py`, etc., or a diff                  | `source-code`  | All five lenses (incl. Evidence by Execution)                       |
 | `.test.ts`, `.spec.ts`, etc.                          | `test-suite`   | All five lenses; assertion-quality check (no tautological tests)    |
