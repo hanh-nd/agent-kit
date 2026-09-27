@@ -50,10 +50,11 @@ Detect by content signals, not by system:
 | Strategy | Choose when (any signal matches) | Reference |
 |---|---|---|
 | `design-brief` | `README.md` **and** `DETAIL.md` both present; **or** a heading like `# Design Brief` / `# Design Detail`; **or** a Problem + Decisions + Scope structure | `references/design-brief.md` |
-| `implementation-plan` | `ARCHITECTURE.md` **and** `TASKS.md` present; **or** `PLAN.md` with `## Tasks` and `## Acceptance Criteria`; **or** WBS markers (task IDs, `[P]` / `[S: id]`, "Acceptance Criteria", "What Must Be True") | `references/implementation-plan.md` |
+| `implementation-plan` | `ARCHITECTURE.md` **and** `TASKS.md` present; **or** `PLAN.md` with `## Tasks` (alone or beside `README.md`); **or** WBS markers (task IDs, `[P]` / `[S: id]`, "Acceptance Criteria", "What Must Be True") | `references/implementation-plan.md` |
 | `generic` | nothing matches, or the shape is ambiguous | `references/generic.md` |
 
 - One strategy for the whole input. A multi-file folder becomes ONE combined page.
+- A plan folder (`README.md` + `PLAN.md`, or `README.md` + `ARCHITECTURE.md` + `TASKS.md`) is `implementation-plan`, never `design-brief` — its `README.md` has Decisions but no `DETAIL.md` beside it.
 - Unsure → `generic`. Never dead-end on shape.
 - Read the chosen strategy reference now — it defines the hero, the drill-downs, and which template to study.
 

@@ -37,7 +37,7 @@ Write for a tired teammate, not a reviewer you're impressing.
 The contract names files and symbols. Anything you'd add beyond that — a helper, a util, a type, a wrapper, a new file — climbs this ladder first. Stop at the first rung that holds.
 
 1. **Does it need to exist?** No task requires it → don't write it.
-2. **Already in this repo?** Search by behavior, not by name — verb + domain noun, and the nearest `utils/`, `lib/`, `shared/`, `helpers/`, and sibling modules. Check the plan's Reuse Map (`PLAN.md` or `ARCHITECTURE.md`) first; the plan may have found it already. Re-implementing what lives three files over is the most common failure of this skill.
+2. **Already in this repo?** Search by behavior, not by name — verb + domain noun, and the nearest `utils/`, `lib/`, `shared/`, `helpers/`, and sibling modules. Check the plan's Reuse Map first; the plan may have found it already. Re-implementing what lives three files over is the most common failure of this skill.
 3. **Stdlib or language builtin?** Use it.
 4. **Framework or platform feature already installed?** Use it. CSS over JS, DB constraint over app code.
 5. **Existing dependency?** Use it. Never add one for what five lines cover.
@@ -75,14 +75,14 @@ A deliberate corner cut with a known ceiling (global lock, O(n²) scan, naive he
 
 An implementation contract, required. Either:
 
-- **WBS plan** from `plan` — a handoff folder or inline content. Either an S plan (`PLAN.md` alone) or the M+ set (`README.md`, `ARCHITECTURE.md`, `TASKS.md`, optional `TESTS.md`).
+- **WBS plan** from `plan` — a handoff folder or inline content. Read every file in the folder; each file's header says what it holds.
 - **Investigation Report** from `investigate` — a handoff folder or inline content with root-cause evidence and recommended actions.
 
 No contract → stop and ask for one. References to files that don't exist → surface them in Phase 3, never invent paths.
 
 **Routing:**
 
-- **WBS plan:** execute every saved file exactly as written. No `TESTS.md`, no `PLAN.md > Checks`, and no test tasks → write no tests.
+- **WBS plan:** execute every saved file exactly as written. The plan lists no test obligations and no test tasks → write no tests.
 - **Investigation Report:** fix the documented root cause, nothing else. No cleanup, no refactor, no speculative hardening. Status `INCONCLUSIVE` → halt. Status `PROBABLE` → implement only if the evidence names the affected files and the failure mechanism; otherwise ask first.
 
 ---
@@ -126,16 +126,9 @@ Nothing happened? Say so in `DECISIONS.md`.
 
 Read all of `$ARGUMENTS`. Classify it as WBS plan or Investigation Report.
 
-**WBS plan** — extract from `PLAN.md` (S) or the M+ set:
+**WBS plan** — read every file in the plan folder. Extract by meaning, not by file: Goal, ACs, decisions, scope (not included), data contracts, what must be true, failure cases, reuse map, component manifest, tasks with `[P]` / `[S: id]` dependencies and AC coverage, and test obligations.
 
-| Piece | S (`PLAN.md`) | M+ |
-| :--- | :--- | :--- |
-| Goal, ACs, decisions, Component Manifest, Scope | `PLAN.md` | `README.md` |
-| What Must Be True, Failure Cases, Reuse Map, Data Contracts | `PLAN.md` | `ARCHITECTURE.md` |
-| Tasks, `[P]` / `[S: id]` dependencies, AC coverage | `PLAN.md > Tasks` (flat IDs) | `TASKS.md` (layers) |
-| Test obligations | `PLAN.md > Checks` | `TESTS.md` |
-
-A piece missing that blocks a task → Logic Gap for that task (Phase 3 format), keep going on unblocked tasks. Two tasks asserting incompatible things → Contract Conflict, halt. Don't guess.
+A piece missing that blocks a task, or plan files that contradict each other on it → Logic Gap for that task (Phase 3 format), keep going on unblocked tasks. Two tasks asserting incompatible things → Contract Conflict, halt. Don't guess.
 
 **Investigation Report** — extract: status, symptom and reproduction baseline, root cause and evidence chain, affected files, recommended actions, ruled-out hypotheses. `INCONCLUSIVE` → halt. Missing root cause, evidence, affected files, or recommended actions → halt.
 
@@ -164,7 +157,7 @@ Keep going on unblocked tasks. For Investigation Reports, also check the reporte
 
 ### Phase 4 — Implement
 
-Follow layer order (M+) and `[S: id]` dependencies. Each task meets the contract's stated inputs, outputs, error cases, behavior statements, and edge cases word-for-word.
+Follow layer order (when the plan has layers) and `[S: id]` dependencies. Each task meets the contract's stated inputs, outputs, error cases, behavior statements, and edge cases word-for-word.
 
 Before every new symbol: ladder. If the contract named it, build it. If it didn't, rungs 1–6 first.
 
@@ -174,7 +167,7 @@ Smells, dead code, or design problems outside the lines you're editing: log unde
 
 ### Phase 5 — Tests
 
-Only when the contract has `TESTS.md`, a `PLAN.md > Checks` section, or explicit test tasks. The planner owns that call.
+Only when the contract lists test obligations or explicit test tasks. The planner owns that call.
 
 When present, add or update tests only where they prove behavior the contract promised: the main success path plus every edge case it names (WBS plans), or a regression test for the reported symptom where a surface exists (investigations). Mock external boundaries — DB, network, filesystem, time. Use the project's existing test framework and style. Never introduce a new one.
 

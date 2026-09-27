@@ -45,7 +45,7 @@ A fixture with one caller belongs in the test that uses it.
 
 Fewest tests never means skipping:
 
-- Every obligation the plan lists (`TESTS.md > Test Mapping`, `PLAN.md > Checks`, or explicit test tasks).
+- Every obligation the plan lists — its test mapping, gaps, or explicit test tasks.
 - Validation at trust boundaries, error handling that prevents data loss, security paths, accessibility basics — when the change touches them.
 - The regression case for an Investigation Report.
 
@@ -57,12 +57,11 @@ Proceed when the intent already exists:
 
 | Source | Where the obligations live |
 | :--- | :--- |
-| S plan (`PLAN.md`) | `Checks` (contract → task), `What Must Be True`, `Failure Cases`, flat task IDs (`Task 1`) |
-| M+ plan | `TESTS.md > Test Mapping` and `Gaps`, `ARCHITECTURE.md > What Must Be True` / `Failure Cases`, `TASKS.md` (layered IDs) |
+| Plan (any size) | Test obligations, what must be true, failure cases, task IDs — read every file in the folder |
 | Investigation Report | Symptom, root cause, `Verification target`, `Prevention > Regression coverage` |
 | Existing feature, no plan | Public behavior read from code and callers |
 
-The plan owns test scope. Honor its obligations; don't widen them. Plan says tests are off (no `TESTS.md`, no `Checks`, no test tasks) and the user still invoked this skill → proceed on the user's request, and say so in one line.
+The plan owns test scope. Honor its obligations; don't widen them. Plan says tests are off (no test obligations, no test tasks) and the user still invoked this skill → proceed on the user's request, and say so in one line.
 
 Expected behavior is a business decision nobody made → route to `clarify`. Implementation approach still unknown → route to `plan`.
 

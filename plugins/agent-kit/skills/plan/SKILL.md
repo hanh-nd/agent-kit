@@ -69,7 +69,7 @@ Smallest diff never removes:
 - Accessibility basics
 - Anything the user or an AC explicitly asked for
 
-Non-trivial logic (a branch, a loop, a parser, a money or security path) gets **one** runnable check — the smallest thing that fails if the logic breaks. Trivial one-liners need none. Whole-system rewrites, multi-quarter migrations, and fixes inside dependencies you don't own go to Scope OUT.
+Non-trivial logic (a branch, a loop, a parser, a money or security path) gets **one** runnable check — the smallest thing that fails if the logic breaks. Trivial one-liners need none. Whole-system rewrites, multi-quarter migrations, and fixes inside dependencies you don't own go to Not included.
 
 ## Decisions and questions
 
@@ -102,12 +102,12 @@ No real alternative → state the choice and move on. Don't re-argue once the us
 ### Phase 1: Read and size
 
 1. **Read the input.** Pull out Goal, Background, and verifiable ACs. From a Clarification Brief: ACs from "Per-AC Resolutions"; "Gaps Resolved" / "Confirmed Constraints" / explicit defaults are the business source of truth; `NEEDS_STAKEHOLDER`, `NEEDS_SPIKE`, `spike-first`, `re-clarify-after-stakeholder` are blockers.
-2. **Read the code.** Use context this conversation already has; explore only what's missing. Files you'll touch, their callers and dependents, and any Mermaid diagrams this plan makes stale. A brief that describes code behavior gets verified, or the mismatch gets flagged.
+2. **Read the code.** Use context this conversation already has; explore only what's missing. Files you'll touch, their callers and dependents, and any Mermaid diagrams this plan makes stale. The flow you trace here is what the README diagram draws — nothing more. A brief that describes code behavior gets verified, or the mismatch gets flagged.
 3. **Reuse sweep.** Climb the ladder for each piece of new behavior, once. Skip anything an earlier explorer already settled with paths. List each hit: reuse it, or one line on why not.
 4. **Size the plan.**
-   - **S** — ≤ 3 files, no schema change, no new cross-module contract, no security path → `PLAN.md`.
+   - **S** — ≤ 3 files, no schema change, no new cross-module contract, no security path → `README.md` + `PLAN.md`.
    - **M / L / XL** — anything else → `README.md`, `ARCHITECTURE.md`, `TASKS.md`, `TESTS.md`.
-5. **Tests on or off.** Read `.agent-kit/settings.json` if present. `project.hasTests` and `project.runTests` both `true` → tests on. Otherwise tests off: no `TESTS.md`, no test tasks, no `Checks` section in `PLAN.md`; record why in Decisions. The failure review in Phase 3 runs either way.
+5. **Tests on or off.** Read `.agent-kit/settings.json` if present. `project.hasTests` and `project.runTests` both `true` → tests on. Otherwise tests off: no `TESTS.md`, no test tasks, no `Checks` section in `PLAN.md`; record why in README Decisions. The failure review in Phase 3 runs either way.
 
 ### Phase 2: Challenge the scope (skip for a Design Brief)
 
@@ -140,7 +140,8 @@ kit_save_handoff({
 });
 ```
 
-- **Order:** S → `PLAN.md`. M+ → `ARCHITECTURE.md` → `TASKS.md` → `TESTS.md` (tests on) → `README.md`.
+- **Order:** S → `PLAN.md` → `README.md`. M+ → `ARCHITECTURE.md` → `TASKS.md` → `TESTS.md` (tests on) → `README.md`. README goes last — it summarizes the rest.
+- **README is for a human skimming.** One screen, plain words, an ASCII diagram, no paths, IDs (except ACs), or code. Rules in `references/templates.md`. The agent files carry the detail.
 - **Slug:** if `$ARGUMENTS` contains `.agent-kit/handoffs/<slug>/...`, use `<slug>` exactly. Otherwise derive it once from the feature or ticket name. Same slug in every call. Two saves return different folder paths → halt and say so.
 - **One home per fact.** Each section lives in exactly one file; others point to it. Every referenced ID (AC, BC, F, task) must exist in the file that owns it.
 - **Contracts, not code.** Interfaces, invariants, error triggers, ownership. Exception: when the whole change is one line, show the line.
@@ -155,7 +156,7 @@ kit_save_handoff({
      ├── ARCHITECTURE.md
      ├── TASKS.md
      └── TESTS.md  # only when present
-     # S plans: PLAN.md only
+     # S plans: README.md + PLAN.md
 
 Defaults taken (override any): <area>: <default>; ...   # omit when none
 
@@ -187,6 +188,7 @@ Before Phase 5:
 - Every AC has at least one task. Every critical failure has a task.
 - Every CREATE has a search in its Reuse check. Every rung-2 hit is in the Reuse Map.
 - Every referenced ID exists in the file that owns it.
+- Each file opens with its purpose header, and no two files disagree.
 
 ## Common mistakes
 
@@ -194,7 +196,8 @@ Before Phase 5:
 | :--- | :--- |
 | New util that already exists three files over | Run the ladder. Rung 2 is the one that gets skipped. |
 | Extracting a helper or interface with one caller | Inline it. Extract on the second caller. |
-| Four files for a two-file change | Size it in Phase 1. S gets `PLAN.md`. |
+| Four files for a two-file change | Size it in Phase 1. S gets `README.md` + `PLAN.md`. |
+| README reads like a spec (paths, IDs, tables) | Move it to the agent files; README is the one-screen story. |
 | Stopping to ask about a call you could default | Record the default in Decisions and keep going. |
 | Cutting validation or error handling to shrink the diff | See "When not to cut". |
 | Treating a Design Brief as permission to skip verification | Skip Phase 2 only. Still check claims, still review. |
