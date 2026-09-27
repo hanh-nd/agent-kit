@@ -18,6 +18,13 @@ A good test is a **behavior sensor**. It fails only when a real behavior changes
 
 **Write the fewest tests that cover the most cases.** Each kind of scenario — happy path, boundary, failure, regression — needs one representative proof. Not one test per input, per method, or per branch. Several inputs exercising the same behavior → one parameterized case. Two tests that fail for the same reason → delete one.
 
+Before adding a test, stop at the first rung that holds:
+
+1. **Does it need to exist?** Name the realistic bug that makes it fail. Can't → skip it.
+2. **Already proven?** An existing test fails for that bug → stop.
+3. **Same behavior, new input?** Add a row to the existing parameterized case.
+4. **Only then:** one new test.
+
 This skill adds and updates tests. It doesn't change production behavior, except for testability seams the plan or Investigation Report already called for.
 
 ## Voice
@@ -105,13 +112,14 @@ Narrowest layer that proves the behavior with enough confidence:
 ### Phase 3 — Reject these
 
 - **Method worship** — one test per method instead of one per behavior.
-- **Implementation coupling** — asserting private helpers, call order, internal structure, whole-object equality when one field matters, or incidental formatting.
-- **Mock theater** — verifying mock choreography when a real outcome is observable.
+- **Implementation coupling** — asserting private helpers, call order, internal structure, whole-object equality when one field matters, or incidental formatting. Litmus: it breaks under a refactor that keeps behavior the same.
+- **Mock theater** — verifying mock choreography when a real outcome is observable, or a mock that implements the behavior being asserted.
+- **False pass** — a negative test that passes for the wrong reason, such as a different guard rejecting the input first.
 - **Flaky signal** — wall clock, randomness, network, filesystem, DB, test order, or shared state with no seam.
 - **Opaque failure** — nothing in the name, setup, or assertion says what broke.
 - **Coverage laundering** — getters, setters, constructors, pass-throughs, or dead branches with no decision logic.
 - **Duplicate coverage** — already proven at a better layer.
-- **Logic in the test** — branching, loops, computed expectations, or setup complex enough to need its own tests.
+- **Logic in the test** — branching, loops, computed expectations, an expected value produced by the code under test, or setup complex enough to need its own tests.
 
 ### Phase 4 — Shape
 
@@ -140,6 +148,8 @@ For each failure:
 3. **Flaky** → not a pass. Find whether the nondeterminism is in the test, the code, or the infrastructure.
 4. The same failure survives 2–3 attempts → stop on that test and report it.
 
+Regression tests must be seen failing without the fix: temporarily revert only the fix lines, run, confirm red for the intended reason, restore, confirm green. Can't revert safely → report it as `not verified red`. Never seen red → it proves the mock, not the fix.
+
 Command expensive or unavailable → say so.
 
 ## Output
@@ -162,8 +172,8 @@ Size it to the work. One added test gets a few lines; drop any section with noth
 ### Added
 - `path/to/test.ts` — proves ...
 
-### Rejected
-- [candidate] — method worship / coupling / duplicate / low signal / flaky
+### Skipped
+- [candidate] — no named bug / duplicate / coupling / low signal / flaky; add when [condition]
 
 ### Blocked
 - <obligation> — contract and code disagree: <one line>; route to <skill>
