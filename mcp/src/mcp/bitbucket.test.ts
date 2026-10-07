@@ -339,9 +339,9 @@ describe('handleGetBitbucketPrComments', () => {
     assert.equal(calls.length, 2);
     assert.equal(calls[0].url, `${API}/repositories/acme/web-app/pullrequests/42/comments?pagelen=100`);
     assert.match(text, /4 comments in 3 threads · 2 open · 1 resolved/);
-    assert.match(text, /### General\n- \*\*#1 · user1 · 2026-10-01 · 🟡 open\*\*\n  > body 1/);
+    assert.match(text, /### General\n- \*\*#1 · user1 · 2026-10-01 · 🟡 open\*\*\n {2}> body 1/);
     assert.match(text, /#### `src\/a.ts`\n- \*\*#2 · user2 · 2026-10-01 · line 12 · 🟡 open\*\*/);
-    assert.match(text, /  ↳ \*\*#3 · user3 · 2026-10-01\*\*\n    > body 3/);
+    assert.match(text, / {2}↳ \*\*#3 · user3 · 2026-10-01\*\*\n {4}> body 3/);
     assert.match(text, /#4 · user4 · 2026-10-01 · old line 5 · ✅ resolved by Ann/);
   });
 
@@ -368,7 +368,7 @@ describe('handleGetBitbucketPrComments', () => {
     ]);
     const text = (await handleGetBitbucketPrComments({ input: PR_URL })).content[0].text;
     assert.doesNotMatch(text, /#1 /);
-    assert.match(text, /#2 [^\n]*\n  > _\(deleted\)_/);
+    assert.match(text, /#2 [^\n]*\n {2}> _\(deleted\)_/);
     assert.match(text, /↳ \*\*#3 /);
   });
 

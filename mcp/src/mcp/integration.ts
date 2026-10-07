@@ -529,6 +529,7 @@ async function fetchWorkspaceMembers(ws: string, auth: string): Promise<Bitbucke
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
         `${message}\n\nLooking up reviewers by name lists workspace members — the API token needs the read:workspace:bitbucket scope.`,
+        { cause: error },
       );
     }
     const parseResult = BitbucketMembersPageSchema.safeParse(data);
