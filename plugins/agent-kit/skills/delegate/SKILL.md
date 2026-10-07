@@ -2,6 +2,9 @@
 name: delegate
 description: 'Delegate a task to an external agent CLI (Gemini, Claude, or Codex) with optional handoff context'
 version: 2.0.0
+providers:
+  claude:
+    model: haiku
 ---
 
 # 🤝 Delegate

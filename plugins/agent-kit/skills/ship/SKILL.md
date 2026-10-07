@@ -4,6 +4,7 @@ description: Commit and push local changes, open Bitbucket PRs with reviewers by
 version: 1.0.0
 providers:
   claude:
+    model: sonnet
     effort: low
     disable-model-invocation: true
   codex:

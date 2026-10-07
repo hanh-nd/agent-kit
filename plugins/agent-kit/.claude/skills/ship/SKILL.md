@@ -2,6 +2,7 @@
 name: ship
 description: Commit and push local changes, open Bitbucket PRs with reviewers by name, and optionally post the PR links to a Slack channel. Use when the user runs /ship, e.g. "/ship to Dien and Dung", "/ship draft to Dien", or "/ship to Dien, then send slack message to code-review: @enablement please help me to review".
 disable-model-invocation: true
+model: sonnet
 effort: low
 ---
 

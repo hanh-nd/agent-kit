@@ -4,6 +4,7 @@ description: 'Fetch a Jira ticket and route to the planning pipeline'
 version: 2.0.0
 providers:
   claude:
+    model: haiku
     effort: low
     disable-model-invocation: true
   codex:
