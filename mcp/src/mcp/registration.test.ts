@@ -11,6 +11,9 @@ const EXPECTED_NON_MEMORY_TOOLS = [
   'kit_save_handoff',
   'kit_trigger_agent',
   'kit_get_bitbucket_pr',
+  'kit_create_bitbucket_pr',
+  'kit_find_bitbucket_reviewers',
+  'kit_get_bitbucket_pr_comments',
   'kit_jira_get_ticket',
   'kit_confluence_get_page',
 ];
@@ -29,7 +32,7 @@ async function buildClientWithTools(): Promise<Client> {
 }
 
 describe('MCP tool registration smoke tests', () => {
-  test('R1: all 5 non-memory tool names are registered', async () => {
+  test('R1: all 8 non-memory tool names are registered', async () => {
     const client = await buildClientWithTools();
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
@@ -97,6 +100,43 @@ describe('MCP tool registration smoke tests', () => {
 
     assert.ok(tool, 'kit_confluence_get_page must be registered');
     assert.ok(tool.annotations, 'kit_confluence_get_page must have annotations');
+    assert.equal(tool.annotations.readOnlyHint, true, 'readOnlyHint must be true');
+    assert.equal(tool.annotations.idempotentHint, true, 'idempotentHint must be true');
+    assert.equal(tool.annotations.openWorldHint, true, 'openWorldHint must be true');
+  });
+
+  test('R7: kit_create_bitbucket_pr (readOnlyHint:false) has correct annotations', async () => {
+    const client = await buildClientWithTools();
+    const { tools } = await client.listTools();
+    const tool = tools.find((t) => t.name === 'kit_create_bitbucket_pr');
+
+    assert.ok(tool, 'kit_create_bitbucket_pr must be registered');
+    assert.ok(tool.annotations, 'kit_create_bitbucket_pr must have annotations');
+    assert.equal(tool.annotations.readOnlyHint, false, 'readOnlyHint must be false');
+    assert.equal(tool.annotations.destructiveHint, false, 'destructiveHint must be false');
+    assert.equal(tool.annotations.idempotentHint, false, 'idempotentHint must be false');
+    assert.equal(tool.annotations.openWorldHint, true, 'openWorldHint must be true');
+  });
+
+  test('R8: kit_get_bitbucket_pr_comments (readOnlyHint:true) has correct annotations', async () => {
+    const client = await buildClientWithTools();
+    const { tools } = await client.listTools();
+    const tool = tools.find((t) => t.name === 'kit_get_bitbucket_pr_comments');
+
+    assert.ok(tool, 'kit_get_bitbucket_pr_comments must be registered');
+    assert.ok(tool.annotations, 'kit_get_bitbucket_pr_comments must have annotations');
+    assert.equal(tool.annotations.readOnlyHint, true, 'readOnlyHint must be true');
+    assert.equal(tool.annotations.idempotentHint, true, 'idempotentHint must be true');
+    assert.equal(tool.annotations.openWorldHint, true, 'openWorldHint must be true');
+  });
+
+  test('R9: kit_find_bitbucket_reviewers (readOnlyHint:true) has correct annotations', async () => {
+    const client = await buildClientWithTools();
+    const { tools } = await client.listTools();
+    const tool = tools.find((t) => t.name === 'kit_find_bitbucket_reviewers');
+
+    assert.ok(tool, 'kit_find_bitbucket_reviewers must be registered');
+    assert.ok(tool.annotations, 'kit_find_bitbucket_reviewers must have annotations');
     assert.equal(tool.annotations.readOnlyHint, true, 'readOnlyHint must be true');
     assert.equal(tool.annotations.idempotentHint, true, 'idempotentHint must be true');
     assert.equal(tool.annotations.openWorldHint, true, 'openWorldHint must be true');
