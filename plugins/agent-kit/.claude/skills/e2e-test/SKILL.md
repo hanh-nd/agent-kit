@@ -65,8 +65,8 @@ Read-only checks. Never fix setup yourself: anything missing goes into the one a
 | Built from current tree | `status.buildHistory[0].finishTime` is newer than the newest mtime of the changed files, and no `pendingBuildSince` | Pending build → wait once first. Still stale → trigger a rebuild |
 | No build error | `buildHistory[0].error` empty | fix the build (quote Tilt's error line) |
 | Base URL | Tilt `status.endpointLinks` | give the base URL of each app the cases hit |
-| Devtools browser opens | `list_pages` | close the other Chrome holding the profile, or restart chrome-devtools-mcp |
-| UI login | Load one protected page in the devtools browser. The profile persists, so a past login usually holds. | log in in the devtools browser window |
+| Devtools attached | `list_pages` lists the human's open tabs (the MCP runs with `--autoConnect` on their main Chrome profile) | open Chrome, enable remote debugging at `chrome://inspect/#remote-debugging`, and accept the connect prompt |
+| UI login | `new_page` on one protected page. Their Chrome session usually holds. | log in to the app in their Chrome |
 | API token | `E2E_API_TOKEN` env, if API cases need auth | export `E2E_API_TOKEN` and restart the session |
 
 Resources with `live_update` sync files without a new build, so build time proves little. For them, compare one changed file inside the pod (`kubectl exec … md5sum`) with the local copy.
@@ -93,9 +93,10 @@ Nothing missing → show the plan and start right away. No approval gate; the us
 
 ### UI cases (chrome-devtools-mcp)
 
+- The browser is the human's main profile. Work only in tabs you opened with `new_page`, never read or act on their other tabs, and close yours with `close_page` when done.
 - One `take_snapshot` per screen, then targeted reads. Act by snapshot `uid`.
 - Per case, check `list_console_messages` and `list_network_requests` for errors on the path you touched.
-- When switching accounts, clear localStorage and sessionStorage. Multi-account switchers keep the old identity otherwise.
+- When switching accounts, clear localStorage and sessionStorage on the app's origin only. Multi-account switchers keep the old identity otherwise.
 - Login wall mid-run (session expired) → ask the human to log in again, then continue.
 
 ### Job cases
