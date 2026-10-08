@@ -1,7 +1,7 @@
 ---
 name: code-review
 description: Rigorous semantic code review of features, PRs, commits, or diffs with evidence-backed findings. Catches critical issues (data safety, concurrency, trust boundaries, destructive ops) and informational concerns (design fit, dead code, test parity, magic values, over-engineering). Language- and domain-agnostic. Also loadable as a sub-skill by review orchestrators.
-version: 5.0.0
+version: 5.1.0
 providers:
   claude:
     effort: high
@@ -12,10 +12,11 @@ providers:
 
 You review like a strict principal engineer: skeptical, evidenced, no rubber stamps.
 
-The bar is codebase health — it improves or stays level, never drops. Two separate jobs:
+The bar is codebase health — it improves or stays level, never drops. Three separate jobs:
 
 1. **Find:** report every real, evidenced problem, at every severity. Don't hold back a finding because it seems minor or because you've already found bigger ones.
-2. **Judge:** rank what you found and set the verdict. Block what would lower quality or can't be reviewed honestly. Don't block an improvement just because you'd have written it differently.
+2. **Verify:** a fresh context checks each behavior claim against the code. The context that found a problem can't be the one that confirms it.
+3. **Judge:** rank what you found and set the verdict. Block what would lower quality or can't be reviewed honestly. Don't block an improvement just because you'd have written it differently.
 
 The unit of review is the **feature or behavior**, not the file list. The diff is evidence of how that unit changed.
 
@@ -70,7 +71,7 @@ Then judge:
 - **Scope drift** — stated intent vs what changed: `CLEAN` or `DRIFT` (name the hunks). Flag drift even when it looks harmless; unrelated changes widen the impact.
 - **Reviewability** — feature work mixed with broad refactoring, unrelated ownership areas, or a size that makes coverage performative → BLOCKER recommending a split. Large deletions, generated files, and mechanical refactors stay reviewable when intent and verification are clear.
 
-**Fan-out.** A reviewable diff that holds several independent review units → spawn one subagent per unit to run Phases 2–3, passing it the diff, intent, and its unit map. Run Phase 4 yourself across all their findings, so severity stays consistent and duplicates merge. One unit → review it yourself; only the reader pass (Phase 3b) runs separately.
+**Fan-out.** A reviewable diff that holds several independent review units → spawn one subagent per unit to run Phases 2–3, passing it the diff, intent, and its unit map. Run Phases 3c–4 yourself across all their findings, so one verifier sees every claim, severity stays consistent, and duplicates merge. One unit → review it yourself; only the reader pass (3b) and the verifier (3c) run separately.
 
 ### Phase 2 — Build context
 
@@ -143,9 +144,25 @@ Spawn one subagent per review unit, in parallel with your Phase 2–3 work. Give
 
 Its stops are quality findings like any other: merge them into yours, drop duplicates, and judge them in Phase 4.
 
+### Phase 3c — Verify
+
+The context that built a finding's story can't test it: it rereads the code through the story. So checking runs separately.
+
+Collect every finding and question that claims behavior — what the code does or did, who reads it, what breaks. Readability stops and anchored quality findings skip this; their anchor is their evidence. Spawn **one** fresh subagent for the whole set. Give it the diff, codebase access, and each claim as one sentence with its `file:line` — not your reasoning, evidence, severity, or praise; shuffle the order. Brief it with this, verbatim:
+
+> You are verifying review claims about a code change. Another reviewer wrote these claims; you have not seen their reasoning, and you should not trust it. Find out, from the code, whether each is true. For each claim: (1) Trace the behavior before the change and after it — a claim that the change makes something worse is true only if the old code didn't already behave that way. (2) Open every file the claim depends on — callers, consumers, handlers, the endpoint a client actually hits; don't stop at the first file that fits the story. (3) Give one verdict: CONFIRMED — you saw the evidence; cite `file:line` for old and new behavior. REFUTED — the code disproves it; cite the `file:line` that does. UNCONFIRMED — the code can't settle it; say the one thing that would. Report the files you opened per claim, and anything adjacent you found with its evidence. Don't claim a check you didn't read.
+
+Apply its verdicts as given:
+
+- **CONFIRMED** → keep the finding, with the verifier's evidence.
+- **REFUTED** → drop it.
+- **UNCONFIRMED** → it becomes a QUESTION, with what would settle it.
+
+Adjacent issues it reports join Phase 4 as QUESTIONS, with its evidence as what would confirm them; they had no independent check. For categories with verified findings, Coverage cites what the verifier opened; for the rest, what you traced.
+
 ### Phase 4 — Judge
 
-A separate step, after finding. Assign each finding one severity:
+A separate step, after verifying. Assign each finding one severity:
 
 - **BLOCKER** — a critical category, an un-updated consumer, or a split-required diff.
 - **CONCERN** — should fix before merge; real cost if left.
@@ -162,7 +179,7 @@ Rank inside each section by impact. Then set the verdict:
 - Only CONCERNS → `COMMENT ONLY`, or `APPROVE` if they're minor.
 - Only NITPICKS or nothing → `APPROVE`.
 
-Judging can also cut. A finding the code refutes — the guard exists, the name is defined, the consumer was updated — is dropped, not downgraded. In this phase, severity sets the section; only refutation removes a finding.
+Severity sets the section, never whether a finding appears.
 
 ---
 
