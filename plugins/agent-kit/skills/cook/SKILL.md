@@ -1,10 +1,10 @@
 ---
 name: cook
-description: 'Takes a Jira ticket to implemented, validated code in one run, orchestrating ticket, plan, code, and validator subagents from the main conversation. Use when the user runs /cook with a ticket URL or key, e.g. "/cook https://x.atlassian.net/browse/YR-501", or "/cook YR-501 fast" to skip validation.'
+description: 'Takes a Jira ticket to implemented code in one run, orchestrating ticket, plan, and code subagents from the main conversation. Fast by default (no validation); validator subagents run only when asked. Use when the user runs /cook with a ticket URL or key, e.g. "/cook https://x.atlassian.net/browse/YR-501", or "/cook YR-501 with validation" to validate the plan and code.'
 version: 1.0.0
 providers:
   claude:
-    argument-hint: '<ticket-url-or-key> [fast]'
+    argument-hint: '<ticket-url-or-key> [with validation]'
     model: opus
     effort: medium
     disable-model-invocation: true
@@ -44,10 +44,13 @@ Write for a tired teammate, not a reviewer you're impressing.
 | Input | Meaning |
 |---|---|
 | Ticket URL or key | Required. Extract the key (`[A-Z][A-Z0-9]+-\d+`). None found → ask for it. |
-| `fast`, `--fast`, `skip validation` | Skip stages 3 and 5. |
-| `--budget=N` | Attempts per validation stage. Default `3`, min `1`. |
+| _(nothing extra)_ | **Fast, the default.** Skip stages 3 and 5. |
+| `with validation`, `validate`, `--validate`, `full` | Run stages 3 and 5. |
+| `--budget=N` | Attempts per validation stage. Default `3`, min `1`. Implies validation. |
 
-Open with one line: `Cooking YR-501 — full, budget 3` or `Cooking YR-501 — fast, no validation`.
+Unsure whether the user asked for validation → fast. `fast` / `skip validation` are accepted and mean the default.
+
+Open with one line: `Cooking YR-501 — fast, no validation` or `Cooking YR-501 — full, budget 3`.
 
 ## Stages
 
@@ -56,7 +59,7 @@ Open with one line: `Cooking YR-501 — full, budget 3` or `Cooking YR-501 — f
 | 1 | Ticket | `general-purpose` | `haiku` | `low` | Fetch and format. No judgment. |
 | 2 | Plan | `general-purpose` | `opus` | `high` | No human reviews the plan before code runs; misses multiply. |
 | 3 | Validate plan | `ak:validator` | `opus` | `high` | Catches what the planner rationalized away. |
-| 4 | Code | `general-purpose` | `sonnet` | `medium` | Executes a validated contract. Medium: nobody checks between stages. |
+| 4 | Code | `general-purpose` | `sonnet` | `medium` | Executes the plan as a contract. Medium: nobody checks between stages. |
 | 5 | Validate code | `ak:validator` | `opus` | `high` | Runs lint and tests; checks every task against the plan. |
 
 Pass `model` and `effort` on every `Agent` call as listed. Stages run in order; each waits for the previous handoff. No `Agent` tool (non-Claude hosts) → run the stages inline, same contracts, and say so in the report.
@@ -131,7 +134,7 @@ Invoke the ak:plan skill with the Skill tool, args "@<TICKET_DIR>". Follow it en
 
 **`NEEDS_INPUT` (any producer):** ask with `AskUserQuestion` — one question per blocker, at most 4 per call, the subagent's recommendation first and marked `(Recommended)`. Send back each question with its answer: `User decisions: 1) <question> → <answer> … Continue.` Repeat until `DONE` or `BLOCKED`.
 
-### 3 — Validate plan (skipped in fast mode)
+### 3 — Validate plan (full mode only)
 
 Freeze: `shasum <TICKET_DIR>/README.md`. Spawn the validator:
 
@@ -157,7 +160,7 @@ Invoke the ak:code skill with the Skill tool, args "@<PLAN_DIR>". Follow it end 
 
 `CODE_DIR` = `ARTIFACT`.
 
-### 5 — Validate code (skipped in fast mode)
+### 5 — Validate code (full mode only)
 
 Freeze: `shasum <PLAN_DIR>/*`. Spawn the validator:
 
@@ -205,7 +208,7 @@ After every return, before moving on:
 3. **One slug.** All folders sit under `.agent-kit/handoffs/<key-lowercase>/`. Otherwise halt with both paths.
 4. **Paths, not content.** Pass folder paths between stages, never pasted or summarized artifacts — a summary drops exactly what validation checks.
 
-One progress line per stage result: `✅ Plan → .agent-kit/handoffs/yr-501/plan/ — validating`, `❌ Plan validation 1/3 — repairing`.
+One progress line per stage result: `✅ Plan → .agent-kit/handoffs/yr-501/plan/ — coding` (fast) or `— validating` (full), `❌ Plan validation 1/3 — repairing`.
 
 ## Halts
 
@@ -239,8 +242,9 @@ Handoffs: `.agent-kit/handoffs/<key>/`
 
 **Changed:** <"Files Modified" section of REPORT.md, as-is>
 **Defaults taken:** <every DEFAULTS line + user answers, one line each — omit if none>
-**Flags:** <pre-existing dirty files, validation skipped, inline run — omit if none>
+**Flags:** <pre-existing dirty files, inline run — omit if none>
 **Open issues:** <latest validator report verbatim, logic gaps, or halt text — omit if none>
 
 Next: `/review`, then `/ship to <reviewer>`.   ← DONE only
+Fast run → also: `Validation skipped. Re-run with \`with validation\` to check plan and code.`
 ```
