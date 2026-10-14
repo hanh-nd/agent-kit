@@ -25,7 +25,6 @@ Write for a tired teammate, not a reviewer you're impressing.
 |---|---|
 | `to Dien and Dung` | Reviewers, by name. Resolved in step 1. |
 | `draft` | Create draft PRs. |
-| `into develop` | Destination branch. Absent → the repo's default branch, unless merged PRs in `git log` clearly go elsewhere; flag the pick. |
 | `then send slack message to <channel>: <text>` | After the PRs, post to `<channel>`. No such clause → PRs only, no Slack. |
 
 ## Find the repos
@@ -41,10 +40,11 @@ Run in this order. Steps 1–2 touch nothing remote, so a stop there leaves noth
 Everything that can need an answer is resolved here, so all questions come in one batch before anything is written.
 
 - **Reviewers** — `kit_find_bitbucket_reviewers(names, workspace)`, with the workspace from `git remote get-url origin`. One call per workspace. Keep the resolved full names or UUIDs for step 5.
+- **Destination branch** — the base branch: the remote branch with the closest fork point (`git merge-base`). Unclear → ask.
 - **Slack channel** (if posting) — `slack_search_channels`; use the exact, non-archived name match.
 - **Slack mentions** (if posting) — a plain `@mention` sent through the API notifies no one. Convert each one:
   - Person (`@Hoang Nguyen`) → `slack_search_users` with the name; one match → `<@U…>`.
-  - Group (`@enablement`) → search Slack messages for an earlier mention of it (`slack_search_public`, keyword = the group name); it renders as `<!subteam^S…>`.
+  - Group (`@enablement`) → search Slack messages for an earlier mention of it (`slack_search_public`, keyword = the group name); it renders as `<!subteam^S…>`, never `<@S…>`.
   - Not found → keep the plain text and flag it.
 
 Any name ambiguous or not found (a not-found Slack mention excepted) → ask once, listing the candidates for every problem name. Commit nothing until answered.
@@ -78,6 +78,7 @@ Never pass `--no-verify`. If a hook fails on a mechanical issue (unused import, 
 
 - `title` — the commit subject, verbatim. No ticket prefix or suffix.
 - `description` — 2–5 bullets on what changed and why. Mention the ticket key and any related PR from the same ship.
+- `destinationBranch` — from step 1. Always pass it; omitted, Bitbucket uses the main branch.
 - `reviewers` — the names resolved in step 1.
 - `draft: true` only when the request says draft.
 - Omit `closeSourceBranch` unless the user asked.
@@ -100,4 +101,4 @@ Send after every repo has finished. List only the PRs that were created and flag
 
 - One line per PR: URL, `source → destination`, reviewers, draft if so.
 - Slack message link, if posted.
-- Flags: a new branch created (the checkout is now on it), files left out, a destination picked from history, hook fixes, a mention sent as plain text, failed repos, you dropped as reviewer (the PR tool reports this).
+- Flags: a new branch created (the checkout is now on it), files left out, hook fixes, a mention sent as plain text, failed repos, you dropped as reviewer (the PR tool reports this).
