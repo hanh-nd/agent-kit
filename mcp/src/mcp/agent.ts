@@ -10,8 +10,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { z } from 'zod';
 
-import { getWorkspaceRoot, mcpJson, mcpText } from '../utils/utils.js';
 import { commandExists, sanitizeOutput, validatePath } from '../core/security/index.js';
+import { compact, getWorkspaceRoot, mcpJson, mcpText } from '../utils/utils.js';
 
 // Configurable timeout via environment variable (default: 5 minutes)
 const AGENT_TIMEOUT = parseInt(process.env.KIT_AGENT_TIMEOUT || '300000', 10);
@@ -30,19 +30,51 @@ interface AgentJob {
 const jobRegistry = new Map<string, AgentJob>();
 
 const INSTALL_HINTS: Record<AgentName, string> = {
-  gemini: 'Install Gemini CLI: https://github.com/google-gemini/gemini-cli',
+  gemini: 'Install Antigravity CLI (agy)',
   claude: 'Install Claude CLI: npm install -g @anthropic-ai/claude-code',
   codex: 'Install Codex CLI: npm install -g @openai/codex',
 };
 
-function agentArgs(agent: AgentName, prompt: string, workspaceRoot: string): string[] {
+function resolveAgent(agent: AgentName): string {
+  if (agent === 'gemini') return 'agy';
+  return agent;
+}
+
+export function agentArgs(agent: AgentName, prompt: string, workspaceRoot: string, sessionId?: string): string[] {
   switch (agent) {
     case 'gemini':
-      return ['-y', '-p', prompt];
+      return compact([
+        '--dangerously-skip-permissions',
+        sessionId ? '--conversation' : null,
+        sessionId ?? null,
+        '-p',
+        prompt,
+        '--output-format',
+        'json',
+      ]);
     case 'claude':
-      return ['--dangerously-skip-permissions', '-p', prompt];
+      return compact([
+        '--dangerously-skip-permissions',
+        sessionId ? '--resume' : null,
+        sessionId ?? null,
+        '-p',
+        prompt,
+        '--output-format',
+        'json',
+      ]);
     case 'codex':
-      return ['--ask-for-approval', 'never', '--sandbox', 'workspace-write', '--cd', workspaceRoot, 'exec', prompt];
+      return compact([
+        '--ask-for-approval',
+        'never',
+        '--sandbox',
+        'workspace-write',
+        '--cd',
+        workspaceRoot,
+        'exec',
+        sessionId ? 'resume' : null,
+        sessionId ?? null,
+        prompt,
+      ]);
   }
 }
 
@@ -75,26 +107,30 @@ function initAgentLog(
 
 export function registerAgentTools(server: McpServer): void {
   server.registerTool(
-    'kit_trigger_agent',
+    'kit_delegate',
     {
       title: 'Delegate to External Agent',
       description:
-        '!Important: Trigger only when user explicitly asks to delegate a task to an external agent CLI (gemini, claude, or codex). The task can be a direct message or a path to a handoff folder (.agent-kit/handoffs/feature-slug/plan).',
+        '!Important: Trigger only when user explicitly asks to delegate a task to an external agent CLI (gemini, claude, or codex). The task can be a direct message or a path to a handoff folder (.agent-kit/handoffs/feature-slug/plan). Optional sessionId allows feedback/continuation.',
       inputSchema: {
         agent: z
           .enum(['gemini', 'claude', 'codex'])
           .describe('The agent CLI to invoke: "gemini", "claude", or "codex"'),
         task: z
           .string()
-          .describe('Task message or path to a handoff folder (e.g., ".agent-kit/handoffs/feature-slug/plan")'),
+          .describe(
+            'Task message, feedback, or path to a handoff folder (e.g., ".agent-kit/handoffs/feature-slug/plan")',
+          ),
+        sessionId: z.string().optional().describe('Existing session ID to resume and send feedback to'),
       },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
-    async ({ agent, task }, extra) => {
+    async ({ agent, task, sessionId: inputSessionId }, extra) => {
       const workspaceRoot = getWorkspaceRoot();
       let job: AgentJob | undefined;
       let logPath: string | undefined;
       let killChild: (() => void) | undefined;
+      let sessionId = inputSessionId;
 
       try {
         // Resolve task: read file if path, otherwise use as-is
@@ -109,7 +145,8 @@ export function registerAgentTools(server: McpServer): void {
           }
         }
 
-        if (!commandExists(agent)) {
+        const cmd = resolveAgent(agent);
+        if (!commandExists(cmd)) {
           return mcpJson({
             agent,
             status: 'error',
@@ -118,10 +155,7 @@ export function registerAgentTools(server: McpServer): void {
           });
         }
 
-        // Gemini: -y (--yolo) for auto-accept, -p for headless prompt
-        // Claude: --dangerously-skip-permissions for auto-accept, -p/--print for headless
-        // Codex: exec for headless prompt, never ask for approval, workspace-write sandbox
-        const args = agentArgs(agent, prompt, workspaceRoot);
+        const args = agentArgs(agent, prompt, workspaceRoot, sessionId);
 
         const { logPath: lp, logStream } = initAgentLog(workspaceRoot, taskSlug(task), agent);
         logPath = lp;
@@ -129,7 +163,7 @@ export function registerAgentTools(server: McpServer): void {
         const jobId = randomUUID();
         // detached=true on Unix creates a new process group so we can kill the
         // entire tree (CLI + its sub-agents) with process.kill(-pid, signal).
-        const child = spawn(agent, args, {
+        const child = spawn(cmd, args, {
           cwd: workspaceRoot,
           env: {
             ...process.env,
@@ -186,23 +220,43 @@ export function registerAgentTools(server: McpServer): void {
           child.on('error', reject);
         });
 
+        const rawOutput = job.chunks.join('');
+        let finalOutput = sanitizeOutput(rawOutput);
+
+        try {
+          const parsed = JSON.parse(rawOutput);
+          sessionId = sessionId ?? parsed.conversation_id ?? parsed.session_id;
+          if (typeof parsed.response === 'string') {
+            finalOutput = sanitizeOutput(parsed.response);
+          } else if (typeof parsed.result === 'string') {
+            finalOutput = sanitizeOutput(parsed.result);
+          }
+        } catch {
+          if (!sessionId) {
+            const uuidMatch = rawOutput.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+            if (uuidMatch) sessionId = uuidMatch[0];
+          }
+        }
+
         return mcpJson({
           agent,
+          sessionId,
           status: 'success',
           log: logPath,
-          output: sanitizeOutput(job.chunks.join('')),
+          output: finalOutput,
         });
       } catch (error) {
         if (extra.signal.aborted) {
           return mcpJson({
             agent,
+            sessionId,
             status: 'cancelled',
             log: logPath,
             output: sanitizeOutput(job?.chunks.join('') ?? ''),
           });
         }
         const msg = error instanceof Error ? error.message : String(error);
-        return mcpJson({ agent, status: 'error', output: '', error: msg });
+        return mcpJson({ agent, sessionId, status: 'error', output: '', error: msg });
       } finally {
         if (killChild) extra.signal.removeEventListener('abort', killChild);
         job?.logStream.end();

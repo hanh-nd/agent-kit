@@ -9,7 +9,7 @@ import { registerIntegrationTools } from './integration.js';
 
 const EXPECTED_NON_MEMORY_TOOLS = [
   'kit_save_handoff',
-  'kit_trigger_agent',
+  'kit_delegate',
   'kit_get_bitbucket_pr',
   'kit_create_bitbucket_pr',
   'kit_find_bitbucket_reviewers',
@@ -55,13 +55,13 @@ describe('MCP tool registration smoke tests', () => {
     }
   });
 
-  test('R3: kit_trigger_agent (readOnlyHint:false) has correct annotations (BC5)', async () => {
+  test('R3: kit_delegate (readOnlyHint:false) has correct annotations (BC5)', async () => {
     const client = await buildClientWithTools();
     const { tools } = await client.listTools();
-    const tool = tools.find((t) => t.name === 'kit_trigger_agent');
+    const tool = tools.find((t) => t.name === 'kit_delegate');
 
-    assert.ok(tool, 'kit_trigger_agent must be registered');
-    assert.ok(tool.annotations, 'kit_trigger_agent must have annotations');
+    assert.ok(tool, 'kit_delegate must be registered');
+    assert.ok(tool.annotations, 'kit_delegate must have annotations');
     assert.equal(tool.annotations.readOnlyHint, false, 'readOnlyHint must be false');
     assert.equal(tool.annotations.destructiveHint, true, 'destructiveHint must be true');
     assert.equal(tool.annotations.idempotentHint, false, 'idempotentHint must be false');

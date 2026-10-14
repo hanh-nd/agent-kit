@@ -23,3 +23,7 @@ export function mcpJson(obj: unknown): McpTextResult {
 export function formatError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
+
+export function compact<T>(items: (T | null | undefined | false)[]): T[] {
+  return items.filter((item): item is T => Boolean(item));
+}
